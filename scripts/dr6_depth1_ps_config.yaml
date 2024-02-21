@@ -1,0 +1,24 @@
+# dr6_depth1_ps_config.yaml
+# All the parameters for running get_angle_from_depth1_ps.py
+
+kx_cut: 90
+ky_cut: 50
+lmax: 2500
+start_index: 11
+stop_index: 47
+unpixwin: True
+angle_min_deg: -20.0
+angle_max_deg: 20.0
+num_pts: 10000
+
+theory_curves_path: "/home/zbh5/act_analysis/scripts/camb_19413797_lensedtotcls.dat"
+
+#ref_map_path: "/home/zbh5/act_analysis/scripts/dr4_tests/cmb_night_pa6_f150_3pass_4way_coadd_map_srcfree.fits"
+#ref_map_path: "/home/zbh5/act_analysis/dr4_maps/dr4_full_coadds/act_dr4.01_s08s16_AA_f150_night_map_srcfree.fits"
+ref_path: "/home/zbh5/act_analysis/dr6_analysis/act_daynight_f150_map.fits"
+ref_beam_path: "/home/zbh5/act_analysis/scripts/dr4_tests/coadd_pa6_f150_night_beam_tform_jitter_cmb_norm.txt"
+
+obs_list: '/home/zbh5/act_analysis/dr6_analysis/dr6_depth1_maps/dr6_depth1_test_map_list.txt'
+#obs_list: '/home/zbh5/act_analysis/dr6_analysis/dr6_depth1_maps/dr6_depth1_test_6maps_list.txt'
+obs_path_stem: "/home/zbh5/act_analysis/dr6_analysis/dr6_depth1_maps/"
+
