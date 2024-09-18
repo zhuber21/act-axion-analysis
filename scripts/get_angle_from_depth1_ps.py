@@ -116,7 +116,7 @@ ref_maps, ref_ivar, ref_beam = aoa.load_ref_map_and_beam(ref_path,ref_beam_path,
 if plot_beam:
     beam_name = os.path.split(ref_beam_path)[1][:-4] # Extracting file name from path and dropping '.txt'
     aoa.plot_beam(output_dir_path, beam_name, centers, ref_beam)
-print("Finished	loading	ref map	and beam")
+print("Finished loading ref map	and beam")
 
 maps = []
 angle_estimates = []

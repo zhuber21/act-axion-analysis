@@ -264,9 +264,10 @@ def plot_QU_maps(output_dir, map_name, maps, **kwargs):
         os.makedirs(save_dir)
     save_fname_Q = map_name + "_mapQ"
     save_fname_U = map_name + "_mapU"
-    plots = enplot.get_plots(maps, **kwargs)
-    enplot.write(save_dir+save_fname_Q, plots[0])
-    enplot.write(save_dir+save_fname_U, plots[1])
+    map_Q = enplot.get_plots(maps[0], **kwargs)
+    map_U = enplot.get_plots(maps[1], **kwargs)
+    enplot.write(save_dir+save_fname_Q, map_Q)
+    enplot.write(save_dir+save_fname_U, map_U)
 
 def plot_T_ref_maps(output_dir, map_name, maps, **kwargs):
     """Plotting just the T refernce map in the depth-1 shape. 
@@ -286,9 +287,10 @@ def plot_QU_ref_maps(output_dir, map_name, maps, **kwargs):
         os.makedirs(save_dir)
     save_fname_Q = map_name + "_refmapQ_wmask"
     save_fname_U = map_name + "_refmapU_wmask"
-    plots = enplot.get_plots(maps, **kwargs)
-    enplot.write(save_dir+save_fname_Q, plots[0])
-    enplot.write(save_dir+save_fname_U, plots[1])
+    map_Q = enplot.get_plots(maps[0], **kwargs)
+    map_U = enplot.get_plots(maps[1], **kwargs)
+    enplot.write(save_dir+save_fname_Q, map_Q)
+    enplot.write(save_dir+save_fname_U, map_U)
 
 def plot_EB_filtered_maps(output_dir, map_name, depth1_TEB, mask, **kwargs):
     """Converts the filtered Fourier space E and B maps back to real space and plots them.
@@ -300,9 +302,10 @@ def plot_EB_filtered_maps(output_dir, map_name, depth1_TEB, mask, **kwargs):
     save_fname_E = map_name + "_filtered_E"
     save_fname_B = map_name + "_filtered_B"
     maps_realspace = enmap.harm2map(depth1_TEB, normalize = "phys")
-    plots = enplot.get_plots(maps_realspace*mask, **kwargs)
-    enplot.write(save_dir+save_fname_E, plots[1])
-    enplot.write(save_dir+save_fname_B, plots[2])
+    map_E = enplot.get_plots(maps_realspace[1], **kwargs)
+    map_B = enplot.get_plots(maps_realspace[2], **kwargs)
+    enplot.write(save_dir+save_fname_E, map_E)
+    enplot.write(save_dir+save_fname_B, map_B)
 
 def plot_mask(output_dir, map_name, mask, **kwargs):
     save_dir = output_dir + "/plots/"
@@ -530,7 +533,7 @@ def plot_tfunc(output_dir, kx, ky, ell, tfunc):
     if not os.path.exists(save_dir): # Make new folder for this run - should be unique
         os.makedirs(save_dir)
     str_k = 'kx'+ str(kx) + '_ky' + str(ky)
-    save_fname_tfunc = "tfunc"+str_k+".png"
+    save_fname_tfunc = "tfunc_"+str_k+".png"
     fig = plt.figure(figsize=(3,4), layout='constrained')
     plt.plot(ell, tfunc, 'b.')
     plt.ylabel("Filtering transfer function")
