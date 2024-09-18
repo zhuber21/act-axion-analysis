@@ -251,6 +251,8 @@ keys_ewrite_mask = {"downgrade": 1, "ticks": 5, "colorbar": True, "font_size": 4
 def plot_T_maps(output_dir, map_name, maps, **kwargs):
     """Plotting just the T depth-1 map to use different range than Q/U."""
     save_dir = output_dir + "/plots/"
+    if not os.path.exists(save_dir): # Make new folder for this run - should be unique
+        os.makedirs(save_dir)
     save_fname_T = map_name + "_mapT"
     plots = enplot.get_plots(maps, **kwargs)
     enplot.write(save_dir+save_fname_T, plots)
@@ -258,6 +260,8 @@ def plot_T_maps(output_dir, map_name, maps, **kwargs):
 def plot_QU_maps(output_dir, map_name, maps, **kwargs):
     """Plotting Q/U depth-1 maps. Assumes Q, then U in an array."""
     save_dir = output_dir + "/plots/"
+    if not os.path.exists(save_dir): # Make new folder for this run - should be unique
+        os.makedirs(save_dir)
     save_fname_Q = map_name + "_mapQ"
     save_fname_U = map_name + "_mapU"
     plots = enplot.get_plots(maps, **kwargs)
@@ -268,6 +272,8 @@ def plot_T_ref_maps(output_dir, map_name, maps, **kwargs):
     """Plotting just the T refernce map in the depth-1 shape. 
        Assumes multiplying by footprint first."""
     save_dir = output_dir + "/plots/"
+    if not os.path.exists(save_dir): # Make new folder for this run - should be unique
+        os.makedirs(save_dir)
     save_fname_T = map_name + "_refmapT_wmask"
     plots = enplot.get_plots(maps, **kwargs)
     enplot.write(save_dir+save_fname_T, plots)
@@ -276,6 +282,8 @@ def plot_QU_ref_maps(output_dir, map_name, maps, **kwargs):
     """Plotting Q/U reference maps in the depth-1 shape.
        Assumes Q, then U in an array. Also assumes multiplying by footprint first."""
     save_dir = output_dir + "/plots/"
+    if not os.path.exists(save_dir): # Make new folder for this run - should be unique
+        os.makedirs(save_dir)
     save_fname_Q = map_name + "_refmapQ_wmask"
     save_fname_U = map_name + "_refmapU_wmask"
     plots = enplot.get_plots(maps, **kwargs)
@@ -287,6 +295,8 @@ def plot_EB_filtered_maps(output_dir, map_name, depth1_TEB, mask, **kwargs):
        Assumes you pass in TEB, but only saves EB. Also multiplies by mask again to ignore
        any leakage from Fourier transforming."""
     save_dir = output_dir + "/plots/"
+    if not os.path.exists(save_dir): # Make new folder for this run - should be unique
+        os.makedirs(save_dir)
     save_fname_E = map_name + "_filtered_E"
     save_fname_B = map_name + "_filtered_B"
     maps_realspace = enmap.harm2map(depth1_TEB, normalize = "phys")
@@ -296,6 +306,8 @@ def plot_EB_filtered_maps(output_dir, map_name, depth1_TEB, mask, **kwargs):
 
 def plot_mask(output_dir, map_name, mask, **kwargs):
     save_dir = output_dir + "/plots/"
+    if not os.path.exists(save_dir): # Make new folder for this run - should be unique
+        os.makedirs(save_dir)
     save_fname_mask = map_name + "_mask"
     plots = enplot.get_plots(mask, **kwargs)
     enplot.write(save_dir+save_fname_mask, plots)
@@ -310,6 +322,8 @@ def dl_to_cl(dl, ell):
 
 def plot_spectra_individually(output_dir, spectra):
     save_dir = output_dir + "/plots/"
+    if not os.path.exists(save_dir): # Make new folder for this run - should be unique
+        os.makedirs(save_dir)
     maps = list(spectra.keys())
     ell_b = spectra[maps[0]]['ell']
     CAMB_ClEE_binned = spectra[maps[0]]['CAMB_EE']
@@ -414,6 +428,8 @@ def plot_spectra_individually(output_dir, spectra):
 def plot_spectra_summary(output_dir, spectra):
     """Plots some summary plots for the EE and BB autospectra for all maps in a run."""
     save_dir = output_dir + "/plots/"
+    if not os.path.exists(save_dir): # Make new folder for this run - should be unique
+        os.makedirs(save_dir)
     maps = list(spectra.keys())
     ell_b = spectra[maps[0]]['ell']
     # Plotting all the EE autospectra together
@@ -475,6 +491,8 @@ def plot_spectra_summary(output_dir, spectra):
 def plot_likelihood(output_dir, map_name, angles, likelihood, gauss_fits):
     """Plotting likelihood for angles in degrees."""
     save_dir = output_dir + "/plots/"
+    if not os.path.exists(save_dir): # Make new folder for this run - should be unique
+        os.makedirs(save_dir)
     save_fname_likelihood = map_name + "_likelihood.png"
     mean = gauss_fits[0]
     stddev = gauss_fits[1]
@@ -494,6 +512,8 @@ def plot_likelihood(output_dir, map_name, angles, likelihood, gauss_fits):
 def plot_beam(output_dir, beam_name, ell, beam):
     """Plots binned ACT beam profile for file beam_name."""
     save_dir = output_dir + "/plots/"
+    if not os.path.exists(save_dir): # Make new folder for this run - should be unique
+        os.makedirs(save_dir)
     save_fname_beam = beam_name + ".png"
     fig = plt.figure(figsize=(3,4), layout='constrained')
     plt.plot(ell, beam, 'b.')
@@ -507,6 +527,8 @@ def plot_beam(output_dir, beam_name, ell, beam):
 def plot_tfunc(output_dir, kx, ky, ell, tfunc):
     """Plots the filtering binned transfer function for some kx_cut and ky_cut values."""
     save_dir = output_dir + "/plots/"
+    if not os.path.exists(save_dir): # Make new folder for this run - should be unique
+        os.makedirs(save_dir)
     str_k = 'kx'+ str(kx) + '_ky' + str(ky)
     save_fname_tfunc = "tfunc"+str_k+".png"
     fig = plt.figure(figsize=(3,4), layout='constrained')
