@@ -10,7 +10,7 @@ import tqdm
 
 def load_and_bin_beam(fname,bins):
     """
-       	For a given fname containing an ACT beam, loads in the ell and b_ell
+           For a given fname containing an ACT beam, loads in the ell and b_ell
         of the beam. Normalizes the beam and bins it into the same binning as
         the power spectra.
     """
@@ -40,7 +40,7 @@ def load_ref_map_and_beam(fname_ref,fname_ref_beam,bins):
 
 def apply_kspace_filter(maps, kx_cut, ky_cut, unpixwin):
     """
-       	Takes in a set of T/Q/U maps that already have a taper applied, apply
+           Takes in a set of T/Q/U maps that already have a taper applied, apply
         a k-space filter to remove ground pickup, and returns the E and B maps
     """
     singleobs_TEB = enmap.map2harm(maps, normalize = "phys")
@@ -60,7 +60,7 @@ def apply_kspace_filter(maps, kx_cut, ky_cut, unpixwin):
     
 def load_test_map_and_filter(fname, beam_path, footprint, kx_cut, ky_cut, unpixwin, lmax, bins):
     """
-       	Loads in the maps located at fname to the shape and wcs specified by the
+           Loads in the maps located at fname to the shape and wcs specified by the
         footprint. Also filters the maps after applying the taper.
 
         Also loads in appropriate beam and bins it correctly.

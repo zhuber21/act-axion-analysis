@@ -85,7 +85,7 @@ elif config['bin_settings'] == "DR4":
 else:
     print("Please use valid bin_settings! Options are 'regular' and 'DR4'. Exiting.")
     sys.exit()
-print("Finished	loading bins")
+print("Finished loading bins")
 
 # Setting plotting settings
 plot_maps = config['plot_maps']
@@ -109,7 +109,7 @@ ClBB[2:] = DlBB_camb * 2 * np.pi / (ell_camb*(ell_camb+1.0))
 digitized = np.digitize(ell, bins, right=True)
 CAMB_ClEE_binned = np.bincount(digitized, ClEE.reshape(-1))[1:-1]/np.bincount(digitized)[1:-1]
 CAMB_ClBB_binned = np.bincount(digitized, ClBB.reshape(-1))[1:-1]/np.bincount(digitized)[1:-1]
-print("Finished	loading	CAMB spectra")
+print("Finished loading CAMB spectra")
 
 # Loading in reference maps
 ref_maps, ref_ivar, ref_beam = aoa.load_ref_map_and_beam(ref_path,ref_beam_path,bins)
