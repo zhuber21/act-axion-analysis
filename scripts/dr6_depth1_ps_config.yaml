@@ -1,22 +1,46 @@
 # dr6_depth1_ps_config.yaml
 # All the parameters for running get_angle_from_depth1_ps.py
 
+# Filtering parameters
 kx_cut: 90
 ky_cut: 50
-lmax: 2500
-start_index: 11
-stop_index: 47
 unpixwin: True
-angle_min_deg: -20.0
-angle_max_deg: 20.0
-num_pts: 10000
 
-theory_curves_path: "/home/zbh5/act_analysis/scripts/camb_19413797_lensedtotcls.dat"
+# Apodization parameter
+filter_radius: 1.0  # nawrapper.apod_C2() - radius in degrees
+
+# Likelihood fitting settings
+angle_min_deg: -30.0
+angle_max_deg: 30.0
+num_pts: 50000
+
+# Binning settings
+bin_settings: "regular" # Options are "regular" and "DR4" to use even bins of "bin_size" or to use the ACT DR4 bins
+bin_size: 100    # Used with "regular"
+lmin: 500        # Used with "regular"
+lmax: 2501       # Used with "regular" - set to 2501 to ensure we get the bin that ranges from 2450-2500
+start_index: 11  # Used with "DR4"
+stop_index: 47   # Used with "DR4"
+
+# Power spectra analysis settings
+use_ivar_weight: False  # Whether or not to use inverse variance weighting for calculating spectra - slower
+
+# Whether to save various plots
+output_dir_root: "/home/zbh5/act_analysis/act_axion_analysis/results/"
+plot_maps: False
+plot_all_spectra: False
+plot_summary_spectra: False
+plot_likelihood: False
+plot_beam: False
+plot_tfunc: False
+
+
+theory_curves_path: "/home/zbh5/act_analysis/act_axion_analysis/resources/camb_19413797_lensedtotcls.dat"
 
 #ref_map_path: "/home/zbh5/act_analysis/scripts/dr4_tests/cmb_night_pa6_f150_3pass_4way_coadd_map_srcfree.fits"
 #ref_map_path: "/home/zbh5/act_analysis/dr4_maps/dr4_full_coadds/act_dr4.01_s08s16_AA_f150_night_map_srcfree.fits"
 ref_path: "/home/zbh5/act_analysis/dr6_analysis/act_daynight_f150_map.fits"
-ref_beam_path: "/home/zbh5/act_analysis/scripts/dr4_tests/coadd_pa6_f150_night_beam_tform_jitter_cmb_norm.txt"
+ref_beam_path: "/home/zbh5/act_analysis/old_scripts/dr4_tests/coadd_pa6_f150_night_beam_tform_jitter_cmb_norm.txt"
 
 obs_list: '/home/zbh5/act_analysis/dr6_analysis/dr6_depth1_maps/dr6_depth1_test_map_list.txt'
 #obs_list: '/home/zbh5/act_analysis/dr6_analysis/dr6_depth1_maps/dr6_depth1_test_6maps_list.txt'
