@@ -292,7 +292,7 @@ def plot_QU_ref_maps(output_dir, map_name, maps, **kwargs):
     enplot.write(save_dir+save_fname_Q, map_Q)
     enplot.write(save_dir+save_fname_U, map_U)
 
-def plot_EB_filtered_maps(output_dir, map_name, depth1_TEB, mask, **kwargs):
+def plot_EB_filtered_maps(output_dir, map_name, depth1_TEB, map_mask, **kwargs):
     """Converts the filtered Fourier space E and B maps back to real space and plots them.
        Assumes you pass in TEB, but only saves EB. Also multiplies by mask again to ignore
        any leakage from Fourier transforming."""
@@ -302,17 +302,17 @@ def plot_EB_filtered_maps(output_dir, map_name, depth1_TEB, mask, **kwargs):
     save_fname_E = map_name + "_filtered_E"
     save_fname_B = map_name + "_filtered_B"
     maps_realspace = enmap.harm2map(depth1_TEB, normalize = "phys")
-    map_E = enplot.get_plots(maps_realspace[1], **kwargs)
-    map_B = enplot.get_plots(maps_realspace[2], **kwargs)
+    map_E = enplot.get_plots(map_mask*maps_realspace[1], **kwargs)
+    map_B = enplot.get_plots(map_mask*maps_realspace[2], **kwargs)
     enplot.write(save_dir+save_fname_E, map_E)
     enplot.write(save_dir+save_fname_B, map_B)
 
-def plot_mask(output_dir, map_name, mask, **kwargs):
+def plot_mask(output_dir, map_name, map_mask, **kwargs):
     save_dir = output_dir + "/plots/"
     if not os.path.exists(save_dir): # Make new folder for this run - should be unique
         os.makedirs(save_dir)
     save_fname_mask = map_name + "_mask"
-    plots = enplot.get_plots(mask, **kwargs)
+    plots = enplot.get_plots(map_mask, **kwargs)
     enplot.write(save_dir+save_fname_mask, plots)
 
 def cl_to_dl(cl, ell):

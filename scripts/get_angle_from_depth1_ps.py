@@ -96,6 +96,7 @@ plot_beam = config['plot_beam']
 plot_tfunc = config['plot_tfunc'] 
 
 # Load CAMB EE and BB spectrum (BB just for plotting)
+print("Starting to load CAMB spectra")
 ell_camb,DlEE_camb,DlBB_camb = np.loadtxt(camb_file, usecols=(0,2,3), unpack=True)
 # Note that ell runs from 2 to 5400
 arr_len = ell_camb.size + 2
@@ -112,11 +113,12 @@ CAMB_ClBB_binned = np.bincount(digitized, ClBB.reshape(-1))[1:-1]/np.bincount(di
 print("Finished loading CAMB spectra")
 
 # Loading in reference maps
+print("Starting to load ref map and beam")
 ref_maps, ref_ivar, ref_beam = aoa.load_ref_map_and_beam(ref_path,ref_beam_path,bins)
 if plot_beam:
     beam_name = os.path.split(ref_beam_path)[1][:-4] # Extracting file name from path and dropping '.txt'
     aoa.plot_beam(output_dir_path, beam_name, centers, ref_beam)
-print("Finished loading ref map	and beam")
+print("Finished loading ref map and beam")
 
 maps = []
 angle_estimates = []
