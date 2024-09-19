@@ -259,7 +259,12 @@ def plot_T_maps(output_dir, map_name, maps, **kwargs):
     if not os.path.exists(save_dir): # Make new folder for this run - should be unique
         os.makedirs(save_dir)
     save_fname_T = map_name + "_mapT"
-    plots = enplot.get_plots(maps, **kwargs)
+    try: # Trying to catch issues with font_size being too big for very small maps
+        plots = enplot.get_plots(maps, **kwargs)
+    except ValueError:
+        # Could add a logging statement about trying a smaller font size
+        kwargs['font_size'] = int(kwargs['font_size']/2)
+        plots = enplot.get_plots(maps, **kwargs)
     enplot.write(save_dir+save_fname_T, plots)
 
 def plot_QU_maps(output_dir, map_name, maps, **kwargs):
@@ -269,8 +274,14 @@ def plot_QU_maps(output_dir, map_name, maps, **kwargs):
         os.makedirs(save_dir)
     save_fname_Q = map_name + "_mapQ"
     save_fname_U = map_name + "_mapU"
-    map_Q = enplot.get_plots(maps[0], **kwargs)
-    map_U = enplot.get_plots(maps[1], **kwargs)
+    try: # Trying to catch issues with font_size being too big for very small maps
+        map_Q = enplot.get_plots(maps[0], **kwargs)
+        map_U = enplot.get_plots(maps[1], **kwargs)
+    except ValueError:
+        # Could add a logging statement about trying a smaller font size
+        kwargs['font_size'] = int(kwargs['font_size']/2)
+        map_Q = enplot.get_plots(maps[0], **kwargs)
+        map_U = enplot.get_plots(maps[1], **kwargs)
     enplot.write(save_dir+save_fname_Q, map_Q)
     enplot.write(save_dir+save_fname_U, map_U)
 
@@ -281,7 +292,12 @@ def plot_T_ref_maps(output_dir, map_name, maps, **kwargs):
     if not os.path.exists(save_dir): # Make new folder for this run - should be unique
         os.makedirs(save_dir)
     save_fname_T = map_name + "_refmapT_wmask"
-    plots = enplot.get_plots(maps, **kwargs)
+    try: # Trying to catch issues with font_size being too big for very small maps
+        plots = enplot.get_plots(maps, **kwargs)
+    except ValueError:
+        # Could add a logging statement about trying a smaller font size
+        kwargs['font_size'] = int(kwargs['font_size']/2)
+        plots = enplot.get_plots(maps, **kwargs)
     enplot.write(save_dir+save_fname_T, plots)
 
 def plot_QU_ref_maps(output_dir, map_name, maps, **kwargs):
@@ -292,8 +308,14 @@ def plot_QU_ref_maps(output_dir, map_name, maps, **kwargs):
         os.makedirs(save_dir)
     save_fname_Q = map_name + "_refmapQ_wmask"
     save_fname_U = map_name + "_refmapU_wmask"
-    map_Q = enplot.get_plots(maps[0], **kwargs)
-    map_U = enplot.get_plots(maps[1], **kwargs)
+    try: # Trying to catch issues with font_size being too big for very small maps
+        map_Q = enplot.get_plots(maps[0], **kwargs)
+        map_U = enplot.get_plots(maps[1], **kwargs)
+    except ValueError:
+        # Could add a logging statement about trying a smaller font size
+        kwargs['font_size'] = int(kwargs['font_size']/2)
+        map_Q = enplot.get_plots(maps[0], **kwargs)
+        map_U = enplot.get_plots(maps[1], **kwargs)
     enplot.write(save_dir+save_fname_Q, map_Q)
     enplot.write(save_dir+save_fname_U, map_U)
 
@@ -307,8 +329,14 @@ def plot_EB_filtered_maps(output_dir, map_name, depth1_TEB, map_mask, **kwargs):
     save_fname_E = map_name + "_filtered_E"
     save_fname_B = map_name + "_filtered_B"
     maps_realspace = enmap.harm2map(depth1_TEB, normalize = "phys")
-    map_E = enplot.get_plots(map_mask*maps_realspace[1], **kwargs)
-    map_B = enplot.get_plots(map_mask*maps_realspace[2], **kwargs)
+    try: # Trying to catch issues with font_size being too big for very small maps
+        map_E = enplot.get_plots(map_mask*maps_realspace[1], **kwargs)
+        map_B = enplot.get_plots(map_mask*maps_realspace[2], **kwargs)
+    except ValueError:
+        # Could add a logging statement about trying a smaller font size
+        kwargs['font_size'] = int(kwargs['font_size']/2)
+        map_E = enplot.get_plots(map_mask*maps_realspace[1], **kwargs)
+        map_B = enplot.get_plots(map_mask*maps_realspace[2], **kwargs)
     enplot.write(save_dir+save_fname_E, map_E)
     enplot.write(save_dir+save_fname_B, map_B)
 
@@ -317,7 +345,12 @@ def plot_mask(output_dir, map_name, map_mask, **kwargs):
     if not os.path.exists(save_dir): # Make new folder for this run - should be unique
         os.makedirs(save_dir)
     save_fname_mask = map_name + "_mask"
-    plots = enplot.get_plots(map_mask, **kwargs)
+    try: # Trying to catch issues with font_size being too big for very small maps
+        plots = enplot.get_plots(map_mask, **kwargs)
+    except ValueError:
+        # Could add a logging statement about trying a smaller font size
+        kwargs['font_size'] = int(kwargs['font_size']/2)
+        plots = enplot.get_plots(map_mask, **kwargs)
     enplot.write(save_dir+save_fname_mask, plots)
 
 def cl_to_dl(cl, ell):
