@@ -457,7 +457,7 @@ def plot_spectra_individually(output_dir, spectra):
         est_err = np.sqrt(d_ell_covariance)
         plt.errorbar(ell_b, cl_to_dl(spectra[maps[i]]['estimator'],ell_b), yerr=est_err, alpha=1.0, label='Estimator')
         # Plotting the best fit angle and the theory curve over measured estimator
-        angle_rad = np.deg2rad([maps[i]]['meas_angle'])
+        angle_rad = np.deg2rad(spectra[maps[i]]['meas_angle'])
         plt.plot(ell_b, 1.0*cl_to_dl(CAMB_ClEE_binned,ell_b)*np.sin(2*angle_rad), label="Theory value for best fit angle")
         plt.ylabel("$D_{\ell}^{E1xB2} - D_{\ell}^{E2xB1}$")
         plt.xlabel("$\ell$")
