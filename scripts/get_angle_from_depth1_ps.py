@@ -9,6 +9,8 @@ from pixell import enmap
 from tqdm import tqdm
 import axion_osc_analysis_depth1_ps as aoa
 
+start_time = time.time()
+
 # Parse args
 parser = argparse.ArgumentParser()
 parser.add_argument("config_file", help=
@@ -213,7 +215,8 @@ for line in tqdm(lines):
                                 +(binned_E2xE2*binned_B1xB1+binned_E2xB1**2)
                                 -2*(binned_E1xE2*binned_B1xB2+binned_E1xB1*binned_E2xB2)))
 
-    fit_values = aoa.sample_likelihood_and_fit(estimator,covariance,CAMB_ClEE_binned,
+    fit_values = aoa.sample_likelihood_and_fit(estimator,covariance,CAMB_ClEE_binned,num_pts=num_pts,
+                                               angle_min_deg=angle_min_deg, angle_max_deg=angle_max_deg,
                                                plot_like=plot_likelihood,output_dir=output_dir_path,
                                                map_fname=line)
 
@@ -255,3 +258,6 @@ output_name = output_dir_path + 'angle_calc_' + output_time + ".yaml"
 with open(output_name, 'w') as file:
     yaml.dump(output_dict, file)
 print("Finished running get_angle_from_depth1_ps.py. Output is in: " + str(output_name))
+stop_time = time.time()
+duration = stop_time-start_time
+print("Script took {:1.3f} seconds".format(duration))
