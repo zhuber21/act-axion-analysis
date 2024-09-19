@@ -3,7 +3,7 @@ from pixell import enmap, enplot
 import nawrapper as nw
 import matplotlib.pyplot as plt
 import os
-import tqdm
+from tqdm import tqdm
 
 ##########################################################
 # Functions for loading and manipulating maps and other data products
