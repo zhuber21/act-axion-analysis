@@ -215,7 +215,7 @@ for line in tqdm(lines):
 
     fit_values = aoa.sample_likelihood_and_fit(estimator,covariance,CAMB_ClEE_binned,
                                                plot_like=plot_likelihood,output_dir=output_dir_path,
-                                               map_name=line)
+                                               map_fname=line)
 
     print(fit_values)
     angle_estimates.append(fit_values)
