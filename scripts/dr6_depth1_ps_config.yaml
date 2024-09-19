@@ -33,6 +33,7 @@ plot_summary_spectra: False
 plot_likelihood: False
 plot_beam: False
 plot_tfunc: False
+plot_angle_hist: False
 
 theory_curves_path: "/home/zbh5/act_analysis/act_axion_analysis/resources/camb_19413797_lensedtotcls.dat"
 

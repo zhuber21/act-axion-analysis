@@ -247,9 +247,9 @@ def eshow(x,**kwargs):
 # Functions for saving output plots
 
 keys_ewrite_QU = {"downgrade": 4, "ticks": 5, "colorbar": True, "font_size": 40, "range": 2000, "mask": 0}
-keys_ewrite_ref_QU = {"downgrade": 4, "ticks": 5, "colorbar": True, "font_size": 40, "range": 1000, "mask": 0}
+keys_ewrite_ref_QU = {"downgrade": 4, "ticks": 5, "colorbar": True, "font_size": 40, "range": 500, "mask": 0}
 keys_ewrite_T = {"downgrade": 4, "ticks": 5, "colorbar": True, "font_size": 40, "range": 2500, "mask": 0}
-keys_ewrite_ref_T = {"downgrade": 4, "ticks": 5, "colorbar": True, "font_size": 40, "range": 2000, "mask": 0}
+keys_ewrite_ref_T = {"downgrade": 4, "ticks": 5, "colorbar": True, "font_size": 40, "range": 1000, "mask": 0}
 keys_ewrite_EB = {"downgrade": 4, "ticks": 5, "colorbar": True, "font_size": 40, "range": 1000, "mask": 0}
 keys_ewrite_mask = {"downgrade": 1, "ticks": 5, "colorbar": True, "font_size": 40, "mask": 0}
 
@@ -373,7 +373,7 @@ def plot_spectra_individually(output_dir, spectra):
     for i in tqdm(range(len(maps))):
         fig = plt.figure(figsize=(6.4,4.8), layout='constrained')
         plt.semilogy(ell_b, cl_to_dl(spectra[maps[i]]['E1xE1'],ell_b),alpha=1.0)
-        plt.plot(ell_b, cl_to_dl(CAMB_ClEE_binned,ell_b), 'r--', label="CAMB EE")
+        plt.semilogy(ell_b, cl_to_dl(CAMB_ClEE_binned,ell_b), 'r--', label="CAMB EE")
         plt.ylabel("$D_{\ell}^{E1xE1}$")
         plt.xlabel("$\ell$")
         plt.title("E1xE1 " + maps[i][:-9])
@@ -385,7 +385,7 @@ def plot_spectra_individually(output_dir, spectra):
         
         fig = plt.figure(figsize=(6.4,4.8), layout='constrained')
         plt.semilogy(ell_b, cl_to_dl(spectra[maps[i]]['E2xE2'],ell_b),alpha=1.0)
-        plt.plot(ell_b, cl_to_dl(CAMB_ClEE_binned,ell_b), 'r--', label="CAMB EE")
+        plt.semilogy(ell_b, cl_to_dl(CAMB_ClEE_binned,ell_b), 'r--', label="CAMB EE")
         plt.ylabel("$D_{\ell}^{E2xE2}$")
         plt.xlabel("$\ell$") 
         plt.title("E2xE2 " + maps[i][:-9])
@@ -397,7 +397,7 @@ def plot_spectra_individually(output_dir, spectra):
 
         fig = plt.figure(figsize=(6.4,4.8), layout='constrained')
         plt.semilogy(ell_b, cl_to_dl(spectra[maps[i]]['B1xB1'],ell_b),alpha=1.0)
-        plt.plot(ell_b, cl_to_dl(CAMB_ClBB_binned,ell_b), 'r--', label="CAMB BB")
+        plt.semilogy(ell_b, cl_to_dl(CAMB_ClBB_binned,ell_b), 'r--', label="CAMB BB")
         plt.ylabel("$D_{\ell}^{B1xB1}$")
         plt.xlabel("$\ell$")
         plt.title("B1xB1 " + maps[i][:-9])
@@ -409,7 +409,7 @@ def plot_spectra_individually(output_dir, spectra):
         
         fig = plt.figure(figsize=(6.4,4.8), layout='constrained')
         plt.semilogy(ell_b, cl_to_dl(spectra[maps[i]]['B2xB2'],ell_b),alpha=1.0)
-        plt.plot(ell_b, cl_to_dl(CAMB_ClBB_binned,ell_b), 'r--', label="CAMB BB")
+        plt.semilogy(ell_b, cl_to_dl(CAMB_ClBB_binned,ell_b), 'r--', label="CAMB BB")
         plt.ylabel("$D_{\ell}^{B2xB2}$")
         plt.xlabel("$\ell$") 
         plt.title("B2xB2 " + maps[i][:-9])
@@ -425,6 +425,7 @@ def plot_spectra_individually(output_dir, spectra):
         plt.xlabel("$\ell$")
         plt.title("E1xB2 " + maps[i][:-9])
         plt.grid()
+        plt.axhline(y=0,color='gray',linewidth=2)
         output_fname = save_dir + maps[i][:-9] + "_e1xb2_spectrum.png"
         plt.savefig(output_fname, dpi=300)
         plt.close()
@@ -435,37 +436,46 @@ def plot_spectra_individually(output_dir, spectra):
         plt.xlabel("$\ell$") 
         plt.title("E2xB1 " + maps[i][:-9])
         plt.grid()
+        plt.axhline(y=0,color='gray',linewidth=2)
         output_fname = save_dir + maps[i][:-9] + "_e2xb1_spectrum.png"
         plt.savefig(output_fname, dpi=300)
         plt.close()
 
         fig = plt.figure(figsize=(6.4,4.8), layout='constrained')
-        plt.plot(ell_b, cl_to_dl(spectra[maps[i]]['estimator'],ell_b),alpha=1.0)
-        # Could also add plotting the expected signal given the fit for this map
-        plt.ylabel("$D_{\ell}^{E1xB2} - D_{\ell}^{E2xB1}$")
-        plt.xlabel("$\ell$")
-        plt.title("Estimator " + maps[i][:-9])
-        plt.grid()
-        output_fname = save_dir + maps[i][:-9] + "_estimator.png"
-        plt.savefig(output_fname, dpi=300)
-        plt.close()
-
-        fig = plt.figure(figsize=(6.4,4.8), layout='constrained')
-        plt.plot(ell_b, cl_to_dl(spectra[maps[i]]['covariance'],ell_b),alpha=1.0)
+        d_ell_covariance = cl_to_dl(cl_to_dl(spectra[maps[i]]['covariance'],ell_b),ell_b)
+        plt.plot(ell_b, d_ell_covariance, alpha=1.0) # Two factors of C_ell to D_ell because made of squares of spectra
         plt.ylabel("Covariance")
         plt.xlabel("$\ell$")
         plt.title("Covariance " + maps[i][:-9])
         plt.grid()
+        plt.axhline(y=0,color='gray',linewidth=2)
         output_fname = save_dir + maps[i][:-9] + "_covariance.png"
         plt.savefig(output_fname, dpi=300)
         plt.close()
 
         fig = plt.figure(figsize=(6.4,4.8), layout='constrained')
-        plt.plot(ell_b, cl_to_dl(spectra[maps[i]]['binned_nu'],ell_b),alpha=1.0)
+        est_err = np.sqrt(d_ell_covariance)
+        plt.errorbar(ell_b, cl_to_dl(spectra[maps[i]]['estimator'],ell_b), yerr=est_err, alpha=1.0, label='Estimator')
+        # Plotting the best fit angle and the theory curve over measured estimator
+        angle_rad = np.deg2rad([maps[i]]['meas_angle'])
+        plt.plot(ell_b, 1.0*cl_to_dl(CAMB_ClEE_binned,ell_b)*np.sin(2*angle_rad), label="Theory value for best fit angle")
+        plt.ylabel("$D_{\ell}^{E1xB2} - D_{\ell}^{E2xB1}$")
+        plt.xlabel("$\ell$")
+        plt.title("Estimator " + maps[i][:-9])
+        plt.legend()
+        plt.grid()
+        plt.axhline(y=0,color='gray',linewidth=2)
+        output_fname = save_dir + maps[i][:-9] + "_estimator.png"
+        plt.savefig(output_fname, dpi=300)
+        plt.close()
+
+        fig = plt.figure(figsize=(6.4,4.8), layout='constrained')
+        plt.plot(ell_b, spectra[maps[i]]['binned_nu'],alpha=1.0) # Not a spectra, so no conversion to D_ell
         plt.ylabel("Effective modes per bin")
         plt.xlabel("$\ell$")
         plt.title("$\\nu_b$ " + maps[i][:-9])
         plt.grid()
+        plt.axhline(y=0,color='gray',linewidth=2)
         output_fname = save_dir + maps[i][:-9] + "_modesperbin.png"
         plt.savefig(output_fname, dpi=300)
         plt.close()
@@ -480,7 +490,7 @@ def plot_spectra_summary(output_dir, spectra):
     # Plotting all the EE autospectra together
     fig = plt.figure(figsize=(6.4,4.8), layout='constrained')
     output_path_ee = save_dir + "ee_autospectra_all_test_maps.png"
-    plt.plot(ell_b, cl_to_dl(spectra[maps[0]]['CAMB_EE'],ell_b), 'r--', label="CAMB EE")
+    plt.semilogy(ell_b, cl_to_dl(spectra[maps[0]]['CAMB_EE'],ell_b), 'r--', label="CAMB EE")
     for i in range(len(maps)):
         plt.semilogy(ell_b, cl_to_dl(spectra[maps[i]]['E1xE1'],ell_b),alpha=0.3)
     plt.ylabel("$D_{\ell}^{EE}$")
@@ -494,7 +504,7 @@ def plot_spectra_summary(output_dir, spectra):
     # Plotting all the reference map EE autospectra together
     fig = plt.figure(figsize=(6.4,4.8), layout='constrained')
     output_path_ee_ref = save_dir + "ee_autospectra_all_ref_maps.png"
-    plt.plot(ell_b, cl_to_dl(spectra[maps[0]]['CAMB_EE'],ell_b), 'r--', label="CAMB EE")
+    plt.semilogy(ell_b, cl_to_dl(spectra[maps[0]]['CAMB_EE'],ell_b), 'r--', label="CAMB EE")
     for i in range(len(maps)):
         plt.semilogy(ell_b, cl_to_dl(spectra[maps[i]]['E2xE2'],ell_b),alpha=0.3)
     plt.ylabel("$D_{\ell}^{EE}$")
@@ -508,7 +518,7 @@ def plot_spectra_summary(output_dir, spectra):
     # Plotting all the BB autospectra together
     fig = plt.figure(figsize=(6.4,4.8), layout='constrained') 
     output_path_bb = save_dir + "bb_autospectra_all_test_maps.png"
-    plt.plot(ell_b, cl_to_dl(spectra[maps[0]]['CAMB_BB'],ell_b), 'r--', label="CAMB BB")
+    plt.semilogy(ell_b, cl_to_dl(spectra[maps[0]]['CAMB_BB'],ell_b), 'r--', label="CAMB BB")
     for i in range(len(maps)):
         plt.semilogy(ell_b, cl_to_dl(spectra[maps[i]]['B1xB1'],ell_b),alpha=0.3)
     plt.ylabel("$D_{\ell}^{BB}$")
@@ -522,7 +532,7 @@ def plot_spectra_summary(output_dir, spectra):
     # Plotting all the reference map BB autospectra together
     fig = plt.figure(figsize=(6.4,4.8), layout='constrained')
     output_path_bb_ref = save_dir + "bb_autospectra_all_ref_maps.png"
-    plt.plot(ell_b, cl_to_dl(spectra[maps[0]]['CAMB_BB'],ell_b), 'r--', label="CAMB BB")
+    plt.semilogy(ell_b, cl_to_dl(spectra[maps[0]]['CAMB_BB'],ell_b), 'r--', label="CAMB BB")
     for i in range(len(maps)):
         plt.semilogy(ell_b, cl_to_dl(spectra[maps[i]]['B2xB2'],ell_b),alpha=0.3)
     plt.ylabel("$D_{\ell}^{BB}$")
@@ -583,4 +593,17 @@ def plot_tfunc(output_dir, kx, ky, ell, tfunc):
     plt.grid()
     plt.title("Filtering tfunc for kx,ky: " + str(kx) + ',' + str(ky))
     plt.savefig(save_dir+save_fname_tfunc, dpi=300)
+    plt.close()
+
+def plot_angle_hist(output_dir,angles):
+    """Plots histogram of all angles for a given set of maps."""
+    save_dir = output_dir + "/plots/"
+    if not os.path.exists(save_dir): # Make new folder for this run - should be unique
+        os.makedirs(save_dir)
+    save_fname_hist = "angle_hist.png"
+    # Could make a more complicated histogram with statistics overplotted
+    # Could also break it out by array and overplot three histograms
+    plt.hist(angles, bins=30)
+    plt.title("Histogram of measured angles")
+    plt.savefig(save_dir+save_fname_hist, dpi=300)
     plt.close()

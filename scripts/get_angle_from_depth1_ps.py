@@ -96,6 +96,7 @@ plot_summary_spectra = config['plot_summary_spectra']
 plot_likelihood = config['plot_likelihood']
 plot_beam = config['plot_beam']
 plot_tfunc = config['plot_tfunc'] 
+plot_angle_hist = config['plot_angle_hist']
 
 # Load CAMB EE and BB spectrum (BB just for plotting)
 print("Starting to load CAMB spectra")
@@ -229,7 +230,8 @@ for line in tqdm(lines):
                             'E1xB1': binned_E1xB1, 'E2xB2': binned_E2xB2, 'binned_nu': binned_nu,
                             'estimator': estimator, 'covariance': covariance,
                             'CAMB_EE': CAMB_ClEE_binned, 'CAMB_BB': CAMB_ClBB_binned,
-                            'w2_depth1': w2_depth1, 'w2_cross': w2_cross, 'w2_ref': w2_ref}
+                            'w2_depth1': w2_depth1, 'w2_cross': w2_cross, 'w2_ref': w2_ref,
+                            'meas_angle': fit_values[0], 'meas_errbar': fit_values[1]}
 
 # Converting rho estimates to float from np.float64 for readability in yaml
 angle_estimates_float = [[float(v),float(w)] for (v,w) in angle_estimates]
@@ -247,6 +249,9 @@ if plot_summary_spectra:
     print("Beginning to save summary spectra plots.")
     aoa.plot_spectra_summary(output_dir_path, spectra_output)
     print("Finished saving summary spectra plots.")
+if plot_angle_hist:
+    print("Plotting histogram of angles")
+    aoa.plot_angle_hist(output_dir_path, np.array(angle_estimates)[:,0])
 
 # Dump all inputs and outputs to a YAML log
 output_dict = config
