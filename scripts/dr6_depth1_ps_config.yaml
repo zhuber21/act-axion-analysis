@@ -10,9 +10,9 @@ unpixwin: True
 filter_radius: 1.0  # nawrapper.apod_C2() - radius in degrees
 
 # Likelihood fitting settings
-angle_min_deg: -30.0
-angle_max_deg: 30.0
-num_pts: 50000
+angle_min_deg: -50.0
+angle_max_deg: 50.0
+num_pts: 200000
 use_curvefit: True
 
 # Binning settings
@@ -28,13 +28,13 @@ use_ivar_weight: False  # Whether or not to use inverse variance weighting for c
 
 # Whether to save various plots
 output_dir_root: "/home/zbh5/act_analysis/act_axion_analysis/results/"
-plot_maps: False
-plot_all_spectra: False
-plot_summary_spectra: False
-plot_likelihood: False
-plot_beam: False
-plot_tfunc: False
-plot_angle_hist: False
+plot_maps: True
+plot_all_spectra: True
+plot_summary_spectra: True
+plot_likelihood: True
+plot_beam: True
+plot_tfunc: True
+plot_angle_hist: True
 
 theory_curves_path: "/home/zbh5/act_analysis/act_axion_analysis/resources/camb_19413797_lensedtotcls.dat"
 
@@ -46,4 +46,3 @@ ref_beam_path: "/home/zbh5/act_analysis/old_scripts/dr4_tests/coadd_pa6_f150_nig
 obs_list: '/home/zbh5/act_analysis/dr6_analysis/dr6_depth1_maps/dr6_depth1_test_map_list.txt'
 #obs_list: '/home/zbh5/act_analysis/dr6_analysis/dr6_depth1_maps/dr6_depth1_test_6maps_list.txt'
 obs_path_stem: "/home/zbh5/act_analysis/dr6_analysis/dr6_depth1_maps/"
-
