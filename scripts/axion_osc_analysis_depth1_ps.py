@@ -4,6 +4,7 @@ import nawrapper as nw
 import matplotlib.pyplot as plt
 import os
 from tqdm import tqdm
+from scipy import optimize as op
 
 ##########################################################
 # Functions for loading and manipulating maps and other data products
@@ -199,21 +200,44 @@ def estimator_likelihood(angle, estimator, covariance, ClEE):
     denominator = 2*covariance
     likelihood = np.exp(-np.sum(numerator/denominator))
     return likelihood
-    
+
+def gaussian(x,mean,sigma):
+    """Normalized Gaussian for curve_fit"""
+    amp = 1.0
+    return amp*np.exp(-(x-mean)**2/(2*sigma**2))
+
+def gaussian_fit_curvefit(angles,data):
+    """
+        Uses scipy.optimize.curve_fit() to fit a Gaussian to the likelihood to
+        get the mean and standard deviation.
+
+        Assumes everything is in radians.
+    """
+    guess = [1.0*np.pi/180.0, 5.0*np.pi/180.0] # Mean=1, stddev=5 worked well for 73 test maps
+    popt, pcov = op.curve_fit(gaussian,angles,data,guess,maxfev=50000)
+    mean = popt[0]
+    std_dev = np.abs(popt[1])
+    return mean, std_dev
+
 def gaussian_fit_moment(angles,data):
     """
        Uses moments to quickly find mean and standard deviation of a Gaussian
        for the likelihood.
+
+       Assumes everything is in radians.
     """
     mean = np.sum(angles*data)/np.sum(data)
     std_dev = np.sqrt(abs(np.sum((angles-mean)**2*data)/np.sum(data)))
     return mean, std_dev
     
 def sample_likelihood_and_fit(estimator,covariance,theory_ClEE,angle_min_deg=-20.0,angle_max_deg=20.0,
-                              num_pts=10000,plot_like=False,output_dir=None,map_fname=None):
+                              num_pts=10000,use_curvefit=True,plot_like=False,output_dir=None,map_fname=None):
     """
        Samples likelihood for a range of angles and returns the best fit for the
        mean and std dev of the resulting Gaussian in degrees.  
+       Has the option to do the fitting with scipy.optimize.curve_fit() (set use_curvefit=True)
+       or a method using moments of the Gaussian. The moments method is faster but less
+       accurate when the likelihood deviates from Gaussianity in any way.
     """
     if(angle_min_deg >= angle_max_deg): 
         raise ValueError("The min angle must be smaller than the max!")
@@ -223,8 +247,14 @@ def sample_likelihood_and_fit(estimator,covariance,theory_ClEE,angle_min_deg=-20
     bin_sampled_likelihood = [estimator_likelihood(angle,estimator,covariance,theory_ClEE) for angle in angles_rad]
     norm_sampled_likelihood = bin_sampled_likelihood/np.max(bin_sampled_likelihood)
     
-    fit_values = gaussian_fit_moment(angles_rad,norm_sampled_likelihood)
-    fit_values_deg = [np.rad2deg(fit_values[0]), np.rad2deg(fit_values[1])]
+    if use_curvefit:
+        fit_values = gaussian_fit_curvefit(angles_rad,norm_sampled_likelihood)
+        fit_values_deg = [np.rad2deg(fit_values[0]), np.rad2deg(fit_values[1])]
+        # Could add some flag or option to redo the fit for a given map if curve_fit() returns
+        # a bad stddev value from failing to fit - for now I will leave it so I can see easily by the stddev that it fails
+    else:
+        fit_values = gaussian_fit_moment(angles_rad,norm_sampled_likelihood)
+        fit_values_deg = [np.rad2deg(fit_values[0]), np.rad2deg(fit_values[1])]
 
     if plot_like:
         map_name = os.path.split(map_fname)[1][:-9] # removing "_map.fits"
@@ -554,8 +584,8 @@ def plot_likelihood(output_dir, map_name, angles, likelihood, gauss_fits):
     fig = plt.figure(figsize=(6.4,4.8), layout='constrained')
     plt.plot(angles, likelihood, 'b.', label='Mean={:1.3f}\n$\sigma$={:1.3f}'.format(mean,stddev))
     plt.axvline(mean,alpha=0.3,color='black')
-    # Could also add 1 sigma shading for stddev at some point
     # Could also move label to plt.figtext, but legend will auto adjust for me
+    plt.plot(angles, gaussian(angles,mean,stddev), label='Fit Gaussian')
     plt.legend()
     plt.ylabel("Likelihood")
     plt.xlabel("Angles (deg)")
@@ -595,15 +625,39 @@ def plot_tfunc(output_dir, kx, ky, ell, tfunc):
     plt.savefig(save_dir+save_fname_tfunc, dpi=300)
     plt.close()
 
-def plot_angle_hist(output_dir,angles):
+def plot_angle_hist(output_dir,angles, maps):
     """Plots histogram of all angles for a given set of maps."""
     save_dir = output_dir + "/plots/"
     if not os.path.exists(save_dir): # Make new folder for this run - should be unique
         os.makedirs(save_dir)
     save_fname_hist = "angle_hist.png"
     # Could make a more complicated histogram with statistics overplotted
-    # Could also break it out by array and overplot three histograms
+    # Plotting general histogram with all angles
+    fig = plt.figure(figsize=(6.4,4.8), layout='constrained')
     plt.hist(angles, bins=30)
+    plt.title("Histogram of measured angles")
+    plt.savefig(save_dir+save_fname_hist, dpi=300)
+    plt.close()
+    # Also breaking it out by array
+    map_names_split = np.array([a.split('_') for a in maps])
+    maps_array = map_names_split[:,2] # Getting which array each map is from
+    range_arrays = (angles.min(),angles.max()) # Ensuring same bins as total histogram
+    for array in np.unique(maps_array):
+        fig = plt.figure(figsize=(6.4,4.8), layout='constrained')
+        save_fname_hist = "angle_hist_" + array + ".png"
+        plt.hist(angles[maps_array==array], bins=30, range=range_arrays, label=array)
+        plt.title("Histogram of measured angles, array " + array)
+        plt.legend()
+        plt.savefig(save_dir+save_fname_hist, dpi=300)
+        plt.close()
+
+    # Combining them together
+    # Could consider changing to a multihist or step hist later
+    save_fname_hist = "angle_hist_all_combined.png"
+    fig = plt.figure(figsize=(6.4,4.8), layout='constrained')
+    plt.hist(angles, bins=30,alpha=0.5,label='All arrays')
+    for array in np.unique(maps_array):
+        plt.hist(angles[maps_array==array], bins=30, range=range_arrays, label=array, alpha=0.5)
     plt.title("Histogram of measured angles")
     plt.savefig(save_dir+save_fname_hist, dpi=300)
     plt.close()

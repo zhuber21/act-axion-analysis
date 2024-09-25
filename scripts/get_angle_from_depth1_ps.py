@@ -32,6 +32,7 @@ filter_radius = config['filter_radius']
 angle_min_deg = config['angle_min_deg']
 angle_max_deg = config['angle_max_deg']
 num_pts = config['num_pts']
+use_curvefit = config['use_curvefit']
 use_ivar_weight = config['use_ivar_weight']
 
 # Check that paths exist to needed files
@@ -218,8 +219,8 @@ for line in tqdm(lines):
 
     fit_values = aoa.sample_likelihood_and_fit(estimator,covariance,CAMB_ClEE_binned,num_pts=num_pts,
                                                angle_min_deg=angle_min_deg, angle_max_deg=angle_max_deg,
-                                               plot_like=plot_likelihood,output_dir=output_dir_path,
-                                               map_fname=line)
+                                               use_curvefit=use_curvefit,plot_like=plot_likelihood,
+                                               output_dir=output_dir_path,map_fname=line)
 
     print(fit_values)
     angle_estimates.append(fit_values)

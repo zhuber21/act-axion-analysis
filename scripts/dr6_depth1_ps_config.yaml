@@ -13,6 +13,7 @@ filter_radius: 1.0  # nawrapper.apod_C2() - radius in degrees
 angle_min_deg: -30.0
 angle_max_deg: 30.0
 num_pts: 50000
+use_curvefit: True
 
 # Binning settings
 bin_settings: "regular" # Options are "regular" and "DR4" to use even bins of "bin_size" or to use the ACT DR4 bins
