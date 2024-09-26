@@ -145,23 +145,11 @@ for line in tqdm(lines):
 
     if use_ivar_weight:
         # Ivar weighting for depth-1 map
-        depth1_maps_realspace = enmap.harm2map(depth1_TEB, normalize = "phys")
-        depth1_maps_ivar = enmap.zeros((3,) + depth1_maps_realspace[0].shape, wcs=depth1_maps_realspace[0].wcs)
-        depth1_maps_ivar[0] = depth1_maps_realspace[0]*2.0*depth1_ivar*depth1_footprint # Weighting by the original temperature ivar for T
-        depth1_maps_ivar[1] = depth1_maps_realspace[1]*depth1_ivar*depth1_footprint
-        depth1_maps_ivar[2] = depth1_maps_realspace[2]*depth1_ivar*depth1_footprint
-        # Converting back to harmonic space
-        depth1_TEB = enmap.map2harm(depth1_maps_ivar, normalize = "phys")
+        depth1_TEB = aoa.apply_ivar_weighting(depth1_TEB, depth1_ivar, depth1_footprint)
 
         # Ivar weighting for reference map - already filtered and trimmed from ref_TEB above
         ref_map_trimmed_ivar = enmap.extract(ref_ivar,depth1_TEB[0].shape,depth1_TEB[0].wcs)
-        ref_maps_realspace = enmap.harm2map(ref_TEB, normalize = "phys")
-        ref_maps_ivar = enmap.zeros((3,) + ref_maps_realspace[0].shape, wcs=ref_maps_realspace[0].wcs)
-        ref_maps_ivar[0] = ref_maps_realspace[0]*2.0*ref_map_trimmed_ivar*depth1_footprint # Weighting by the original temperature ivar for T
-        ref_maps_ivar[1] = ref_maps_realspace[1]*ref_map_trimmed_ivar*depth1_footprint
-        ref_maps_ivar[2] = ref_maps_realspace[2]*ref_map_trimmed_ivar*depth1_footprint
-        # Converting back to harmonic space
-        ref_TEB = enmap.map2harm(ref_maps_ivar, normalize = "phys")
+        ref_TEB = aoa.apply_ivar_weighting(ref_TEB, ref_map_trimmed_ivar, depth1_footprint)
 
         # Calculating approx correction for loss of power due to tapering for spectra for depth-1
         w_depth1 = depth1_ivar*depth1_footprint
@@ -252,7 +240,7 @@ if plot_summary_spectra:
     print("Finished saving summary spectra plots.")
 if plot_angle_hist:
     print("Plotting histogram of angles")
-    aoa.plot_angle_hist(output_dir_path, np.array(angle_estimates)[:,0])
+    aoa.plot_angle_hist(output_dir_path, np.array(angle_estimates)[:,0], maps)
 
 # Dump all inputs and outputs to a YAML log
 output_dict = config

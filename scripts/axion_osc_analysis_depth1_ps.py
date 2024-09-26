@@ -149,6 +149,19 @@ def load_and_filter_depth1(fname, ref_maps, kx_cut, ky_cut, unpixwin,filter_radi
         plot_EB_filtered_maps(output_dir, map_fname, filtered_depth1_TEB, depth1_mask, **keys_ewrite_EB)
     
     return filtered_depth1_TEB, depth1_ivar, depth1_mask, ref_cut_TEB
+
+def apply_ivar_weighting(input_kspace_TEB_maps, input_ivar, mask):
+    """For a set of TEB Fourier space maps, converts back to real space, multiplies by
+       the inverse variance map and the tapered mask, and converts back to Fourier space
+       for PS calculation."""
+    maps_realspace = enmap.harm2map(input_kspace_TEB_maps, normalize = "phys")
+    maps_ivar_weight = enmap.zeros((3,) + maps_realspace[0].shape, wcs=maps_realspace[0].wcs)
+    maps_ivar_weight[0] = maps_realspace[0]*2.0*input_ivar*mask # Weighting by the original temperature ivar for T
+    maps_ivar_weight[1] = maps_realspace[1]*input_ivar*mask
+    maps_ivar_weight[2] = maps_realspace[2]*input_ivar*mask
+    # Converting back to harmonic space - already multiplied by tapered mask above
+    output_kspace_TEB_maps = enmap.map2harm(maps_ivar_weight, normalize = "phys")
+    return output_kspace_TEB_maps
 ##########################################################
 
 
