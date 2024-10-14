@@ -649,6 +649,8 @@ def plot_angle_hist(output_dir,angles, maps):
     fig = plt.figure(figsize=(6.4,4.8), layout='constrained')
     plt.hist(angles, bins=30)
     plt.title("Histogram of measured angles")
+    plt.xlabel("Angle (deg)")
+    plt.ylabel("Counts")
     plt.savefig(save_dir+save_fname_hist, dpi=300)
     plt.close()
     # Also breaking it out by array
@@ -660,6 +662,8 @@ def plot_angle_hist(output_dir,angles, maps):
         save_fname_hist = "angle_hist_" + array + ".png"
         plt.hist(angles[maps_array==array], bins=30, range=range_arrays, label=array)
         plt.title("Histogram of measured angles, array " + array)
+        plt.xlabel("Angle (deg)")
+        plt.ylabel("Counts")
         plt.legend()
         plt.savefig(save_dir+save_fname_hist, dpi=300)
         plt.close()
@@ -671,6 +675,9 @@ def plot_angle_hist(output_dir,angles, maps):
     plt.hist(angles, bins=30,alpha=0.5,label='All arrays')
     for array in np.unique(maps_array):
         plt.hist(angles[maps_array==array], bins=30, range=range_arrays, label=array, alpha=0.5)
-    plt.title("Histogram of measured angles")
+    plt.title("Histogram of measured angles by array")
+    plt.xlabel("Angle (deg)")
+    plt.ylabel("Counts")
+    plt.legend()
     plt.savefig(save_dir+save_fname_hist, dpi=300)
     plt.close()
