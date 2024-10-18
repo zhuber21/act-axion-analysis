@@ -24,16 +24,15 @@ def load_and_bin_beam(fname,bins):
     beam_tform_norm_binned = np.bincount(digitized, beam_tform_norm.reshape(-1))[1:-1]/bincount
     return beam_tform_norm_binned
     
-def load_ref_map_and_beam(fname_ref,fname_ref_beam,bins):
+def load_ref_map_and_beam(fname_ref,fname_ref_ivar,fname_ref_beam,bins):
     """
         Loads in the full reference map (T,Q,U) and the beam for this map. 
-        Needs to be done once.
+        Needs to be done once. Also loads in ref map ivar.
         
         The beam is also binned to match the binning of all spectra.
     """
     maps = enmap.read_map(fname_ref)
-    ivar_name = fname_ref[:-8] + "ivar.fits"
-    ivar = 0.5*enmap.read_map(ivar_name) # 0.5 for polarization noise
+    ivar = 0.5*enmap.read_map(fname_ref_ivar) # 0.5 for polarization noise
     
     b_ell = load_and_bin_beam(fname_ref_beam,bins)
 

@@ -39,6 +39,7 @@ use_ivar_weight = config['use_ivar_weight']
 camb_file = config['theory_curves_path']
 ref_path = config['ref_path']
 ref_beam_path = config['ref_beam_path']
+ref_ivar_path = config['ref_ivar_path']
 galaxy_mask_path = config['galaxy_mask_path']
 obs_list_path = config['obs_path_stem']
 obs_list = config['obs_list']
@@ -50,6 +51,9 @@ if not os.path.exists(ref_path):
     sys.exit()
 if not os.path.exists(ref_beam_path): 
     print("Cannot find beam file! Check config. Exiting.")
+    sys.exit()
+if not os.path.exists(ref_ivar_path): 
+    print("Cannot find ref map ivar file! Check config. Exiting.")
     sys.exit()
 if not os.path.exists(galaxy_mask_path):
     print("Cannot find galaxy mask file! Check config. Exiting.")
@@ -122,7 +126,7 @@ print("Finished loading CAMB spectra")
 
 # Loading in reference maps
 print("Starting to load ref map and beam")
-ref_maps, ref_ivar, ref_beam = aoa.load_ref_map_and_beam(ref_path,ref_beam_path,bins)
+ref_maps, ref_ivar, ref_beam = aoa.load_ref_map_and_beam(ref_path,ref_ivar_path,ref_beam_path,bins)
 if plot_beam:
     beam_name = os.path.split(ref_beam_path)[1][:-4] # Extracting file name from path and dropping '.txt'
     aoa.plot_beam(output_dir_path, beam_name, centers, ref_beam)
