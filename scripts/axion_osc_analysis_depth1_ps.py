@@ -41,7 +41,7 @@ def load_ref_map_and_beam(fname_ref,fname_ref_beam,bins):
 
 def apply_kspace_filter(maps, kx_cut, ky_cut, unpixwin):
     """
-           Takes in a set of T/Q/U maps that already have a taper applied, apply
+        Takes in a set of T/Q/U maps that already have a taper applied, apply
         a k-space filter to remove ground pickup, and returns the E and B maps
     """
     singleobs_TEB = enmap.map2harm(maps, normalize = "phys")
@@ -61,7 +61,7 @@ def apply_kspace_filter(maps, kx_cut, ky_cut, unpixwin):
     
 def load_test_map_and_filter(fname, beam_path, footprint, kx_cut, ky_cut, unpixwin, lmax, bins):
     """
-           Loads in the maps located at fname to the shape and wcs specified by the
+        Loads in the maps located at fname to the shape and wcs specified by the
         footprint. Also filters the maps after applying the taper.
 
         Also loads in appropriate beam and bins it correctly.
@@ -120,7 +120,8 @@ def make_tapered_mask(map_to_mask,filter_radius=1.0,plot=False):
     footprint = 1*map_to_mask.astype(bool)
     mask = nw.apod_C2(footprint,filter_radius)
     
-    # Getting points to set to zero after filtering
+    # Getting points to set to zero after filtering - left over from map-based method,
+    # but now used for calculating ivar_sum in the non-tapered region
     indices = np.nonzero(mask != 1)
     
     if plot:
@@ -128,27 +129,53 @@ def make_tapered_mask(map_to_mask,filter_radius=1.0,plot=False):
     
     return mask, indices
 
-def load_and_filter_depth1(fname, ref_maps, kx_cut, ky_cut, unpixwin,filter_radius=1.0,plot_maps=False,output_dir=None):
+def load_and_filter_depth1(fname, ref_maps, galaxy_mask, kx_cut, ky_cut, unpixwin, filter_radius=1.0,plot_maps=False,output_dir=None):
+    """Loads depth-1 TQU, trims reference map to same size as depth-1, apodizes and filters depth-1 and coadd.
+       Returns filtered depth-1 TEB, depth-1 ivar, depth-1 mask, filtered reference map TEB, and sum of the 
+       inverse variance inside the non-tapered region of the ivar mask for noise/hits cuts."""
+    
     depth1_maps, depth1_ivar, shape, wcs = load_depth1_with_T(fname)
     ref_cut = trim_ref_with_T(ref_maps,shape,wcs)
+    galaxy_mask_cut = enmap.extract(galaxy_mask,shape,wcs)
        
-    # Apodize and filter depth-1
-    depth1_mask, depth1_indices = make_tapered_mask(depth1_ivar,filter_radius=filter_radius)
-    filtered_depth1_TEB = apply_kspace_filter(depth1_maps*depth1_mask, kx_cut, ky_cut, unpixwin=True)
-        
-    # Apodize and filter coadd
-    ref_cut_TEB = apply_kspace_filter(ref_cut*depth1_mask, kx_cut, ky_cut, unpixwin=True)
+    # Apodize depth-1 and apply galaxy mask
+    depth1_mask, depth1_indices = make_tapered_mask(depth1_ivar*galaxy_mask_cut,filter_radius=filter_radius)
 
-    if plot_maps:
-        map_fname = os.path.split(fname)[1][:-9] # removing "_map.fits"
-        plot_T_maps(output_dir, map_fname, depth1_maps[0], **keys_ewrite_T)
-        plot_QU_maps(output_dir, map_fname, [depth1_maps[1], depth1_maps[2]], **keys_ewrite_QU)
-        plot_T_ref_maps(output_dir, map_fname, depth1_mask*ref_cut[0], **keys_ewrite_ref_T)
-        plot_QU_ref_maps(output_dir, map_fname, [depth1_mask*ref_cut[1], depth1_mask*ref_cut[2]],**keys_ewrite_ref_QU)
-        plot_mask(output_dir, map_fname, depth1_mask, **keys_ewrite_mask)
-        plot_EB_filtered_maps(output_dir, map_fname, filtered_depth1_TEB, depth1_mask, **keys_ewrite_EB)
-    
-    return filtered_depth1_TEB, depth1_ivar, depth1_mask, ref_cut_TEB
+    # Checking if the galaxy mask eliminated the whole map
+    if len(np.nonzero(depth1_mask)[0]) > 0:
+        # Filter depth-1
+        filtered_depth1_TEB = apply_kspace_filter(depth1_maps*depth1_mask, kx_cut, ky_cut, unpixwin=unpixwin)
+            
+        # Apodize and filter coadd
+        ref_cut_TEB = apply_kspace_filter(ref_cut*depth1_mask, kx_cut, ky_cut, unpixwin=unpixwin)
+
+        # Calculating the sum of the ivar inside the mask (w/o tapered part) to test if it is a good metric for data cuts
+        # There might be more Pythonic ways to do this, but this works w/o changing the real mask
+        mask_without_taper = depth1_mask.copy() # So as to not alter the tapered mask
+        mask_without_taper[depth1_indices] = 0.0
+        ivar_sum = np.sum(mask_without_taper*depth1_ivar)
+
+        if plot_maps:
+            map_fname = os.path.split(fname)[1][:-9] # removing "_map.fits"
+            plot_T_maps(output_dir, map_fname, depth1_mask*depth1_maps[0], **keys_ewrite_T)
+            plot_QU_maps(output_dir, map_fname, [depth1_mask*depth1_maps[1], depth1_mask*depth1_maps[2]], **keys_ewrite_QU)
+            plot_T_ref_maps(output_dir, map_fname, depth1_mask*ref_cut[0], **keys_ewrite_ref_T)
+            plot_QU_ref_maps(output_dir, map_fname, [depth1_mask*ref_cut[1], depth1_mask*ref_cut[2]],**keys_ewrite_ref_QU)
+            plot_mask(output_dir, map_fname, depth1_mask, **keys_ewrite_mask)
+            plot_EB_filtered_maps(output_dir, map_fname, filtered_depth1_TEB, depth1_mask, **keys_ewrite_EB)
+        
+        return filtered_depth1_TEB, depth1_ivar, depth1_mask, ref_cut_TEB, ivar_sum
+    else:
+        if plot_maps:
+            # All will show nothing except the mask, but still want the empty plots for web viewer code
+            map_fname = os.path.split(fname)[1][:-9] # removing "_map.fits"
+            plot_T_maps(output_dir, map_fname, depth1_mask*depth1_maps[0], **keys_ewrite_T)
+            plot_QU_maps(output_dir, map_fname, [depth1_mask*depth1_maps[1], depth1_mask*depth1_maps[2]], **keys_ewrite_QU)
+            plot_T_ref_maps(output_dir, map_fname, depth1_mask*ref_cut[0], **keys_ewrite_ref_T)
+            plot_QU_ref_maps(output_dir, map_fname, [depth1_mask*ref_cut[1], depth1_mask*ref_cut[2]],**keys_ewrite_ref_QU)
+            plot_mask(output_dir, map_fname, depth1_mask, **keys_ewrite_mask)
+            plot_EB_filtered_maps(output_dir, map_fname, depth1_maps, depth1_mask, **keys_ewrite_EB)
+        return 1 # returning an error code if there is nothing left in the map
 
 def apply_ivar_weighting(input_kspace_TEB_maps, input_ivar, mask):
     """For a set of TEB Fourier space maps, converts back to real space, multiplies by
@@ -414,114 +441,121 @@ def plot_spectra_individually(output_dir, spectra):
     CAMB_ClBB_binned = spectra[maps[0]]['CAMB_BB']
 
     for i in tqdm(range(len(maps))):
-        fig = plt.figure(figsize=(6.4,4.8), layout='constrained')
-        plt.semilogy(ell_b, cl_to_dl(spectra[maps[i]]['E1xE1'],ell_b),alpha=1.0)
-        plt.semilogy(ell_b, cl_to_dl(CAMB_ClEE_binned,ell_b), 'r--', label="CAMB EE")
-        plt.ylabel("$D_{\ell}^{E1xE1}$")
-        plt.xlabel("$\ell$")
-        plt.title("E1xE1 " + maps[i][:-9])
-        plt.grid()
-        plt.legend()
-        output_fname = save_dir + maps[i][:-9] + "_e1xe1_spectrum_withCAMBee.png"
-        plt.savefig(output_fname, dpi=300)
-        plt.close()
-        
-        fig = plt.figure(figsize=(6.4,4.8), layout='constrained')
-        plt.semilogy(ell_b, cl_to_dl(spectra[maps[i]]['E2xE2'],ell_b),alpha=1.0)
-        plt.semilogy(ell_b, cl_to_dl(CAMB_ClEE_binned,ell_b), 'r--', label="CAMB EE")
-        plt.ylabel("$D_{\ell}^{E2xE2}$")
-        plt.xlabel("$\ell$") 
-        plt.title("E2xE2 " + maps[i][:-9])
-        plt.grid()
-        plt.legend()
-        output_fname = save_dir + maps[i][:-9] + "_e2xe2_spectrum_withCAMBee.png"
-        plt.savefig(output_fname, dpi=300)
-        plt.close()
+        if spectra['map_cut'] == 1: # Skipping any maps that were completely cut by galaxy mask
+            continue
+        else:
+            fig = plt.figure(figsize=(6.4,4.8), layout='constrained')
+            plt.semilogy(ell_b, cl_to_dl(spectra[maps[i]]['E1xE1'],ell_b), marker='.', alpha=1.0)
+            plt.semilogy(ell_b, cl_to_dl(CAMB_ClEE_binned,ell_b), 'r.--', label="CAMB EE")
+            plt.ylabel("$D_{\ell}^{E1xE1}$")
+            plt.xlabel("$\ell$")
+            plt.title("E1xE1 " + maps[i][:-9])
+            plt.grid()
+            plt.legend()
+            output_fname = save_dir + maps[i][:-9] + "_e1xe1_spectrum_withCAMBee.png"
+            plt.savefig(output_fname, dpi=300)
+            plt.close()
+            
+            fig = plt.figure(figsize=(6.4,4.8), layout='constrained')
+            plt.semilogy(ell_b, cl_to_dl(spectra[maps[i]]['E2xE2'],ell_b), marker='.', alpha=1.0)
+            plt.semilogy(ell_b, cl_to_dl(CAMB_ClEE_binned,ell_b), 'r.--', label="CAMB EE")
+            plt.ylabel("$D_{\ell}^{E2xE2}$")
+            plt.xlabel("$\ell$") 
+            plt.title("E2xE2 " + maps[i][:-9])
+            plt.grid()
+            plt.legend()
+            output_fname = save_dir + maps[i][:-9] + "_e2xe2_spectrum_withCAMBee.png"
+            plt.savefig(output_fname, dpi=300)
+            plt.close()
 
-        fig = plt.figure(figsize=(6.4,4.8), layout='constrained')
-        plt.semilogy(ell_b, cl_to_dl(spectra[maps[i]]['B1xB1'],ell_b),alpha=1.0)
-        plt.semilogy(ell_b, cl_to_dl(CAMB_ClBB_binned,ell_b), 'r--', label="CAMB BB")
-        plt.ylabel("$D_{\ell}^{B1xB1}$")
-        plt.xlabel("$\ell$")
-        plt.title("B1xB1 " + maps[i][:-9])
-        plt.grid()
-        plt.legend()
-        output_fname = save_dir + maps[i][:-9] + "_b1xb1_spectrum_withCAMBbb.png"
-        plt.savefig(output_fname, dpi=300)
-        plt.close()
-        
-        fig = plt.figure(figsize=(6.4,4.8), layout='constrained')
-        plt.semilogy(ell_b, cl_to_dl(spectra[maps[i]]['B2xB2'],ell_b),alpha=1.0)
-        plt.semilogy(ell_b, cl_to_dl(CAMB_ClBB_binned,ell_b), 'r--', label="CAMB BB")
-        plt.ylabel("$D_{\ell}^{B2xB2}$")
-        plt.xlabel("$\ell$") 
-        plt.title("B2xB2 " + maps[i][:-9])
-        plt.grid()
-        plt.legend()
-        output_fname = save_dir + maps[i][:-9] + "_b2xb2_spectrum_withCAMBbb.png"
-        plt.savefig(output_fname, dpi=300)
-        plt.close()
+            fig = plt.figure(figsize=(6.4,4.8), layout='constrained')
+            plt.semilogy(ell_b, cl_to_dl(spectra[maps[i]]['B1xB1'],ell_b), marker='.', alpha=1.0)
+            plt.semilogy(ell_b, cl_to_dl(CAMB_ClBB_binned,ell_b), 'r.--', label="CAMB BB")
+            plt.ylabel("$D_{\ell}^{B1xB1}$")
+            plt.xlabel("$\ell$")
+            plt.title("B1xB1 " + maps[i][:-9])
+            plt.grid()
+            plt.legend()
+            output_fname = save_dir + maps[i][:-9] + "_b1xb1_spectrum_withCAMBbb.png"
+            plt.savefig(output_fname, dpi=300)
+            plt.close()
+            
+            fig = plt.figure(figsize=(6.4,4.8), layout='constrained')
+            plt.semilogy(ell_b, cl_to_dl(spectra[maps[i]]['B2xB2'],ell_b), marker='.', alpha=1.0)
+            plt.semilogy(ell_b, cl_to_dl(CAMB_ClBB_binned,ell_b), 'r.--', label="CAMB BB")
+            plt.ylabel("$D_{\ell}^{B2xB2}$")
+            plt.xlabel("$\ell$") 
+            plt.title("B2xB2 " + maps[i][:-9])
+            plt.grid()
+            plt.legend()
+            output_fname = save_dir + maps[i][:-9] + "_b2xb2_spectrum_withCAMBbb.png"
+            plt.savefig(output_fname, dpi=300)
+            plt.close()
 
-        fig = plt.figure(figsize=(6.4,4.8), layout='constrained')
-        plt.plot(ell_b, cl_to_dl(spectra[maps[i]]['E1xB2'],ell_b),alpha=1.0)
-        plt.ylabel("$D_{\ell}^{E1xB2}$")
-        plt.xlabel("$\ell$")
-        plt.title("E1xB2 " + maps[i][:-9])
-        plt.grid()
-        plt.axhline(y=0,color='gray',linewidth=2)
-        output_fname = save_dir + maps[i][:-9] + "_e1xb2_spectrum.png"
-        plt.savefig(output_fname, dpi=300)
-        plt.close()
-        
-        fig = plt.figure(figsize=(6.4,4.8), layout='constrained')
-        plt.plot(ell_b, cl_to_dl(spectra[maps[i]]['E2xB1'],ell_b),alpha=1.0)
-        plt.ylabel("$D_{\ell}^{E2xB1}$")
-        plt.xlabel("$\ell$") 
-        plt.title("E2xB1 " + maps[i][:-9])
-        plt.grid()
-        plt.axhline(y=0,color='gray',linewidth=2)
-        output_fname = save_dir + maps[i][:-9] + "_e2xb1_spectrum.png"
-        plt.savefig(output_fname, dpi=300)
-        plt.close()
+            fig = plt.figure(figsize=(6.4,4.8), layout='constrained')
+            plt.plot(ell_b, cl_to_dl(spectra[maps[i]]['E1xB2'],ell_b), marker='.', alpha=1.0)
+            plt.ylabel("$D_{\ell}^{E1xB2}$")
+            plt.xlabel("$\ell$")
+            plt.title("E1xB2 " + maps[i][:-9])
+            plt.grid()
+            plt.axhline(y=0,color='gray',linewidth=2)
+            output_fname = save_dir + maps[i][:-9] + "_e1xb2_spectrum.png"
+            plt.savefig(output_fname, dpi=300)
+            plt.close()
+            
+            fig = plt.figure(figsize=(6.4,4.8), layout='constrained')
+            plt.plot(ell_b, cl_to_dl(spectra[maps[i]]['E2xB1'],ell_b), marker='.', alpha=1.0)
+            plt.ylabel("$D_{\ell}^{E2xB1}$")
+            plt.xlabel("$\ell$") 
+            plt.title("E2xB1 " + maps[i][:-9])
+            plt.grid()
+            plt.axhline(y=0,color='gray',linewidth=2)
+            output_fname = save_dir + maps[i][:-9] + "_e2xb1_spectrum.png"
+            plt.savefig(output_fname, dpi=300)
+            plt.close()
 
-        fig = plt.figure(figsize=(6.4,4.8), layout='constrained')
-        d_ell_covariance = cl_to_dl(cl_to_dl(spectra[maps[i]]['covariance'],ell_b),ell_b)
-        plt.plot(ell_b, d_ell_covariance, alpha=1.0) # Two factors of C_ell to D_ell because made of squares of spectra
-        plt.ylabel("Covariance")
-        plt.xlabel("$\ell$")
-        plt.title("Covariance " + maps[i][:-9])
-        plt.grid()
-        plt.axhline(y=0,color='gray',linewidth=2)
-        output_fname = save_dir + maps[i][:-9] + "_covariance.png"
-        plt.savefig(output_fname, dpi=300)
-        plt.close()
+            fig = plt.figure(figsize=(6.4,4.8), layout='constrained')
+            d_ell_covariance = cl_to_dl(cl_to_dl(spectra[maps[i]]['covariance'],ell_b),ell_b)
+            plt.plot(ell_b, d_ell_covariance, marker='.', alpha=1.0) # Two factors of C_ell to D_ell because made of squares of spectra
+            plt.ylabel("Covariance")
+            plt.xlabel("$\ell$")
+            plt.title("Covariance " + maps[i][:-9])
+            plt.grid()
+            plt.axhline(y=0,color='gray',linewidth=2)
+            output_fname = save_dir + maps[i][:-9] + "_covariance.png"
+            plt.savefig(output_fname, dpi=300)
+            plt.close()
 
-        fig = plt.figure(figsize=(6.4,4.8), layout='constrained')
-        est_err = np.sqrt(d_ell_covariance)
-        plt.errorbar(ell_b, cl_to_dl(spectra[maps[i]]['estimator'],ell_b), yerr=est_err, alpha=1.0, label='Estimator')
-        # Plotting the best fit angle and the theory curve over measured estimator
-        angle_rad = np.deg2rad(spectra[maps[i]]['meas_angle'])
-        plt.plot(ell_b, 1.0*cl_to_dl(CAMB_ClEE_binned,ell_b)*np.sin(2*angle_rad), label="Theory value for best fit angle")
-        plt.ylabel("$D_{\ell}^{E1xB2} - D_{\ell}^{E2xB1}$")
-        plt.xlabel("$\ell$")
-        plt.title("Estimator " + maps[i][:-9])
-        plt.legend()
-        plt.grid()
-        plt.axhline(y=0,color='gray',linewidth=2)
-        output_fname = save_dir + maps[i][:-9] + "_estimator.png"
-        plt.savefig(output_fname, dpi=300)
-        plt.close()
+            fig = plt.figure(figsize=(6.4,4.8), layout='constrained')
+            est_err = np.sqrt(d_ell_covariance)
+            plt.errorbar(ell_b, cl_to_dl(spectra[maps[i]]['estimator'],ell_b), yerr=est_err, marker='.', alpha=1.0, label='Estimator')
+            # Plotting the best fit angle and the theory curve over measured estimator
+            angle_rad = np.deg2rad(spectra[maps[i]]['meas_angle'])
+            angle_errbar_rad = np.deg2rad(spectra[maps[i]]['meas_errbar'])
+            plt.plot(ell_b, 1.0*cl_to_dl(CAMB_ClEE_binned,ell_b)*np.sin(2*angle_rad), marker='.', color='red', label="Theory estimator for best fit angle")
+            # Plotting 1 sigma shadow above and below theory curve
+            plt.fill_between(ell_b, 1.0*cl_to_dl(CAMB_ClEE_binned,ell_b)*np.sin(2*(angle_rad+angle_errbar_rad)), 
+                            1.0*cl_to_dl(CAMB_ClEE_binned,ell_b)*np.sin(2*(angle_rad-angle_errbar_rad)), alpha=0.3, color='red')
+            plt.ylabel("$D_{\ell}^{E1xB2} - D_{\ell}^{E2xB1}$")
+            plt.xlabel("$\ell$")
+            plt.title("Estimator " + maps[i][:-9])
+            plt.legend()
+            plt.grid()
+            plt.axhline(y=0,color='gray',linewidth=2)
+            output_fname = save_dir + maps[i][:-9] + "_estimator.png"
+            plt.savefig(output_fname, dpi=300)
+            plt.close()
 
-        fig = plt.figure(figsize=(6.4,4.8), layout='constrained')
-        plt.plot(ell_b, spectra[maps[i]]['binned_nu'],alpha=1.0) # Not a spectra, so no conversion to D_ell
-        plt.ylabel("Effective modes per bin")
-        plt.xlabel("$\ell$")
-        plt.title("$\\nu_b$ " + maps[i][:-9])
-        plt.grid()
-        plt.axhline(y=0,color='gray',linewidth=2)
-        output_fname = save_dir + maps[i][:-9] + "_modesperbin.png"
-        plt.savefig(output_fname, dpi=300)
-        plt.close()
+            fig = plt.figure(figsize=(6.4,4.8), layout='constrained')
+            plt.plot(ell_b, spectra[maps[i]]['binned_nu'], marker='.', alpha=1.0) # Not a spectra, so no conversion to D_ell
+            plt.ylabel("Effective modes per bin")
+            plt.xlabel("$\ell$")
+            plt.title("$\\nu_b$ " + maps[i][:-9])
+            plt.grid()
+            plt.axhline(y=0,color='gray',linewidth=2)
+            output_fname = save_dir + maps[i][:-9] + "_modesperbin.png"
+            plt.savefig(output_fname, dpi=300)
+            plt.close()
 
 def plot_spectra_summary(output_dir, spectra):
     """Plots some summary plots for the EE and BB autospectra for all maps in a run."""
@@ -535,7 +569,10 @@ def plot_spectra_summary(output_dir, spectra):
     output_path_ee = save_dir + "ee_autospectra_all_test_maps.png"
     plt.semilogy(ell_b, cl_to_dl(spectra[maps[0]]['CAMB_EE'],ell_b), 'r--', label="CAMB EE")
     for i in range(len(maps)):
-        plt.semilogy(ell_b, cl_to_dl(spectra[maps[i]]['E1xE1'],ell_b),alpha=0.3)
+        if spectra[maps[i]]['map_cut'] == 1:
+            continue
+        else:
+            plt.semilogy(ell_b, cl_to_dl(spectra[maps[i]]['E1xE1'],ell_b),alpha=0.3)
     plt.ylabel("$D_{\ell}^{EE}$")
     plt.xlabel("$\ell$")
     plt.grid()
@@ -549,7 +586,10 @@ def plot_spectra_summary(output_dir, spectra):
     output_path_ee_ref = save_dir + "ee_autospectra_all_ref_maps.png"
     plt.semilogy(ell_b, cl_to_dl(spectra[maps[0]]['CAMB_EE'],ell_b), 'r--', label="CAMB EE")
     for i in range(len(maps)):
-        plt.semilogy(ell_b, cl_to_dl(spectra[maps[i]]['E2xE2'],ell_b),alpha=0.3)
+        if spectra[maps[i]]['map_cut'] == 1:
+            continue
+        else:
+            plt.semilogy(ell_b, cl_to_dl(spectra[maps[i]]['E2xE2'],ell_b),alpha=0.3)
     plt.ylabel("$D_{\ell}^{EE}$")
     plt.xlabel("$\ell$")
     plt.grid()
@@ -563,7 +603,10 @@ def plot_spectra_summary(output_dir, spectra):
     output_path_bb = save_dir + "bb_autospectra_all_test_maps.png"
     plt.semilogy(ell_b, cl_to_dl(spectra[maps[0]]['CAMB_BB'],ell_b), 'r--', label="CAMB BB")
     for i in range(len(maps)):
-        plt.semilogy(ell_b, cl_to_dl(spectra[maps[i]]['B1xB1'],ell_b),alpha=0.3)
+        if spectra[maps[i]]['map_cut'] == 1:
+            continue
+        else:
+            plt.semilogy(ell_b, cl_to_dl(spectra[maps[i]]['B1xB1'],ell_b),alpha=0.3)
     plt.ylabel("$D_{\ell}^{BB}$")
     plt.xlabel("$\ell$")
     plt.grid()
@@ -577,7 +620,10 @@ def plot_spectra_summary(output_dir, spectra):
     output_path_bb_ref = save_dir + "bb_autospectra_all_ref_maps.png"
     plt.semilogy(ell_b, cl_to_dl(spectra[maps[0]]['CAMB_BB'],ell_b), 'r--', label="CAMB BB")
     for i in range(len(maps)):
-        plt.semilogy(ell_b, cl_to_dl(spectra[maps[i]]['B2xB2'],ell_b),alpha=0.3)
+        if spectra[maps[i]]['map_cut'] == 1:
+            continue
+        else:
+            plt.semilogy(ell_b, cl_to_dl(spectra[maps[i]]['B2xB2'],ell_b),alpha=0.3)
     plt.ylabel("$D_{\ell}^{BB}$")
     plt.xlabel("$\ell$")
     plt.grid()
@@ -598,7 +644,7 @@ def plot_likelihood(output_dir, map_name, angles, likelihood, gauss_fits):
     plt.plot(angles, likelihood, 'b.', label='Mean={:1.3f}\n$\sigma$={:1.3f}'.format(mean,stddev))
     plt.axvline(mean,alpha=0.3,color='black')
     # Could also move label to plt.figtext, but legend will auto adjust for me
-    plt.plot(angles, gaussian(angles,mean,stddev), label='Fit Gaussian')
+    plt.plot(angles, gaussian(angles,mean,stddev), 'r', label='Fit Gaussian')
     plt.legend()
     plt.ylabel("Likelihood")
     plt.xlabel("Angles (deg)")
@@ -645,12 +691,16 @@ def plot_angle_hist(output_dir,angles, maps):
         os.makedirs(save_dir)
     save_fname_hist = "angle_hist.png"
     # Could make a more complicated histogram with statistics overplotted
-    # Plotting general histogram with all angles
+    # Plotting general histogram with all angles except the cut maps
+    num_maps = len(angles)
+    num_cut_maps = len(angles[angles == -9999])
     fig = plt.figure(figsize=(6.4,4.8), layout='constrained')
-    plt.hist(angles, bins=30)
+    plt.hist(angles[angles != -9999], bins=30,
+             label=str(num_maps) + " total maps \n" + str(num_cut_maps) + " cut maps")
     plt.title("Histogram of measured angles")
     plt.xlabel("Angle (deg)")
     plt.ylabel("Counts")
+    plt.legend()
     plt.savefig(save_dir+save_fname_hist, dpi=300)
     plt.close()
     # Also breaking it out by array
@@ -660,7 +710,11 @@ def plot_angle_hist(output_dir,angles, maps):
     for array in np.unique(maps_array):
         fig = plt.figure(figsize=(6.4,4.8), layout='constrained')
         save_fname_hist = "angle_hist_" + array + ".png"
-        plt.hist(angles[maps_array==array], bins=30, range=range_arrays, label=array)
+        angles_subset = angles[maps_array==array]
+        num_maps = len(angles_subset)
+        num_cut_maps = len(angles_subset[angles_subset == -9999])
+        plt.hist(angles_subset[angles_subset != -9999], bins=30, range=range_arrays, 
+                 label=str(num_maps) + " total maps, array " + array + "\n" + str(num_cut_maps) + " cut maps")
         plt.title("Histogram of measured angles, array " + array)
         plt.xlabel("Angle (deg)")
         plt.ylabel("Counts")
@@ -672,9 +726,10 @@ def plot_angle_hist(output_dir,angles, maps):
     # Could consider changing to a multihist or step hist later
     save_fname_hist = "angle_hist_all_combined.png"
     fig = plt.figure(figsize=(6.4,4.8), layout='constrained')
-    plt.hist(angles, bins=30,alpha=0.5,label='All arrays')
+    plt.hist(angles[angles != -9999], bins=30,alpha=0.5,label='All arrays')
     for array in np.unique(maps_array):
-        plt.hist(angles[maps_array==array], bins=30, range=range_arrays, label=array, alpha=0.5)
+        angles_subset = angles[maps_array==array]
+        plt.hist(angles_subset[angles_subset != -9999], bins=30, range=range_arrays, label=array, alpha=0.5)
     plt.title("Histogram of measured angles by array")
     plt.xlabel("Angle (deg)")
     plt.ylabel("Counts")

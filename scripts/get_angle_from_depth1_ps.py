@@ -39,6 +39,7 @@ use_ivar_weight = config['use_ivar_weight']
 camb_file = config['theory_curves_path']
 ref_path = config['ref_path']
 ref_beam_path = config['ref_beam_path']
+galaxy_mask_path = config['galaxy_mask_path']
 obs_list_path = config['obs_path_stem']
 obs_list = config['obs_list']
 if not os.path.exists(camb_file): 
@@ -49,6 +50,9 @@ if not os.path.exists(ref_path):
     sys.exit()
 if not os.path.exists(ref_beam_path): 
     print("Cannot find beam file! Check config. Exiting.")
+    sys.exit()
+if not os.path.exists(galaxy_mask_path):
+    print("Cannot find galaxy mask file! Check config. Exiting.")
     sys.exit()
 if not os.path.exists(obs_list): 
     print("Cannot find observation list! Check config. Exiting.")
@@ -124,6 +128,11 @@ if plot_beam:
     aoa.plot_beam(output_dir_path, beam_name, centers, ref_beam)
 print("Finished loading ref map and beam")
 
+# Loading in galaxy mask
+print("Starting to load galaxy mask")
+galaxy_mask = enmap.read_map(galaxy_mask_path)
+print("Finished loading galaxy mask")
+
 maps = []
 angle_estimates = []
 spectra_output = {}
@@ -139,88 +148,118 @@ with open(obs_list) as f:
 for line in tqdm(lines):
     print(line)
     map_path = obs_list_path + line
-    depth1_TEB, depth1_ivar, depth1_footprint, ref_TEB = aoa.load_and_filter_depth1(map_path, ref_maps, kx_cut, ky_cut, 
-                                                                                    unpixwin, filter_radius=filter_radius,
-                                                                                    plot_maps=plot_maps,output_dir=output_dir_path)
 
-    if use_ivar_weight:
-        # Ivar weighting for depth-1 map
-        depth1_TEB = aoa.apply_ivar_weighting(depth1_TEB, depth1_ivar, depth1_footprint)
+    outputs = aoa.load_and_filter_depth1(map_path, ref_maps, galaxy_mask, 
+                                            kx_cut, ky_cut, unpixwin, 
+                                            filter_radius=filter_radius,plot_maps=plot_maps,
+                                            output_dir=output_dir_path)
+    # If the full map has been cut by the galaxy mask, it return error code 1 instead of the regular outputs
+    if outputs == 1:
+        # saves output flag so we can see it is cut
+        print("Map " + line + " was completely cut by galaxy mask.")
+        ell_len = len(centers)
+        spectra_output[line] = {'ell': centers, 'E1xB2': np.zeros(ell_len), 'E2xB1': np.zeros(ell_len), 
+                                'E1xE1': np.zeros(ell_len), 'B2xB2': np.zeros(ell_len), 'E2xE2': np.zeros(ell_len),
+                                'B1xB1': np.zeros(ell_len), 'E1xE2': np.zeros(ell_len), 'B1xB2': np.zeros(ell_len),
+                                'E1xB1': np.zeros(ell_len), 'E2xB2': np.zeros(ell_len), 'binned_nu': np.zeros(ell_len),
+                                'estimator': np.zeros(ell_len), 'covariance': np.zeros(ell_len),
+                                'CAMB_EE': CAMB_ClEE_binned, 'CAMB_BB': CAMB_ClBB_binned,
+                                'w2_depth1': -9999, 'w2_cross': -9999, 'w2_ref': -9999,
+                                'meas_angle': -9999, 'meas_errbar': -9999, 
+                                'ivar_sum': -9999, 'map_cut': 1}
+        angle_estimates.append((-9999,-9999))
+        maps.append(line)
+        if plot_likelihood:
+            # Make empty likelihood plot for web viewer
+            angles_deg = np.linspace(angle_min_deg,angle_max_deg,num=num_pts)
+            aoa.plot_likelihood(output_dir_path, line, angles_deg, np.zeros(num_pts), (-9999,-9999))
+    else: 
+        # Otherwise do everything you would normally do
+        depth1_TEB = outputs[0]
+        depth1_ivar = outputs[1]
+        depth1_footprint = outputs[2]
+        ref_TEB = outputs[3]
+        ivar_sum = outputs[4]
 
-        # Ivar weighting for reference map - already filtered and trimmed from ref_TEB above
-        ref_map_trimmed_ivar = enmap.extract(ref_ivar,depth1_TEB[0].shape,depth1_TEB[0].wcs)
-        ref_TEB = aoa.apply_ivar_weighting(ref_TEB, ref_map_trimmed_ivar, depth1_footprint)
+        if use_ivar_weight:
+            # Ivar weighting for depth-1 map
+            depth1_TEB = aoa.apply_ivar_weighting(depth1_TEB, depth1_ivar, depth1_footprint)
 
-        # Calculating approx correction for loss of power due to tapering for spectra for depth-1
-        w_depth1 = depth1_ivar*depth1_footprint
-        # Calculating approx correction for loss of power due to tapering for spectra for ref
-        w_ref = ref_map_trimmed_ivar*depth1_footprint    
-    else:
-        # No ivar weighting
-        w_depth1 = depth1_footprint # use this if using flat weighting
-        w_ref = depth1_footprint # use this if using flat weighting 
+            # Ivar weighting for reference map - already filtered and trimmed from ref_TEB above
+            ref_map_trimmed_ivar = enmap.extract(ref_ivar,depth1_TEB[0].shape,depth1_TEB[0].wcs)
+            ref_TEB = aoa.apply_ivar_weighting(ref_TEB, ref_map_trimmed_ivar, depth1_footprint)
 
-    depth1_E = depth1_TEB[1]
-    depth1_B = depth1_TEB[2]
-    ref_E = ref_TEB[1]
-    ref_B = ref_TEB[2]
+            # Calculating approx correction for loss of power due to tapering for spectra for depth-1
+            w_depth1 = depth1_ivar*depth1_footprint
+            # Calculating approx correction for loss of power due to tapering for spectra for ref
+            w_ref = ref_map_trimmed_ivar*depth1_footprint    
+        else:
+            # No ivar weighting
+            w_depth1 = depth1_footprint # use this if using flat weighting
+            w_ref = depth1_footprint # use this if using flat weighting 
 
-    # At some point need to implement a beam correction per depth-1 map if possible
+        depth1_E = depth1_TEB[1]
+        depth1_B = depth1_TEB[2]
+        ref_E = ref_TEB[1]
+        ref_B = ref_TEB[2]
 
-    # Calculating w2 factors - all the same if not using ivar weighting, but different if using it
-    w2_depth1 = np.mean(w_depth1**2)
-    w2_cross = np.mean(w_depth1*w_ref)
-    w2_ref = np.mean(w_ref**2)
+        # At some point need to implement a beam correction per array if possible
 
-    # Calculate spectra
-    # Spectra for estimator
-    binned_E1xB2, bincount = aoa.spectrum_from_maps(depth1_E, ref_B, b_ell_bin_1=ref_beam, b_ell_bin_2=ref_beam, w2=w2_cross, bins=bins)
-    binned_E2xB1, _ = aoa.spectrum_from_maps(depth1_B, ref_E, b_ell_bin_1=ref_beam, b_ell_bin_2=ref_beam, w2=w2_cross, bins=bins)
-    # Spectra for covariance
-    binned_E1xE1, _ = aoa.spectrum_from_maps(depth1_E, depth1_E, b_ell_bin_1=ref_beam, b_ell_bin_2=ref_beam, w2=w2_depth1, bins=bins)
-    binned_B2xB2, _ = aoa.spectrum_from_maps(ref_B, ref_B, b_ell_bin_1=ref_beam, b_ell_bin_2=ref_beam, w2=w2_ref, bins=bins)
-    binned_E2xE2, _ = aoa.spectrum_from_maps(ref_E, ref_E, b_ell_bin_1=ref_beam, b_ell_bin_2=ref_beam, w2=w2_ref, bins=bins)
-    binned_B1xB1, _ = aoa.spectrum_from_maps(depth1_B, depth1_B, b_ell_bin_1=ref_beam, b_ell_bin_2=ref_beam, w2=w2_depth1, bins=bins)
-    binned_E1xE2, _ = aoa.spectrum_from_maps(depth1_E, ref_E, b_ell_bin_1=ref_beam, b_ell_bin_2=ref_beam, w2=w2_cross, bins=bins)
-    binned_B1xB2, _ = aoa.spectrum_from_maps(depth1_B, ref_B, b_ell_bin_1=ref_beam, b_ell_bin_2=ref_beam, w2=w2_cross, bins=bins)
-    binned_E1xB1, _ = aoa.spectrum_from_maps(depth1_E, depth1_B, b_ell_bin_1=ref_beam, b_ell_bin_2=ref_beam, w2=w2_depth1, bins=bins)
-    binned_E2xB2, _ = aoa.spectrum_from_maps(ref_E, ref_B, b_ell_bin_1=ref_beam, b_ell_bin_2=ref_beam, w2=w2_ref, bins=bins)    
-    # Accounting for transfer function
-    binned_E1xB2 /= tfunc
-    binned_E2xB1 /= tfunc
-    binned_E1xE1 /= tfunc
-    binned_B2xB2 /= tfunc
-    binned_E2xE2 /= tfunc
-    binned_B1xB1 /= tfunc
-    binned_E1xE2 /= tfunc
-    binned_B1xB2 /= tfunc
-    binned_E1xB1 /= tfunc
-    binned_E2xB2 /= tfunc
-    # Accounting for modes lost to the mask and filtering - always uses w2 without ivar, regardless of ivar weighting
-    binned_nu = bincount*np.mean(depth1_footprint**2)*tfunc
-    
-    # Calculate estimator and covariance
-    estimator = binned_E1xB2-binned_E2xB1
-    covariance = ((1/binned_nu)*((binned_E1xE1*binned_B2xB2+binned_E1xB2**2)
-                                +(binned_E2xE2*binned_B1xB1+binned_E2xB1**2)
-                                -2*(binned_E1xE2*binned_B1xB2+binned_E1xB1*binned_E2xB2)))
+        # Calculating w2 factors - all the same if not using ivar weighting, but different if using it
+        w2_depth1 = np.mean(w_depth1**2)
+        w2_cross = np.mean(w_depth1*w_ref)
+        w2_ref = np.mean(w_ref**2)
 
-    fit_values = aoa.sample_likelihood_and_fit(estimator,covariance,CAMB_ClEE_binned,num_pts=num_pts,
-                                               angle_min_deg=angle_min_deg, angle_max_deg=angle_max_deg,
-                                               use_curvefit=use_curvefit,plot_like=plot_likelihood,
-                                               output_dir=output_dir_path,map_fname=line)
+        # Calculate spectra
+        # Spectra for estimator
+        binned_E1xB2, bincount = aoa.spectrum_from_maps(depth1_E, ref_B, b_ell_bin_1=ref_beam, b_ell_bin_2=ref_beam, w2=w2_cross, bins=bins)
+        binned_E2xB1, _ = aoa.spectrum_from_maps(depth1_B, ref_E, b_ell_bin_1=ref_beam, b_ell_bin_2=ref_beam, w2=w2_cross, bins=bins)
+        # Spectra for covariance
+        binned_E1xE1, _ = aoa.spectrum_from_maps(depth1_E, depth1_E, b_ell_bin_1=ref_beam, b_ell_bin_2=ref_beam, w2=w2_depth1, bins=bins)
+        binned_B2xB2, _ = aoa.spectrum_from_maps(ref_B, ref_B, b_ell_bin_1=ref_beam, b_ell_bin_2=ref_beam, w2=w2_ref, bins=bins)
+        binned_E2xE2, _ = aoa.spectrum_from_maps(ref_E, ref_E, b_ell_bin_1=ref_beam, b_ell_bin_2=ref_beam, w2=w2_ref, bins=bins)
+        binned_B1xB1, _ = aoa.spectrum_from_maps(depth1_B, depth1_B, b_ell_bin_1=ref_beam, b_ell_bin_2=ref_beam, w2=w2_depth1, bins=bins)
+        binned_E1xE2, _ = aoa.spectrum_from_maps(depth1_E, ref_E, b_ell_bin_1=ref_beam, b_ell_bin_2=ref_beam, w2=w2_cross, bins=bins)
+        binned_B1xB2, _ = aoa.spectrum_from_maps(depth1_B, ref_B, b_ell_bin_1=ref_beam, b_ell_bin_2=ref_beam, w2=w2_cross, bins=bins)
+        binned_E1xB1, _ = aoa.spectrum_from_maps(depth1_E, depth1_B, b_ell_bin_1=ref_beam, b_ell_bin_2=ref_beam, w2=w2_depth1, bins=bins)
+        binned_E2xB2, _ = aoa.spectrum_from_maps(ref_E, ref_B, b_ell_bin_1=ref_beam, b_ell_bin_2=ref_beam, w2=w2_ref, bins=bins)    
+        # Accounting for transfer function
+        binned_E1xB2 /= tfunc
+        binned_E2xB1 /= tfunc
+        binned_E1xE1 /= tfunc
+        binned_B2xB2 /= tfunc
+        binned_E2xE2 /= tfunc
+        binned_B1xB1 /= tfunc
+        binned_E1xE2 /= tfunc
+        binned_B1xB2 /= tfunc
+        binned_E1xB1 /= tfunc
+        binned_E2xB2 /= tfunc
+        # Accounting for modes lost to the mask and filtering - always uses w2 without ivar, regardless of ivar weighting
+        binned_nu = bincount*np.mean(depth1_footprint**2)*tfunc
+        
+        # Calculate estimator and covariance
+        estimator = binned_E1xB2-binned_E2xB1
+        covariance = ((1/binned_nu)*((binned_E1xE1*binned_B2xB2+binned_E1xB2**2)
+                                    +(binned_E2xE2*binned_B1xB1+binned_E2xB1**2)
+                                    -2*(binned_E1xE2*binned_B1xB2+binned_E1xB1*binned_E2xB2)))
 
-    print(fit_values)
-    angle_estimates.append(fit_values)
-    maps.append(line)
-    spectra_output[line] = {'ell': centers, 'E1xB2': binned_E1xB2, 'E2xB1': binned_E2xB1, 
-                            'E1xE1': binned_E1xE1, 'B2xB2': binned_B2xB2, 'E2xE2': binned_E2xE2,
-                            'B1xB1': binned_B1xB1, 'E1xE2': binned_E1xE2, 'B1xB2': binned_B1xB2,
-                            'E1xB1': binned_E1xB1, 'E2xB2': binned_E2xB2, 'binned_nu': binned_nu,
-                            'estimator': estimator, 'covariance': covariance,
-                            'CAMB_EE': CAMB_ClEE_binned, 'CAMB_BB': CAMB_ClBB_binned,
-                            'w2_depth1': w2_depth1, 'w2_cross': w2_cross, 'w2_ref': w2_ref,
-                            'meas_angle': fit_values[0], 'meas_errbar': fit_values[1]}
+        fit_values = aoa.sample_likelihood_and_fit(estimator,covariance,CAMB_ClEE_binned,num_pts=num_pts,
+                                                angle_min_deg=angle_min_deg, angle_max_deg=angle_max_deg,
+                                                use_curvefit=use_curvefit,plot_like=plot_likelihood,
+                                                output_dir=output_dir_path,map_fname=line)
+
+        print(fit_values)
+        angle_estimates.append(fit_values)
+        maps.append(line)
+        spectra_output[line] = {'ell': centers, 'E1xB2': binned_E1xB2, 'E2xB1': binned_E2xB1, 
+                                'E1xE1': binned_E1xE1, 'B2xB2': binned_B2xB2, 'E2xE2': binned_E2xE2,
+                                'B1xB1': binned_B1xB1, 'E1xE2': binned_E1xE2, 'B1xB2': binned_B1xB2,
+                                'E1xB1': binned_E1xB1, 'E2xB2': binned_E2xB2, 'binned_nu': binned_nu,
+                                'estimator': estimator, 'covariance': covariance,
+                                'CAMB_EE': CAMB_ClEE_binned, 'CAMB_BB': CAMB_ClBB_binned,
+                                'w2_depth1': w2_depth1, 'w2_cross': w2_cross, 'w2_ref': w2_ref,
+                                'meas_angle': fit_values[0], 'meas_errbar': fit_values[1], 
+                                'ivar_sum': ivar_sum, 'map_cut': 0}
 
 # Converting rho estimates to float from np.float64 for readability in yaml
 angle_estimates_float = [[float(v),float(w)] for (v,w) in angle_estimates]
