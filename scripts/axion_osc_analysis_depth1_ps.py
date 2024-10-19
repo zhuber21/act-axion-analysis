@@ -173,7 +173,7 @@ def load_and_filter_depth1(fname, ref_maps, galaxy_mask, kx_cut, ky_cut, unpixwi
             plot_T_ref_maps(output_dir, map_fname, depth1_mask*ref_cut[0], **keys_ewrite_ref_T)
             plot_QU_ref_maps(output_dir, map_fname, [depth1_mask*ref_cut[1], depth1_mask*ref_cut[2]],**keys_ewrite_ref_QU)
             plot_mask(output_dir, map_fname, depth1_mask, **keys_ewrite_mask)
-            plot_EB_filtered_maps(output_dir, map_fname, depth1_maps, depth1_mask, **keys_ewrite_EB)
+            plot_EB_filtered_maps(output_dir, map_fname, depth1_maps, depth1_mask, cut_map=True, **keys_ewrite_EB)
         return 1 # returning an error code if there is nothing left in the map
 
 def apply_ivar_weighting(input_kspace_TEB_maps, input_ivar, mask):
@@ -388,7 +388,7 @@ def plot_QU_ref_maps(output_dir, map_name, maps, **kwargs):
     enplot.write(save_dir+save_fname_Q, map_Q)
     enplot.write(save_dir+save_fname_U, map_U)
 
-def plot_EB_filtered_maps(output_dir, map_name, depth1_TEB, map_mask, **kwargs):
+def plot_EB_filtered_maps(output_dir, map_name, depth1_TEB, map_mask, cut_map=False, **kwargs):
     """Converts the filtered Fourier space E and B maps back to real space and plots them.
        Assumes you pass in TEB, but only saves EB. Also multiplies by mask again to ignore
        any leakage from Fourier transforming."""
@@ -397,7 +397,10 @@ def plot_EB_filtered_maps(output_dir, map_name, depth1_TEB, map_mask, **kwargs):
         os.makedirs(save_dir)
     save_fname_E = map_name + "_filtered_E"
     save_fname_B = map_name + "_filtered_B"
-    maps_realspace = enmap.harm2map(depth1_TEB, normalize = "phys")
+    if cut_map:
+        maps_realspace = depth1_TEB # if the map is cut, don't inverse FT since there's nothing there
+    else:
+        maps_realspace = enmap.harm2map(depth1_TEB, normalize = "phys") # Does this actually leave them as EB?
     try: # Trying to catch issues with font_size being too big for very small maps
         map_E = enplot.get_plots(map_mask*maps_realspace[1], **kwargs)
         map_B = enplot.get_plots(map_mask*maps_realspace[2], **kwargs)
