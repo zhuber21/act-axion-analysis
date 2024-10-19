@@ -443,7 +443,7 @@ def plot_spectra_individually(output_dir, spectra):
     CAMB_ClBB_binned = spectra[maps[0]]['CAMB_BB']
 
     for i in tqdm(range(len(maps))):
-        if spectra['map_cut'] == 1: # Skipping any maps that were completely cut by galaxy mask
+        if spectra[maps[i]]['map_cut'] == 1: # Skipping any maps that were completely cut by galaxy mask
             continue
         else:
             fig = plt.figure(figsize=(6.4,4.8), layout='constrained')
