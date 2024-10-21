@@ -168,8 +168,10 @@ def load_and_filter_depth1(fname, ref_maps, galaxy_mask, kx_cut, ky_cut, unpixwi
         if plot_maps:
             # All will show nothing except the mask, but still want the empty plots for web viewer code
             map_fname = os.path.split(fname)[1][:-9] # removing "_map.fits"
-            plot_T_maps(output_dir, map_fname, depth1_mask*depth1_maps[0], **keys_ewrite_T)
-            plot_QU_maps(output_dir, map_fname, [depth1_mask*depth1_maps[1], depth1_mask*depth1_maps[2]], **keys_ewrite_QU)
+            # Deliberately plotting depth-1 maps without mask so I can see what they originally looked like,
+            # but plotting everything else with mask to show it was completely cut
+            plot_T_maps(output_dir, map_fname, depth1_maps[0], **keys_ewrite_T)
+            plot_QU_maps(output_dir, map_fname, [depth1_maps[1], depth1_maps[2]], **keys_ewrite_QU)
             plot_T_ref_maps(output_dir, map_fname, depth1_mask*ref_cut[0], **keys_ewrite_ref_T)
             plot_QU_ref_maps(output_dir, map_fname, [depth1_mask*ref_cut[1], depth1_mask*ref_cut[2]],**keys_ewrite_ref_QU)
             plot_mask(output_dir, map_fname, depth1_mask, **keys_ewrite_mask)
@@ -443,8 +445,109 @@ def plot_spectra_individually(output_dir, spectra):
     CAMB_ClBB_binned = spectra[maps[0]]['CAMB_BB']
 
     for i in tqdm(range(len(maps))):
-        if spectra[maps[i]]['map_cut'] == 1: # Skipping any maps that were completely cut by galaxy mask
-            continue
+        if spectra[maps[i]]['map_cut'] == 1: 
+            # Making adjustments for any maps that were completely cut by galaxy mask
+            # Just make empty linear scale plots so the web viewer layout is correct
+            fig = plt.figure(figsize=(6.4,4.8), layout='constrained')
+            plt.plot(ell_b, cl_to_dl(spectra[maps[i]]['E1xE1'],ell_b), marker='.', alpha=1.0)
+            plt.ylabel("$D_{\ell}^{E1xE1}$")
+            plt.xlabel("$\ell$")
+            plt.title("E1xE1 " + maps[i][:-9])
+            plt.grid()
+            plt.legend()
+            output_fname = save_dir + maps[i][:-9] + "_e1xe1_spectrum_withCAMBee.png"
+            plt.savefig(output_fname, dpi=300)
+            plt.close()
+            
+            fig = plt.figure(figsize=(6.4,4.8), layout='constrained')
+            plt.plot(ell_b, cl_to_dl(spectra[maps[i]]['E2xE2'],ell_b), marker='.', alpha=1.0)
+            plt.ylabel("$D_{\ell}^{E2xE2}$")
+            plt.xlabel("$\ell$") 
+            plt.title("E2xE2 " + maps[i][:-9])
+            plt.grid()
+            plt.legend()
+            output_fname = save_dir + maps[i][:-9] + "_e2xe2_spectrum_withCAMBee.png"
+            plt.savefig(output_fname, dpi=300)
+            plt.close()
+
+            fig = plt.figure(figsize=(6.4,4.8), layout='constrained')
+            plt.plot(ell_b, cl_to_dl(spectra[maps[i]]['B1xB1'],ell_b), marker='.', alpha=1.0)
+            plt.ylabel("$D_{\ell}^{B1xB1}$")
+            plt.xlabel("$\ell$")
+            plt.title("B1xB1 " + maps[i][:-9])
+            plt.grid()
+            plt.legend()
+            output_fname = save_dir + maps[i][:-9] + "_b1xb1_spectrum_withCAMBbb.png"
+            plt.savefig(output_fname, dpi=300)
+            plt.close()
+            
+            fig = plt.figure(figsize=(6.4,4.8), layout='constrained')
+            plt.plot(ell_b, cl_to_dl(spectra[maps[i]]['B2xB2'],ell_b), marker='.', alpha=1.0)
+            plt.ylabel("$D_{\ell}^{B2xB2}$")
+            plt.xlabel("$\ell$") 
+            plt.title("B2xB2 " + maps[i][:-9])
+            plt.grid()
+            plt.legend()
+            output_fname = save_dir + maps[i][:-9] + "_b2xb2_spectrum_withCAMBbb.png"
+            plt.savefig(output_fname, dpi=300)
+            plt.close()
+
+            fig = plt.figure(figsize=(6.4,4.8), layout='constrained')
+            plt.plot(ell_b, cl_to_dl(spectra[maps[i]]['E1xB2'],ell_b), marker='.', alpha=1.0)
+            plt.ylabel("$D_{\ell}^{E1xB2}$")
+            plt.xlabel("$\ell$")
+            plt.title("E1xB2 " + maps[i][:-9])
+            plt.grid()
+            plt.axhline(y=0,color='gray',linewidth=2)
+            output_fname = save_dir + maps[i][:-9] + "_e1xb2_spectrum.png"
+            plt.savefig(output_fname, dpi=300)
+            plt.close()
+            
+            fig = plt.figure(figsize=(6.4,4.8), layout='constrained')
+            plt.plot(ell_b, cl_to_dl(spectra[maps[i]]['E2xB1'],ell_b), marker='.', alpha=1.0)
+            plt.ylabel("$D_{\ell}^{E2xB1}$")
+            plt.xlabel("$\ell$") 
+            plt.title("E2xB1 " + maps[i][:-9])
+            plt.grid()
+            plt.axhline(y=0,color='gray',linewidth=2)
+            output_fname = save_dir + maps[i][:-9] + "_e2xb1_spectrum.png"
+            plt.savefig(output_fname, dpi=300)
+            plt.close()
+
+            fig = plt.figure(figsize=(6.4,4.8), layout='constrained')
+            d_ell_covariance = cl_to_dl(cl_to_dl(spectra[maps[i]]['covariance'],ell_b),ell_b)
+            plt.plot(ell_b, d_ell_covariance, marker='.', alpha=1.0) # Two factors of C_ell to D_ell because made of squares of spectra
+            plt.ylabel("Covariance")
+            plt.xlabel("$\ell$")
+            plt.title("Covariance " + maps[i][:-9])
+            plt.grid()
+            plt.axhline(y=0,color='gray',linewidth=2)
+            output_fname = save_dir + maps[i][:-9] + "_covariance.png"
+            plt.savefig(output_fname, dpi=300)
+            plt.close()
+
+            fig = plt.figure(figsize=(6.4,4.8), layout='constrained')
+            plt.plot(ell_b, cl_to_dl(spectra[maps[i]]['estimator'],ell_b), marker='.', alpha=1.0, label='Estimator')
+            plt.ylabel("$D_{\ell}^{E1xB2} - D_{\ell}^{E2xB1}$")
+            plt.xlabel("$\ell$")
+            plt.title("Estimator " + maps[i][:-9])
+            plt.legend()
+            plt.grid()
+            plt.axhline(y=0,color='gray',linewidth=2)
+            output_fname = save_dir + maps[i][:-9] + "_estimator.png"
+            plt.savefig(output_fname, dpi=300)
+            plt.close()
+
+            fig = plt.figure(figsize=(6.4,4.8), layout='constrained')
+            plt.plot(ell_b, spectra[maps[i]]['binned_nu'], marker='.', alpha=1.0) # Not a spectra, so no conversion to D_ell
+            plt.ylabel("Effective modes per bin")
+            plt.xlabel("$\ell$")
+            plt.title("$\\nu_b$ " + maps[i][:-9])
+            plt.grid()
+            plt.axhline(y=0,color='gray',linewidth=2)
+            output_fname = save_dir + maps[i][:-9] + "_modesperbin.png"
+            plt.savefig(output_fname, dpi=300)
+            plt.close()
         else:
             fig = plt.figure(figsize=(6.4,4.8), layout='constrained')
             plt.semilogy(ell_b, cl_to_dl(spectra[maps[i]]['E1xE1'],ell_b), marker='.', alpha=1.0)
