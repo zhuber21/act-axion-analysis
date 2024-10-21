@@ -708,7 +708,7 @@ def plot_angle_hist(output_dir,angles, maps):
     # Also breaking it out by array
     map_names_split = np.array([a.split('_') for a in maps])
     maps_array = map_names_split[:,2] # Getting which array each map is from
-    range_arrays = (angles.min(),angles.max()) # Ensuring same bins as total histogram
+    range_arrays = (angles[angles != -9999].min(),angles[angles != -9999].max()) # Ensuring same bins as total histogram
     for array in np.unique(maps_array):
         fig = plt.figure(figsize=(6.4,4.8), layout='constrained')
         save_fname_hist = "angle_hist_" + array + ".png"
