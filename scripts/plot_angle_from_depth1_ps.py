@@ -13,10 +13,10 @@ import axion_osc_analysis_depth1_ps as aoa
 # This script does not reload maps, so there is no plot_maps option
 # Also omitting beam and filtering tfunc plotting for now
 # Currently will set these manually instead of reloading/altering config file or making these command line options
-plot_all_spectra = False
+plot_all_spectra = True
 plot_summary_spectra = False
 #plot_likelihood = False            # Would need to reconstruct likelihood for each one and cycle through all maps
-plot_angle_hist = True
+plot_angle_hist = False
 # Should also add option for plotting timestreams
 
 # Loading data from run
@@ -24,7 +24,7 @@ output_dir_root = "/home/zbh5/act_analysis/act_axion_analysis/results/"
 if not os.path.exists(output_dir_root): # Make sure root path is right
     print("Output directory does not exist! Exiting.")
     sys.exit()
-data_timestamp = '1727394152' # The 10-digit timestamp associated with a run of get_angle_from_depth1_ps.py - MAY NEED CHANGED EACH TIME!
+data_timestamp = '1729369367' # The 10-digit timestamp associated with a run of get_angle_from_depth1_ps.py - MAY NEED CHANGED EACH TIME!
 output_dir_path = output_dir_root + "/angle_calc_" + data_timestamp + '/'
 data_path = output_dir_path + 'angle_calc_' + data_timestamp + '_spectra.npy'
 data_dict = np.load(data_path,allow_pickle=True).item()
