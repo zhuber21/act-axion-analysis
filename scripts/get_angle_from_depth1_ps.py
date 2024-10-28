@@ -38,8 +38,11 @@ use_ivar_weight = config['use_ivar_weight']
 # Check that paths exist to needed files
 camb_file = config['theory_curves_path']
 ref_path = config['ref_path']
-ref_beam_path = config['ref_beam_path']
+#ref_beam_path = config['ref_beam_path'] # Will add back in if there is a separate beam for the reference map instead of averaging other beams
 ref_ivar_path = config['ref_ivar_path']
+pa4_beam_path = config['pa4_beam_path']
+pa5_beam_path = config['pa5_beam_path']
+pa6_beam_path = config['pa6_beam_path']
 galaxy_mask_path = config['galaxy_mask_path']
 obs_list_path = config['obs_path_stem']
 obs_list = config['obs_list']
@@ -49,11 +52,20 @@ if not os.path.exists(camb_file):
 if not os.path.exists(ref_path): 
     print("Cannot find reference map file! Check config. Exiting.")
     sys.exit()
-if not os.path.exists(ref_beam_path): 
-    print("Cannot find beam file! Check config. Exiting.")
-    sys.exit()
+#if not os.path.exists(ref_beam_path): 
+#    print("Cannot find beam file! Check config. Exiting.")
+#    sys.exit()
 if not os.path.exists(ref_ivar_path): 
     print("Cannot find ref map ivar file! Check config. Exiting.")
+    sys.exit()
+if not os.path.exists(pa4_beam_path): 
+    print("Cannot find pa4 beam file! Check config. Exiting.")
+    sys.exit()
+if not os.path.exists(pa5_beam_path): 
+    print("Cannot find pa5 beam file! Check config. Exiting.")
+    sys.exit()
+if not os.path.exists(pa6_beam_path): 
+    print("Cannot find pa6 beam file! Check config. Exiting.")
     sys.exit()
 if not os.path.exists(galaxy_mask_path):
     print("Cannot find galaxy mask file! Check config. Exiting.")
@@ -125,12 +137,27 @@ CAMB_ClBB_binned = np.bincount(digitized, ClBB.reshape(-1))[1:-1]/np.bincount(di
 print("Finished loading CAMB spectra")
 
 # Loading in reference maps
-print("Starting to load ref map and beam")
-ref_maps, ref_ivar, ref_beam = aoa.load_ref_map_and_beam(ref_path,ref_ivar_path,ref_beam_path,bins)
+print("Starting to load ref map")
+ref_maps, ref_ivar = aoa.load_ref_map(ref_path,ref_ivar_path)
+print("Finished loading ref map")
+
+# Loading all beams
+print("Starting to load beams")
+pa4_beam = aoa.load_and_bin_beam(pa4_beam_path,bins)
+pa5_beam = aoa.load_and_bin_beam(pa5_beam_path,bins)
+pa6_beam = aoa.load_and_bin_beam(pa6_beam_path,bins)
+# For now, average these beams to get coadd/ref beam
+ref_beam = (pa4_beam+pa5_beam+pa6_beam)/3.0
 if plot_beam:
-    beam_name = os.path.split(ref_beam_path)[1][:-4] # Extracting file name from path and dropping '.txt'
-    aoa.plot_beam(output_dir_path, beam_name, centers, ref_beam)
-print("Finished loading ref map and beam")
+    pa4_beam_name = os.path.split(pa4_beam_path)[1][:-4] # Extracting file name from path and dropping '.txt'
+    aoa.plot_beam(output_dir_path, pa4_beam_name, centers, pa4_beam)
+    pa5_beam_name = os.path.split(pa5_beam_path)[1][:-4] # Extracting file name from path and dropping '.txt'
+    aoa.plot_beam(output_dir_path, pa5_beam_name, centers, pa5_beam)
+    pa6_beam_name = os.path.split(pa6_beam_path)[1][:-4] # Extracting file name from path and dropping '.txt'
+    aoa.plot_beam(output_dir_path, pa6_beam_name, centers, pa6_beam)
+    ref_beam_name = "coadd_avg_beam"
+    aoa.plot_beam(output_dir_path, ref_beam_name, centers, ref_beam)
+print("Finished loading beams")
 
 # Loading in galaxy mask
 print("Starting to load galaxy mask")
@@ -176,7 +203,8 @@ for line in tqdm(lines):
         if plot_likelihood:
             # Make empty likelihood plot for web viewer
             angles_deg = np.linspace(angle_min_deg,angle_max_deg,num=num_pts)
-            aoa.plot_likelihood(output_dir_path, line, angles_deg, np.zeros(num_pts), (-9999,-9999))
+            map_name = os.path.split(line)[1][:-9] # removing "_map.fits"
+            aoa.plot_likelihood(output_dir_path, map_name, angles_deg, np.zeros(num_pts), (-9999,-9999))
     else: 
         # Otherwise do everything you would normally do
         depth1_TEB = outputs[0]
@@ -207,25 +235,35 @@ for line in tqdm(lines):
         ref_E = ref_TEB[1]
         ref_B = ref_TEB[2]
 
-        # At some point need to implement a beam correction per array if possible
-
         # Calculating w2 factors - all the same if not using ivar weighting, but different if using it
         w2_depth1 = np.mean(w_depth1**2)
         w2_cross = np.mean(w_depth1*w_ref)
         w2_ref = np.mean(w_ref**2)
 
+        # Selecting the correct beam
+        map_array = line.split('_')[2]
+        if map_array == 'pa4':
+            depth1_beam = pa4_beam
+        elif map_array == 'pa5':
+            depth1_beam = pa5_beam
+        elif map_array == 'pa6':
+            depth1_beam = pa6_beam
+        else:
+            print("Map " + line + " not in standard format for array beam selection! Choosing averaged beam.")
+            depth1_beam = ref_beam
+
         # Calculate spectra
         # Spectra for estimator
-        binned_E1xB2, bincount = aoa.spectrum_from_maps(depth1_E, ref_B, b_ell_bin_1=ref_beam, b_ell_bin_2=ref_beam, w2=w2_cross, bins=bins)
-        binned_E2xB1, _ = aoa.spectrum_from_maps(depth1_B, ref_E, b_ell_bin_1=ref_beam, b_ell_bin_2=ref_beam, w2=w2_cross, bins=bins)
+        binned_E1xB2, bincount = aoa.spectrum_from_maps(depth1_E, ref_B, b_ell_bin_1=depth1_beam, b_ell_bin_2=ref_beam, w2=w2_cross, bins=bins)
+        binned_E2xB1, _ = aoa.spectrum_from_maps(depth1_B, ref_E, b_ell_bin_1=ref_beam, b_ell_bin_2=depth1_beam, w2=w2_cross, bins=bins)
         # Spectra for covariance
-        binned_E1xE1, _ = aoa.spectrum_from_maps(depth1_E, depth1_E, b_ell_bin_1=ref_beam, b_ell_bin_2=ref_beam, w2=w2_depth1, bins=bins)
+        binned_E1xE1, _ = aoa.spectrum_from_maps(depth1_E, depth1_E, b_ell_bin_1=depth1_beam, b_ell_bin_2=depth1_beam, w2=w2_depth1, bins=bins)
         binned_B2xB2, _ = aoa.spectrum_from_maps(ref_B, ref_B, b_ell_bin_1=ref_beam, b_ell_bin_2=ref_beam, w2=w2_ref, bins=bins)
         binned_E2xE2, _ = aoa.spectrum_from_maps(ref_E, ref_E, b_ell_bin_1=ref_beam, b_ell_bin_2=ref_beam, w2=w2_ref, bins=bins)
-        binned_B1xB1, _ = aoa.spectrum_from_maps(depth1_B, depth1_B, b_ell_bin_1=ref_beam, b_ell_bin_2=ref_beam, w2=w2_depth1, bins=bins)
-        binned_E1xE2, _ = aoa.spectrum_from_maps(depth1_E, ref_E, b_ell_bin_1=ref_beam, b_ell_bin_2=ref_beam, w2=w2_cross, bins=bins)
-        binned_B1xB2, _ = aoa.spectrum_from_maps(depth1_B, ref_B, b_ell_bin_1=ref_beam, b_ell_bin_2=ref_beam, w2=w2_cross, bins=bins)
-        binned_E1xB1, _ = aoa.spectrum_from_maps(depth1_E, depth1_B, b_ell_bin_1=ref_beam, b_ell_bin_2=ref_beam, w2=w2_depth1, bins=bins)
+        binned_B1xB1, _ = aoa.spectrum_from_maps(depth1_B, depth1_B, b_ell_bin_1=depth1_beam, b_ell_bin_2=depth1_beam, w2=w2_depth1, bins=bins)
+        binned_E1xE2, _ = aoa.spectrum_from_maps(depth1_E, ref_E, b_ell_bin_1=depth1_beam, b_ell_bin_2=ref_beam, w2=w2_cross, bins=bins)
+        binned_B1xB2, _ = aoa.spectrum_from_maps(depth1_B, ref_B, b_ell_bin_1=depth1_beam, b_ell_bin_2=ref_beam, w2=w2_cross, bins=bins)
+        binned_E1xB1, _ = aoa.spectrum_from_maps(depth1_E, depth1_B, b_ell_bin_1=depth1_beam, b_ell_bin_2=depth1_beam, w2=w2_depth1, bins=bins)
         binned_E2xB2, _ = aoa.spectrum_from_maps(ref_E, ref_B, b_ell_bin_1=ref_beam, b_ell_bin_2=ref_beam, w2=w2_ref, bins=bins)    
         # Accounting for transfer function
         binned_E1xB2 /= tfunc

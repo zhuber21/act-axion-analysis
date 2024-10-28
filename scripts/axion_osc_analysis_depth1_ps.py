@@ -11,7 +11,7 @@ from scipy import optimize as op
 
 def load_and_bin_beam(fname,bins):
     """
-           For a given fname containing an ACT beam, loads in the ell and b_ell
+        For a given fname containing an ACT beam, loads in the ell and b_ell
         of the beam. Normalizes the beam and bins it into the same binning as
         the power spectra.
     """
@@ -24,19 +24,15 @@ def load_and_bin_beam(fname,bins):
     beam_tform_norm_binned = np.bincount(digitized, beam_tform_norm.reshape(-1))[1:-1]/bincount
     return beam_tform_norm_binned
     
-def load_ref_map_and_beam(fname_ref,fname_ref_ivar,fname_ref_beam,bins):
+def load_ref_map(fname_ref,fname_ref_ivar):
     """
-        Loads in the full reference map (T,Q,U) and the beam for this map. 
+        Loads in the full reference map (T,Q,U). 
         Needs to be done once. Also loads in ref map ivar.
-        
-        The beam is also binned to match the binning of all spectra.
     """
     maps = enmap.read_map(fname_ref)
     ivar = 0.5*enmap.read_map(fname_ref_ivar) # 0.5 for polarization noise
-    
-    b_ell = load_and_bin_beam(fname_ref_beam,bins)
 
-    return maps, ivar, b_ell
+    return maps, ivar
 
 def apply_kspace_filter(maps, kx_cut, ky_cut, unpixwin):
     """
@@ -57,22 +53,6 @@ def apply_kspace_filter(maps, kx_cut, ky_cut, unpixwin):
     filtered_TEB = singleobs_TEB * kfilter_x * kfilter_y
 
     return filtered_TEB
-    
-def load_test_map_and_filter(fname, beam_path, footprint, kx_cut, ky_cut, unpixwin, lmax, bins):
-    """
-        Loads in the maps located at fname to the shape and wcs specified by the
-        footprint. Also filters the maps after applying the taper.
-
-        Also loads in appropriate beam and bins it correctly.
-    """
-    maps = enmap.read_map(fname)
-    maps = enmap.extract(maps,footprint.shape,footprint.wcs)
-
-    b_ell = load_and_bin_beam(beam_path,lmax,bins)
-
-    filtered_TEB = apply_kspace_filter(maps*footprint, kx_cut, ky_cut, unpixwin)
-
-    return filtered_TEB, b_ell
 
 def load_depth1_with_T(depth1_path,plot=False):
     """
@@ -454,7 +434,6 @@ def plot_spectra_individually(output_dir, spectra):
             plt.xlabel("$\ell$")
             plt.title("E1xE1 " + maps[i][:-9])
             plt.grid()
-            plt.legend()
             output_fname = save_dir + maps[i][:-9] + "_e1xe1_spectrum_withCAMBee.png"
             plt.savefig(output_fname, dpi=300)
             plt.close()
@@ -465,7 +444,6 @@ def plot_spectra_individually(output_dir, spectra):
             plt.xlabel("$\ell$") 
             plt.title("E2xE2 " + maps[i][:-9])
             plt.grid()
-            plt.legend()
             output_fname = save_dir + maps[i][:-9] + "_e2xe2_spectrum_withCAMBee.png"
             plt.savefig(output_fname, dpi=300)
             plt.close()
@@ -476,7 +454,6 @@ def plot_spectra_individually(output_dir, spectra):
             plt.xlabel("$\ell$")
             plt.title("B1xB1 " + maps[i][:-9])
             plt.grid()
-            plt.legend()
             output_fname = save_dir + maps[i][:-9] + "_b1xb1_spectrum_withCAMBbb.png"
             plt.savefig(output_fname, dpi=300)
             plt.close()
@@ -487,7 +464,6 @@ def plot_spectra_individually(output_dir, spectra):
             plt.xlabel("$\ell$") 
             plt.title("B2xB2 " + maps[i][:-9])
             plt.grid()
-            plt.legend()
             output_fname = save_dir + maps[i][:-9] + "_b2xb2_spectrum_withCAMBbb.png"
             plt.savefig(output_fname, dpi=300)
             plt.close()
