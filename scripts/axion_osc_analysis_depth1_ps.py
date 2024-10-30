@@ -171,29 +171,20 @@ def apply_ivar_weighting(input_kspace_TEB_maps, input_ivar, mask):
     output_kspace_TEB_maps = enmap.map2harm(maps_ivar_weight, normalize = "phys")
     return output_kspace_TEB_maps
 
-def planck_trim_and_fourier_transform(planck1,planck1_ivar,planck2,planck2_ivar,shape,wcs,depth1_footprint,use_ivar_weight):
+def planck_trim_and_fourier_transform(planck_T,planck_T_ivar,shape,wcs,depth1_footprint,use_ivar_weight):
     # Trimming planck maps to the size of the depth-1 map
-    planck_T_split1_trimmed = enmap.extract(planck1,shape,wcs)
-    planck_T_ivar1_trimmed = enmap.extract(planck1_ivar,shape,wcs)
-    planck_T_split2_trimmed = enmap.extract(planck2,shape,wcs)
-    planck_T_ivar2_trimmed = enmap.extract(planck2_ivar,shape,wcs)
+    planck_T_split_trimmed = enmap.extract(planck_T,shape,wcs)
+    planck_T_ivar_trimmed = enmap.extract(planck_T_ivar,shape,wcs)
     # Ivar weighting and converting to Fourier space
     if use_ivar_weight:
-        planck_split1_ivar_weight = planck_T_split1_trimmed*planck_T_ivar1_trimmed*depth1_footprint
-        planck_split1_fourier = enmap.map2harm(planck_split1_ivar_weight, normalize = "phys")
-        w_planck1 = planck_T_ivar1_trimmed*depth1_footprint
-        planck_split2_ivar_weight = planck_T_split2_trimmed*planck_T_ivar2_trimmed*depth1_footprint
-        planck_split2_fourier = enmap.map2harm(planck_split2_ivar_weight, normalize = "phys")
-        w_planck2 = planck_T_ivar2_trimmed*depth1_footprint
+        planck_split_ivar_weight = planck_T_split_trimmed*planck_T_ivar_trimmed*depth1_footprint
+        planck_split_fourier = enmap.map2harm(planck_split_ivar_weight, normalize = "phys")
+        w_planck = planck_T_ivar_trimmed*depth1_footprint
     else:
-        planck_split1_fourier = enmap.map2harm(planck_T_split1_trimmed*depth1_footprint, normalize = "phys")
-        w_planck1 = depth1_footprint
-        planck_split2_fourier = enmap.map2harm(planck_T_split2_trimmed*depth1_footprint, normalize = "phys")
-        w_planck2 = depth1_footprint
+        planck_split_fourier = enmap.map2harm(planck_T_split_trimmed*depth1_footprint, normalize = "phys")
+        w_planck = depth1_footprint
 
-    w2_planck = np.mean(w_planck1*w_planck2)
-
-    return planck_split1_fourier, planck_split2_fourier, w2_planck
+    return planck_split_fourier, w_planck
 ##########################################################
 
 
