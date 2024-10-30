@@ -252,7 +252,7 @@ for line in tqdm(lines):
         if cross_planck:
             # Moving trimming, ivar weighting, and Fourier transform to function
             # to avoid multiplying extra maps in memory
-            planck_split1_fourier, planck_split2_fourier, w_planck1, w_planck2 = aoa.planck_trim_and_fourier_transform(planck_T_split1_act_footprint,planck_T_ivar1_act_footprint,
+            planck_split1_fourier, planck_split2_fourier, w2_planck = aoa.planck_trim_and_fourier_transform(planck_T_split1_act_footprint,planck_T_ivar1_act_footprint,
                                                   planck_T_split2_act_footprint,planck_T_ivar2_act_footprint,
                                                   depth1_TEB[0].shape,depth1_TEB[0].wcs,depth1_footprint,use_ivar_weight)
 
@@ -323,7 +323,6 @@ for line in tqdm(lines):
         binned_nu = bincount*np.mean(depth1_footprint**2)*tfunc
         
         if cross_planck:
-            w2_planck = np.mean(w_planck1*w_planck2)
             # Depth-1 T cross ACT ref T
             binned_T1xT2, _ = aoa.spectrum_from_maps(depth1_TEB[0], ref_TEB[0], b_ell_bin_1=depth1_beam, b_ell_bin_2=ref_beam, w2=w2_cross, bins=bins)
             binned_T1xT2 /= tfunc

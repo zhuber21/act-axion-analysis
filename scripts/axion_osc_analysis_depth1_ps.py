@@ -191,7 +191,9 @@ def planck_trim_and_fourier_transform(planck1,planck1_ivar,planck2,planck2_ivar,
         planck_split2_fourier = enmap.map2harm(planck_T_split2_trimmed*depth1_footprint, normalize = "phys")
         w_planck2 = depth1_footprint
 
-    return planck_split1_fourier, planck_split2_fourier, w_planck1, w_planck2
+    w2_planck = np.mean(w_planck1*w_planck2)
+
+    return planck_split1_fourier, planck_split2_fourier, w2_planck
 ##########################################################
 
 
