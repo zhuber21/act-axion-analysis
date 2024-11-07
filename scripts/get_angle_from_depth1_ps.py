@@ -233,14 +233,15 @@ for line in tqdm(lines):
                                 'CAMB_EE': CAMB_ClEE_binned, 'CAMB_BB': CAMB_ClBB_binned,
                                 'w2_depth1': -9999, 'w2_cross': -9999, 'w2_ref': -9999,
                                 'meas_angle': -9999, 'meas_errbar': -9999, 
-                                'ivar_sum': -9999, 'map_cut': 1}
+                                'ivar_sum': -9999, 'residual_mean': -9999, 
+                                'residual_sum': -9999, 'map_cut': 1}
         angle_estimates.append((-9999,-9999))
         maps.append(line)
         if plot_likelihood:
             # Make empty likelihood plot for web viewer
             angles_deg = np.linspace(angle_min_deg,angle_max_deg,num=num_pts)
             map_name = os.path.split(line)[1][:-9] # removing "_map.fits"
-            aoa.plot_likelihood(output_dir_path, map_name, angles_deg, np.zeros(num_pts), (-9999,-9999))
+            aoa.plot_likelihood(output_dir_path, map_name, angles_deg, np.zeros(num_pts), (-9999,-9999), np.zeros(num_pts))
     else: 
         # Otherwise do everything you would normally do
         depth1_TEB = outputs[0]
@@ -341,10 +342,10 @@ for line in tqdm(lines):
                                     +(binned_E2xE2*binned_B1xB1+binned_E2xB1**2)
                                     -2*(binned_E1xE2*binned_B1xB2+binned_E1xB1*binned_E2xB2)))
 
-        fit_values = aoa.sample_likelihood_and_fit(estimator,covariance,CAMB_ClEE_binned,num_pts=num_pts,
-                                                angle_min_deg=angle_min_deg, angle_max_deg=angle_max_deg,
-                                                use_curvefit=use_curvefit,plot_like=plot_likelihood,
-                                                output_dir=output_dir_path,map_fname=line)
+        fit_values, residual_mean, residual_sum = aoa.sample_likelihood_and_fit(estimator,covariance,CAMB_ClEE_binned,num_pts=num_pts,
+                                                                                angle_min_deg=angle_min_deg, angle_max_deg=angle_max_deg,
+                                                                                use_curvefit=use_curvefit,plot_like=plot_likelihood,
+                                                                                output_dir=output_dir_path,map_fname=line)
 
         print(fit_values)
         angle_estimates.append(fit_values)
@@ -358,7 +359,8 @@ for line in tqdm(lines):
                                     'CAMB_EE': CAMB_ClEE_binned, 'CAMB_BB': CAMB_ClBB_binned,
                                     'w2_depth1': w2_depth1, 'w2_cross': w2_cross, 'w2_ref': w2_ref,
                                     'meas_angle': fit_values[0], 'meas_errbar': fit_values[1], 
-                                    'ivar_sum': ivar_sum, 'map_cut': 0,
+                                    'ivar_sum': ivar_sum, 'residual_mean': residual_mean, 
+                                    'residual_sum': residual_sum, 'map_cut': 0,
                                     'T1xT2': binned_T1xT2, 'P1TxP2T': binned_P1TxP2T,
                                     'cal_factor': cal_factor, 'w2_planck': w2_planck}
         else:
@@ -370,7 +372,8 @@ for line in tqdm(lines):
                                     'CAMB_EE': CAMB_ClEE_binned, 'CAMB_BB': CAMB_ClBB_binned,
                                     'w2_depth1': w2_depth1, 'w2_cross': w2_cross, 'w2_ref': w2_ref,
                                     'meas_angle': fit_values[0], 'meas_errbar': fit_values[1], 
-                                    'ivar_sum': ivar_sum, 'map_cut': 0}            
+                                    'ivar_sum': ivar_sum, 'residual_mean': residual_mean, 
+                                    'residual_sum': residual_sum, 'map_cut': 0}            
 
 # Converting rho estimates to float from np.float64 for readability in yaml
 angle_estimates_float = [[float(v),float(w)] for (v,w) in angle_estimates]

@@ -292,11 +292,19 @@ def sample_likelihood_and_fit(estimator,covariance,theory_ClEE,angle_min_deg=-20
         fit_values = gaussian_fit_moment(angles_rad,norm_sampled_likelihood)
         fit_values_deg = [np.rad2deg(fit_values[0]), np.rad2deg(fit_values[1])]
 
+    # Calculating mean and sum of abs of residual between likelihood and best fit Gaussian
+    # within 1 sigma of mean value - two possible ways of identifying and cutting poor S/N or bad fits
+    residual = norm_sampled_likelihood - gaussian(angles_rad,fit_values[0],fit_values[1])
+    minus_sigma_idx = np.searchsorted(angles_rad, fit_values[0]-fit_values[1])
+    plus_sigma_idx = np.searchsorted(angles_rad, fit_values[0]+fit_values[1])
+    residual_mean = np.mean(residual[minus_sigma_idx:plus_sigma_idx])
+    residual_sum = np.sum(residual[minus_sigma_idx:plus_sigma_idx])
+
     if plot_like:
         map_name = os.path.split(map_fname)[1][:-9] # removing "_map.fits"
-        plot_likelihood(output_dir, map_name, angles_deg, norm_sampled_likelihood,fit_values_deg)
+        plot_likelihood(output_dir, map_name, angles_deg, norm_sampled_likelihood,fit_values_deg,residual)
 
-    return fit_values_deg
+    return fit_values_deg, residual_mean, residual_sum
 
 #########################################################
 #########################################################
@@ -728,7 +736,7 @@ def plot_spectra_summary(output_dir, spectra):
     plt.savefig(output_path_bb_ref, dpi=300)
     plt.close()
 
-def plot_likelihood(output_dir, map_name, angles, likelihood, gauss_fits):
+def plot_likelihood(output_dir, map_name, angles, likelihood, gauss_fits, residual):
     """Plotting likelihood for angles in degrees."""
     save_dir = output_dir + "/plots/"
     if not os.path.exists(save_dir): # Make new folder for this run - should be unique
@@ -741,6 +749,7 @@ def plot_likelihood(output_dir, map_name, angles, likelihood, gauss_fits):
     plt.axvline(mean,alpha=0.3,color='black')
     # Could also move label to plt.figtext, but legend will auto adjust for me
     plt.plot(angles, gaussian(angles,mean,stddev), 'r', label='Fit Gaussian')
+    plt.plot(angles, residual, 'gray', label="Residual")
     plt.legend()
     plt.ylabel("Likelihood")
     plt.xlabel("Angles (deg)")
