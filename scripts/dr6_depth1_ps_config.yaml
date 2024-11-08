@@ -25,7 +25,7 @@ stop_index: 47   # Used with "DR4"
 
 # Power spectra analysis settings
 use_ivar_weight: True  # Whether or not to use inverse variance weighting for calculating spectra - slower
-cross_planck: True     # Whether or not to do a calibration to Planck splits 
+cross_planck: False     # Whether or not to do a calibration to Planck splits 
 
 # Whether to save various plots
 output_dir_root: "/home/zbh5/act_analysis/act_axion_analysis/results/"
@@ -58,6 +58,7 @@ planck_ivar1_path: "/home/zbh5/act_analysis/dr6_analysis/planck_car_equ_maps/pla
 planck_split2_path: "/home/zbh5/act_analysis/dr6_analysis/planck_car_equ_maps/planck_npipe_143_split2_srcfree.fits"
 planck_ivar2_path: "/home/zbh5/act_analysis/dr6_analysis/planck_car_equ_maps/planck_npipe_143_split2_ivar.fits"
 
-obs_list: '/home/zbh5/act_analysis/dr6_analysis/dr6_depth1_maps/dr6_depth1_test_map_list.txt'
+obs_list: '/home/zbh5/act_analysis/dr6_analysis/dr6_depth1_maps/dr6_depth1_test_map_w_second_batch_list.txt'
+#obs_list: '/home/zbh5/act_analysis/dr6_analysis/dr6_depth1_maps/dr6_depth1_test_map_list.txt'
 #obs_list: '/home/zbh5/act_analysis/dr6_analysis/dr6_depth1_maps/dr6_depth1_test_6maps_list.txt'
 obs_path_stem: "/home/zbh5/act_analysis/dr6_analysis/dr6_depth1_maps/"
