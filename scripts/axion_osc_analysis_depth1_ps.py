@@ -298,7 +298,7 @@ def sample_likelihood_and_fit(estimator,covariance,theory_ClEE,angle_min_deg=-20
     minus_sigma_idx = np.searchsorted(angles_rad, fit_values[0]-fit_values[1])
     plus_sigma_idx = np.searchsorted(angles_rad, fit_values[0]+fit_values[1])
     residual_mean = np.mean(residual[minus_sigma_idx:plus_sigma_idx])
-    residual_sum = np.sum(residual[minus_sigma_idx:plus_sigma_idx])
+    residual_sum = np.sum(np.abs(residual[minus_sigma_idx:plus_sigma_idx]))
 
     if plot_like:
         map_name = os.path.split(map_fname)[1][:-9] # removing "_map.fits"
