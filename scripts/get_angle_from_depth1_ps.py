@@ -2,7 +2,7 @@ import numpy as np
 import yaml
 import argparse
 import time
-import glob
+import logging
 import os
 import sys
 from pixell import enmap
@@ -24,6 +24,25 @@ print("Using config file: " + str(yaml_name))
 
 with open(yaml_name, 'r') as file:
     config = yaml.safe_load(file)
+
+# Output file path
+output_time = str(int(round(time.time())))
+output_dir_root = config['output_dir_root']
+if not os.path.exists(output_dir_root): # Make sure root path is right
+    print("Output directory does not exist! Exiting.")
+    sys.exit()
+output_dir_path = output_dir_root + "/angle_calc_" + output_time + '/'
+if not os.path.exists(output_dir_path): # Make new folder for this run - should be unique
+    os.makedirs(output_dir_path)
+
+# Setting up logger
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO, datefmt='%Y-%m-%d %H:%M:%S', style='{',
+                    format='{asctime} {levelname} {filename}:{lineno}: {message}',
+                    handlers=[logging.FileHandler(filename=output_dir_path+'run.log'),
+                              logging.StreamHandler(sys.stdout)]
+                    )
+logger.info("Using config file: " + str(yaml_name))
 
 # Setting common variables set in the config file
 kx_cut = config['kx_cut']
@@ -49,36 +68,36 @@ galaxy_mask_path = config['galaxy_mask_path']
 obs_list_path = config['obs_path_stem']
 obs_list = config['obs_list']
 if not os.path.exists(camb_file): 
-    print("Cannot find CAMB file! Check config. Exiting.")
+    logger.error("Cannot find CAMB file! Check config. Exiting.")
     sys.exit()
 if not os.path.exists(ref_path): 
-    print("Cannot find reference map file! Check config. Exiting.")
+    logger.error("Cannot find reference map file! Check config. Exiting.")
     sys.exit()
 #if not os.path.exists(ref_beam_path): 
-#    print("Cannot find beam file! Check config. Exiting.")
+#    logger.error("Cannot find beam file! Check config. Exiting.")
 #    sys.exit()
 if not os.path.exists(ref_ivar_path): 
-    print("Cannot find ref map ivar file! Check config. Exiting.")
+    logger.error("Cannot find ref map ivar file! Check config. Exiting.")
     sys.exit()
 if not os.path.exists(pa4_beam_path): 
-    print("Cannot find pa4 beam file! Check config. Exiting.")
+    logger.error("Cannot find pa4 beam file! Check config. Exiting.")
     sys.exit()
 if not os.path.exists(pa5_beam_path): 
-    print("Cannot find pa5 beam file! Check config. Exiting.")
+    logger.error("Cannot find pa5 beam file! Check config. Exiting.")
     sys.exit()
 if not os.path.exists(pa6_beam_path): 
-    print("Cannot find pa6 beam file! Check config. Exiting.")
+    logger.error("Cannot find pa6 beam file! Check config. Exiting.")
     sys.exit()
 if not os.path.exists(galaxy_mask_path):
-    print("Cannot find galaxy mask file! Check config. Exiting.")
+    logger.error("Cannot find galaxy mask file! Check config. Exiting.")
     sys.exit()
 if not os.path.exists(obs_list): 
-    print("Cannot find observation list! Check config. Exiting.")
+    logger.error("Cannot find observation list! Check config. Exiting.")
     sys.exit()
 if obs_list[-3:] == 'txt':
-    print("Using list of observations at: " + str(obs_list))
+    logger.info("Using list of observations at: " + str(obs_list))
 else:
-    print("Please enter a valid text file in the obs_list field in the YAML file. Exiting.")
+    logger.error("Please enter a valid text file in the obs_list field in the YAML file. Exiting.")
     sys.exit()
 if cross_planck:
     planck_split1_path = config['planck_split1_path']
@@ -86,28 +105,17 @@ if cross_planck:
     planck_split2_path = config['planck_split2_path']
     planck_ivar2_path = config['planck_ivar2_path']
     if not os.path.exists(planck_split1_path): 
-        print("Cannot find Planck split 1 map file! Check config. Exiting.")
+        logger.error("Cannot find Planck split 1 map file! Check config. Exiting.")
         sys.exit()
     if not os.path.exists(planck_ivar1_path): 
-        print("Cannot find Planck split 1 ivar file! Check config. Exiting.")
+        logger.error("Cannot find Planck split 1 ivar file! Check config. Exiting.")
         sys.exit()
     if not os.path.exists(planck_split2_path): 
-        print("Cannot find Planck split 2 map file! Check config. Exiting.")
+        logger.error("Cannot find Planck split 2 map file! Check config. Exiting.")
         sys.exit()
     if not os.path.exists(planck_ivar2_path): 
-        print("Cannot find Planck split 2 ivar file! Check config. Exiting.")
+        logger.error("Cannot find Planck split 2 ivar file! Check config. Exiting.")
         sys.exit()
-
-
-# Output file path
-output_time = str(int(round(time.time())))
-output_dir_root = config['output_dir_root']
-if not os.path.exists(output_dir_root): # Make sure root path is right
-    print("Output directory does not exist! Exiting.")
-    sys.exit()
-output_dir_path = output_dir_root + "/angle_calc_" + output_time + '/'
-if not os.path.exists(output_dir_path): # Make new folder for this run - should be unique
-    os.makedirs(output_dir_path)
 
 # Setting bins
 if config['bin_settings'] == "regular":
@@ -126,9 +134,9 @@ elif config['bin_settings'] == "DR4":
     bins = full_bins[start_index:stop_index]
     centers = full_centers[start_index:stop_index-1]
 else:
-    print("Please use valid bin_settings! Options are 'regular' and 'DR4'. Exiting.")
+    logger.error("Please use valid bin_settings! Options are 'regular' and 'DR4'. Exiting.")
     sys.exit()
-print("Finished loading bins")
+logger.info("Finished loading bins")
 
 # Setting plotting settings
 plot_maps = config['plot_maps']
@@ -140,7 +148,7 @@ plot_tfunc = config['plot_tfunc']
 plot_angle_hist = config['plot_angle_hist']
 
 # Load CAMB EE and BB spectrum (BB just for plotting)
-print("Starting to load CAMB spectra")
+logger.info("Starting to load CAMB spectra")
 ell_camb,DlEE_camb,DlBB_camb = np.loadtxt(camb_file, usecols=(0,2,3), unpack=True)
 # Note that ell runs from 2 to 5400
 arr_len = ell_camb.size + 2
@@ -154,15 +162,15 @@ ClBB[2:] = DlBB_camb * 2 * np.pi / (ell_camb*(ell_camb+1.0))
 digitized = np.digitize(ell, bins, right=True)
 CAMB_ClEE_binned = np.bincount(digitized, ClEE.reshape(-1))[1:-1]/np.bincount(digitized)[1:-1]
 CAMB_ClBB_binned = np.bincount(digitized, ClBB.reshape(-1))[1:-1]/np.bincount(digitized)[1:-1]
-print("Finished loading CAMB spectra")
+logger.info("Finished loading CAMB spectra")
 
 # Loading in reference maps
-print("Starting to load ref map")
+logger.info("Starting to load ref map")
 ref_maps, ref_ivar = aoa.load_ref_map(ref_path,ref_ivar_path)
-print("Finished loading ref map")
+logger.info("Finished loading ref map")
 
 # Loading all beams
-print("Starting to load beams")
+logger.info("Starting to load beams")
 pa4_beam = aoa.load_and_bin_beam(pa4_beam_path,bins)
 pa5_beam = aoa.load_and_bin_beam(pa5_beam_path,bins)
 pa6_beam = aoa.load_and_bin_beam(pa6_beam_path,bins)
@@ -177,16 +185,16 @@ if plot_beam:
     aoa.plot_beam(output_dir_path, pa6_beam_name, centers, pa6_beam)
     ref_beam_name = "coadd_avg_beam"
     aoa.plot_beam(output_dir_path, ref_beam_name, centers, ref_beam)
-print("Finished loading beams")
+logger.info("Finished loading beams")
 
 # Loading in galaxy mask
-print("Starting to load galaxy mask")
+logger.info("Starting to load galaxy mask")
 galaxy_mask = enmap.read_map(galaxy_mask_path)
-print("Finished loading galaxy mask")
+logger.info("Finished loading galaxy mask")
 
 if cross_planck:
     # Loading in Planck ivar and splits for cross-correlation
-    print("Starting to load Planck splits for cross-correlation")
+    logger.info("Starting to load Planck splits for cross-correlation")
     # only loading in T maps and trimming immediately to galaxy mask's shape to save memory
     planck_T_split1_act_footprint = enmap.read_map(planck_split1_path, geometry=(galaxy_mask.shape,galaxy_mask.wcs))[0]
     planck_T_ivar1_act_footprint = enmap.read_map(planck_ivar1_path, geometry=(galaxy_mask.shape,galaxy_mask.wcs))[0]
@@ -198,7 +206,7 @@ if cross_planck:
     planck_beam_norm = planck_beam[1:] / np.max(planck_beam[1:])
     digitized = np.digitize(range(1,lmax+1), bins, right=True)
     planck_beam_binned = np.bincount(digitized, planck_beam_norm.reshape(-1))[1:-1]/np.bincount(digitized)[1:-1]
-    print("Finished loading Planck splits for cross-correlation")
+    logger.info("Finished loading Planck splits for cross-correlation")
 
 maps = []
 angle_estimates = []
@@ -213,7 +221,7 @@ with open(obs_list) as f:
     lines = f.read().splitlines()
 
 for line in tqdm(lines):
-    print(line)
+    logger.info(line)
     map_path = obs_list_path + line
 
     outputs = aoa.load_and_filter_depth1(map_path, ref_maps, galaxy_mask, 
@@ -223,7 +231,7 @@ for line in tqdm(lines):
     # If the full map has been cut by the galaxy mask, it return error code 1 instead of the regular outputs
     if outputs == 1:
         # saves output flag so we can see it is cut
-        print("Map " + line + " was completely cut by galaxy mask.")
+        logger.info("Map " + line + " was completely cut by galaxy mask.")
         ell_len = len(centers)
         spectra_output[line] = {'ell': centers, 'E1xB2': np.zeros(ell_len), 'E2xB1': np.zeros(ell_len), 
                                 'E1xE1': np.zeros(ell_len), 'B2xB2': np.zeros(ell_len), 'E2xE2': np.zeros(ell_len),
@@ -245,7 +253,7 @@ for line in tqdm(lines):
     else: 
         # Otherwise do everything you would normally do
         depth1_TEB = outputs[0]
-        depth1_ivar = outputs[1]
+        depth1_ivar = outputs[1] / np.max(outputs[1]) # Normalizing ivar for weighting
         depth1_footprint = outputs[2]
         ref_TEB = outputs[3]
         ivar_sum = outputs[4]
@@ -264,6 +272,7 @@ for line in tqdm(lines):
 
             # Ivar weighting for reference map - already filtered and trimmed from ref_TEB above
             ref_map_trimmed_ivar = enmap.extract(ref_ivar,depth1_TEB[0].shape,depth1_TEB[0].wcs)
+            ref_map_trimmed_ivar /= np.max(ref_map_trimmed_ivar) # Normalizing ivar for weighting
             ref_TEB = aoa.apply_ivar_weighting(ref_TEB, ref_map_trimmed_ivar, depth1_footprint)
 
             # Calculating approx correction for loss of power due to tapering for spectra for depth-1
@@ -294,7 +303,7 @@ for line in tqdm(lines):
         elif map_array == 'pa6':
             depth1_beam = pa6_beam
         else:
-            print("Map " + line + " not in standard format for array beam selection! Choosing averaged beam.")
+            logger.info("Map " + line + " not in standard format for array beam selection! Choosing averaged beam.")
             depth1_beam = ref_beam
 
         # Calculate spectra
@@ -321,7 +330,7 @@ for line in tqdm(lines):
         binned_B1xB2 /= tfunc
         binned_E1xB1 /= tfunc
         binned_E2xB2 /= tfunc
-        # Accounting for modes lost to the mask and filtering - always uses w2 without ivar, regardless of ivar weighting
+        # Accounting for modes lost to the mask and filtering - always uses w2 without ivar, regardless of ivar weighting (NEEDS CHANGED!)
         binned_nu = bincount*np.mean(depth1_footprint**2)*tfunc
         
         if cross_planck:
@@ -347,7 +356,7 @@ for line in tqdm(lines):
                                                                                 use_curvefit=use_curvefit,plot_like=plot_likelihood,
                                                                                 output_dir=output_dir_path,map_fname=line)
 
-        print(fit_values)
+        logger.info("Fit values: "+str(fit_values))
         angle_estimates.append(fit_values)
         maps.append(line)
         if cross_planck:
@@ -384,15 +393,15 @@ spectra_output_fname = output_dir_path + 'angle_calc_' + output_time + '_spectra
 np.save(spectra_output_fname, spectra_output)
 
 if plot_all_spectra:
-    print("Beginning to save plots for all spectra. This could take a while.")
+    logger.info("Beginning to save plots for all spectra. This could take a while.")
     aoa.plot_spectra_individually(output_dir_path, spectra_output)
-    print("Finished saving plots for all spectra.")
+    logger.info("Finished saving plots for all spectra.")
 if plot_summary_spectra:
-    print("Beginning to save summary spectra plots.")
+    logger.info("Beginning to save summary spectra plots.")
     aoa.plot_spectra_summary(output_dir_path, spectra_output)
-    print("Finished saving summary spectra plots.")
+    logger.info("Finished saving summary spectra plots.")
 if plot_angle_hist:
-    print("Plotting histogram of angles")
+    logger.info("Plotting histogram of angles")
     aoa.plot_angle_hist(output_dir_path, np.array(angle_estimates)[:,0], maps)
 
 # Dump all inputs and outputs to a YAML log
@@ -404,7 +413,7 @@ output_dict['spectra_output_fname'] = spectra_output_fname
 output_name = output_dir_path + 'angle_calc_' + output_time + ".yaml"
 with open(output_name, 'w') as file:
     yaml.dump(output_dict, file)
-print("Finished running get_angle_from_depth1_ps.py. Output is in: " + str(output_name))
+logger.info("Finished running get_angle_from_depth1_ps.py. Output is in: " + str(output_name))
 stop_time = time.time()
 duration = stop_time-start_time
-print("Script took {:1.3f} seconds".format(duration))
+logger.info("Script took {:1.3f} seconds".format(duration))
