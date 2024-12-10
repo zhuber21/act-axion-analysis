@@ -20,7 +20,6 @@ args = parser.parse_args()
 
 # Load in the YAML file
 yaml_name = args.config_file
-print("Using config file: " + str(yaml_name))
 
 with open(yaml_name, 'r') as file:
     config = yaml.safe_load(file)
@@ -31,7 +30,7 @@ output_dir_root = config['output_dir_root']
 if not os.path.exists(output_dir_root): # Make sure root path is right
     print("Output directory does not exist! Exiting.")
     sys.exit()
-output_dir_path = output_dir_root + "/angle_calc_" + output_time + '/'
+output_dir_path = output_dir_root + "angle_calc_" + output_time + '/'
 if not os.path.exists(output_dir_path): # Make new folder for this run - should be unique
     os.makedirs(output_dir_path)
 
@@ -330,8 +329,8 @@ for line in tqdm(lines):
         binned_B1xB2 /= tfunc
         binned_E1xB1 /= tfunc
         binned_E2xB2 /= tfunc
-        # Accounting for modes lost to the mask and filtering - always uses w2 without ivar, regardless of ivar weighting (NEEDS CHANGED!)
-        binned_nu = bincount*np.mean(depth1_footprint**2)*tfunc
+        # Accounting for modes lost to the mask and filtering - uses w2_cross because estimator is made of cross spectra
+        binned_nu = bincount*w2_cross*tfunc
         
         if cross_planck:
             w2_planck = np.mean(w_planck1*w_planck2)
