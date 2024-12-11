@@ -160,13 +160,15 @@ def load_and_filter_depth1(fname, ref_maps, galaxy_mask, kx_cut, ky_cut, unpixwi
 
 def apply_ivar_weighting(input_kspace_TEB_maps, input_ivar, mask):
     """For a set of TEB Fourier space maps, converts back to real space, multiplies by
-       the inverse variance map and the tapered mask, and converts back to Fourier space
+       the normalized inverse variance map and the tapered mask, and converts back to Fourier space
        for PS calculation."""
+    norm_ivar_T_mask = 2.0*input_ivar*mask / np.max(2.0*input_ivar*mask) # Weighting by the original temperature ivar for T
+    norm_ivar_QU_mask = input_ivar*mask / np.max(input_ivar*mask)
     maps_realspace = enmap.harm2map(input_kspace_TEB_maps, normalize = "phys")
     maps_ivar_weight = enmap.zeros((3,) + maps_realspace[0].shape, wcs=maps_realspace[0].wcs)
-    maps_ivar_weight[0] = maps_realspace[0]*2.0*input_ivar*mask # Weighting by the original temperature ivar for T
-    maps_ivar_weight[1] = maps_realspace[1]*input_ivar*mask
-    maps_ivar_weight[2] = maps_realspace[2]*input_ivar*mask
+    maps_ivar_weight[0] = maps_realspace[0]*norm_ivar_T_mask 
+    maps_ivar_weight[1] = maps_realspace[1]*norm_ivar_QU_mask
+    maps_ivar_weight[2] = maps_realspace[2]*norm_ivar_QU_mask
     # Converting back to harmonic space - already multiplied by tapered mask above
     output_kspace_TEB_maps = enmap.map2harm(maps_ivar_weight, normalize = "phys")
     return output_kspace_TEB_maps

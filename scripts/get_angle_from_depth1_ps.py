@@ -252,7 +252,7 @@ for line in tqdm(lines):
     else: 
         # Otherwise do everything you would normally do
         depth1_TEB = outputs[0]
-        depth1_ivar = outputs[1] / np.max(outputs[1]) # Normalizing ivar for weighting
+        depth1_ivar = outputs[1]
         depth1_footprint = outputs[2]
         ref_TEB = outputs[3]
         ivar_sum = outputs[4]
@@ -271,13 +271,15 @@ for line in tqdm(lines):
 
             # Ivar weighting for reference map - already filtered and trimmed from ref_TEB above
             ref_map_trimmed_ivar = enmap.extract(ref_ivar,depth1_TEB[0].shape,depth1_TEB[0].wcs)
-            ref_map_trimmed_ivar /= np.max(ref_map_trimmed_ivar) # Normalizing ivar for weighting
             ref_TEB = aoa.apply_ivar_weighting(ref_TEB, ref_map_trimmed_ivar, depth1_footprint)
 
             # Calculating approx correction for loss of power due to tapering for spectra for depth-1
-            w_depth1 = depth1_ivar*depth1_footprint
+            # Normalized because we use a normalized ivar in aoa.apply_ivar_weighting and it makes correction comparable to geometric one
+            # Only normalizing the part inside the mask since that is the only part that appears in weighting
+            # It DOES change the w2 value significantly if you normalize the whole ivar map prior to masking!
+            w_depth1 = depth1_ivar*depth1_footprint / np.max(depth1_ivar*depth1_footprint)
             # Calculating approx correction for loss of power due to tapering for spectra for ref
-            w_ref = ref_map_trimmed_ivar*depth1_footprint    
+            w_ref = ref_map_trimmed_ivar*depth1_footprint / np.max(ref_map_trimmed_ivar*depth1_footprint)
         else:
             # No ivar weighting
             w_depth1 = depth1_footprint # use this if using flat weighting
