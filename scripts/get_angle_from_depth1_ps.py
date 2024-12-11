@@ -196,9 +196,9 @@ if cross_calibrate:
     logger.info("Starting to load calibration maps for cross-correlation")
     # only loading in T maps and trimming immediately to galaxy mask's shape to save memory
     cal_T_map1_act_footprint = enmap.read_map(cal_map1_path, geometry=(galaxy_mask.shape,galaxy_mask.wcs))[0]
-    cal_T_ivar1_act_footprint = enmap.read_map(cal_ivar1_path, geometry=(galaxy_mask.shape,galaxy_mask.wcs))[0]
+    cal_T_ivar1_act_footprint = enmap.read_map(cal_ivar1_path, geometry=(galaxy_mask.shape,galaxy_mask.wcs))
     cal_T_map2_act_footprint = enmap.read_map(cal_map2_path, geometry=(galaxy_mask.shape,galaxy_mask.wcs))[0]
-    cal_T_ivar2_act_footprint = enmap.read_map(cal_ivar2_path, geometry=(galaxy_mask.shape,galaxy_mask.wcs))[0]
+    cal_T_ivar2_act_footprint = enmap.read_map(cal_ivar2_path, geometry=(galaxy_mask.shape,galaxy_mask.wcs))
     # Generating a Gaussian beam for the Planck maps as first-order correction
     # Will uncomment if we go back to using Planck maps for calibration instead of ACT coadds
     #fwhm_planck_arcmin = 7.22
