@@ -53,7 +53,7 @@ angle_max_deg = config['angle_max_deg']
 num_pts = config['num_pts']
 use_curvefit = config['use_curvefit']
 use_ivar_weight = config['use_ivar_weight']
-cross_planck = config['cross_planck']
+cross_calibrate = config['cross_calibrate']
 
 # Check that paths exist to needed files
 camb_file = config['theory_curves_path']
@@ -98,22 +98,22 @@ if obs_list[-3:] == 'txt':
 else:
     logger.error("Please enter a valid text file in the obs_list field in the YAML file. Exiting.")
     sys.exit()
-if cross_planck:
-    planck_split1_path = config['planck_split1_path']
-    planck_ivar1_path = config['planck_ivar1_path']
-    planck_split2_path = config['planck_split2_path']
-    planck_ivar2_path = config['planck_ivar2_path']
-    if not os.path.exists(planck_split1_path): 
-        logger.error("Cannot find Planck split 1 map file! Check config. Exiting.")
+if cross_calibrate:
+    cal_map1_path = config['cal_map1_path']
+    cal_ivar1_path = config['cal_ivar1_path']
+    cal_map2_path = config['cal_map2_path']
+    cal_ivar2_path = config['cal_ivar2_path']
+    if not os.path.exists(cal_map1_path): 
+        logger.error("Cannot find calibration map 1 file! Check config. Exiting.")
         sys.exit()
-    if not os.path.exists(planck_ivar1_path): 
-        logger.error("Cannot find Planck split 1 ivar file! Check config. Exiting.")
+    if not os.path.exists(cal_ivar1_path): 
+        logger.error("Cannot find calibration ivar 1 file! Check config. Exiting.")
         sys.exit()
-    if not os.path.exists(planck_split2_path): 
-        logger.error("Cannot find Planck split 2 map file! Check config. Exiting.")
+    if not os.path.exists(cal_map2_path): 
+        logger.error("Cannot find calibration map 2 file! Check config. Exiting.")
         sys.exit()
-    if not os.path.exists(planck_ivar2_path): 
-        logger.error("Cannot find Planck split 2 ivar file! Check config. Exiting.")
+    if not os.path.exists(cal_ivar2_path): 
+        logger.error("Cannot find calibration ivar 2 file! Check config. Exiting.")
         sys.exit()
 
 # Setting bins
@@ -191,21 +191,22 @@ logger.info("Starting to load galaxy mask")
 galaxy_mask = enmap.read_map(galaxy_mask_path)
 logger.info("Finished loading galaxy mask")
 
-if cross_planck:
-    # Loading in Planck ivar and splits for cross-correlation
-    logger.info("Starting to load Planck splits for cross-correlation")
+if cross_calibrate:
+    # Loading in calibration ivar and maps for cross-correlation
+    logger.info("Starting to load calibration maps for cross-correlation")
     # only loading in T maps and trimming immediately to galaxy mask's shape to save memory
-    planck_T_split1_act_footprint = enmap.read_map(planck_split1_path, geometry=(galaxy_mask.shape,galaxy_mask.wcs))[0]
-    planck_T_ivar1_act_footprint = enmap.read_map(planck_ivar1_path, geometry=(galaxy_mask.shape,galaxy_mask.wcs))[0]
-    planck_T_split2_act_footprint = enmap.read_map(planck_split2_path, geometry=(galaxy_mask.shape,galaxy_mask.wcs))[0]
-    planck_T_ivar2_act_footprint = enmap.read_map(planck_ivar2_path, geometry=(galaxy_mask.shape,galaxy_mask.wcs))[0]
+    cal_T_map1_act_footprint = enmap.read_map(cal_map1_path, geometry=(galaxy_mask.shape,galaxy_mask.wcs))[0]
+    cal_T_ivar1_act_footprint = enmap.read_map(cal_ivar1_path, geometry=(galaxy_mask.shape,galaxy_mask.wcs))[0]
+    cal_T_map2_act_footprint = enmap.read_map(cal_map2_path, geometry=(galaxy_mask.shape,galaxy_mask.wcs))[0]
+    cal_T_ivar2_act_footprint = enmap.read_map(cal_ivar2_path, geometry=(galaxy_mask.shape,galaxy_mask.wcs))[0]
     # Generating a Gaussian beam for the Planck maps as first-order correction
-    fwhm_planck_arcmin = 7.22
-    planck_beam = hp.sphtfunc.gauss_beam(np.deg2rad(fwhm_planck_arcmin/60.0),lmax=lmax)
-    planck_beam_norm = planck_beam[1:] / np.max(planck_beam[1:])
-    digitized = np.digitize(range(1,lmax+1), bins, right=True)
-    planck_beam_binned = np.bincount(digitized, planck_beam_norm.reshape(-1))[1:-1]/np.bincount(digitized)[1:-1]
-    logger.info("Finished loading Planck splits for cross-correlation")
+    # Will uncomment if we go back to using Planck maps for calibration instead of ACT coadds
+    #fwhm_planck_arcmin = 7.22
+    #planck_beam = hp.sphtfunc.gauss_beam(np.deg2rad(fwhm_planck_arcmin/60.0),lmax=lmax)
+    #planck_beam_norm = planck_beam[1:] / np.max(planck_beam[1:])
+    #digitized = np.digitize(range(1,lmax+1), bins, right=True)
+    #planck_beam_binned = np.bincount(digitized, planck_beam_norm.reshape(-1))[1:-1]/np.bincount(digitized)[1:-1]
+    logger.info("Finished loading calibration maps for cross-correlation")
 
 maps = []
 angle_estimates = []
@@ -257,13 +258,14 @@ for line in tqdm(lines):
         ref_TEB = outputs[3]
         ivar_sum = outputs[4]
 
-        if cross_planck:
-            # Moving trimming, ivar weighting, and Fourier transform to function
-            # to avoid multiplying extra maps in memory - doing each split separately for same reason
-            planck_split1_fourier, w_planck1 = aoa.planck_trim_and_fourier_transform(planck_T_split1_act_footprint,planck_T_ivar1_act_footprint,
-                                                  depth1_TEB[0].shape,depth1_TEB[0].wcs,depth1_footprint,use_ivar_weight)
-            planck_split2_fourier, w_planck2 = aoa.planck_trim_and_fourier_transform(planck_T_split2_act_footprint,planck_T_ivar2_act_footprint,
-                                                  depth1_TEB[0].shape,depth1_TEB[0].wcs,depth1_footprint,use_ivar_weight)
+        if cross_calibrate:
+            # Moving trimming, ivar weighting, filtering, and Fourier transform to function
+            # to avoid multiplying extra maps in memory - doing each cal map separately for same reason
+            # These window factors are already normalized inside the mask
+            cal_map1_fourier, w_cal1 = aoa.cal_trim_and_fourier_transform(cal_T_map1_act_footprint,cal_T_ivar1_act_footprint,
+                                                  depth1_TEB[0].shape,depth1_TEB[0].wcs,depth1_footprint,kx_cut,ky_cut,unpixwin,use_ivar_weight)
+            cal_map2_fourier, w_cal2 = aoa.cal_trim_and_fourier_transform(cal_T_map2_act_footprint,cal_T_ivar2_act_footprint,
+                                                  depth1_TEB[0].shape,depth1_TEB[0].wcs,depth1_footprint,kx_cut,ky_cut,unpixwin,use_ivar_weight)
 
         if use_ivar_weight:
             # Ivar weighting for depth-1 map
@@ -334,17 +336,18 @@ for line in tqdm(lines):
         # Accounting for modes lost to the mask and filtering - uses w2_cross because estimator is made of cross spectra
         binned_nu = bincount*w2_cross*tfunc
         
-        if cross_planck:
-            w2_planck = np.mean(w_planck1*w_planck2)
-            # Depth-1 T cross ACT ref T
-            binned_T1xT2, _ = aoa.spectrum_from_maps(depth1_TEB[0], ref_TEB[0], b_ell_bin_1=depth1_beam, b_ell_bin_2=ref_beam, w2=w2_cross, bins=bins)
-            binned_T1xT2 /= tfunc
-            # Planck split 1 T cross Planck split 2 T
-            # No tfunc correction because no filtering for these maps at the moment
-            binned_P1TxP2T, _ = aoa.spectrum_from_maps(planck_split1_fourier, planck_split2_fourier, b_ell_bin_1=planck_beam_binned, 
-                                                       b_ell_bin_2=planck_beam_binned, w2=w2_planck, bins=bins)
+        if cross_calibrate:
+            w2_depth1xcal1 = np.mean(w_depth1*w_cal1)
+            w2_cal1xcal2 = np.mean(w_cal1*w_cal2)
+            # Depth-1 T cross cal map 1 T (pa5 coadd)
+            binned_T1xcal1T, _ = aoa.spectrum_from_maps(depth1_TEB[0], cal_map1_fourier, b_ell_bin_1=depth1_beam, b_ell_bin_2=pa5_beam, w2=w2_depth1xcal1, bins=bins)
+            binned_T1xcal1T /= tfunc
+            # cal map 1 T (pa5 coadd) cross cal map 2 T (pa6 coadd)
+            binned_cal1Txcal2T, _ = aoa.spectrum_from_maps(cal_map1_fourier, cal_map2_fourier, b_ell_bin_1=pa5_beam, 
+                                                       b_ell_bin_2=pa6_beam, w2=w2_cal1xcal2, bins=bins)
+            binned_cal1Txcal2T /= tfunc
             # Taking ratio and averaging to get rough calibration factor
-            cal_factor = np.mean(binned_T1xT2/binned_P1TxP2T)
+            cal_factor = np.mean(binned_T1xcal1T/binned_cal1Txcal2T)
 
         # Calculate estimator and covariance
         estimator = binned_E1xB2-binned_E2xB1
@@ -360,7 +363,7 @@ for line in tqdm(lines):
         logger.info("Fit values: "+str(fit_values))
         angle_estimates.append(fit_values)
         maps.append(line)
-        if cross_planck:
+        if cross_calibrate:
             spectra_output[line] = {'ell': centers, 'E1xB2': binned_E1xB2, 'E2xB1': binned_E2xB1, 
                                     'E1xE1': binned_E1xE1, 'B2xB2': binned_B2xB2, 'E2xE2': binned_E2xE2,
                                     'B1xB1': binned_B1xB1, 'E1xE2': binned_E1xE2, 'B1xB2': binned_B1xB2,
@@ -371,8 +374,8 @@ for line in tqdm(lines):
                                     'meas_angle': fit_values[0], 'meas_errbar': fit_values[1], 
                                     'ivar_sum': ivar_sum, 'residual_mean': residual_mean, 
                                     'residual_sum': residual_sum, 'map_cut': 0,
-                                    'T1xT2': binned_T1xT2, 'P1TxP2T': binned_P1TxP2T,
-                                    'cal_factor': cal_factor, 'w2_planck': w2_planck}
+                                    'T1xcal1T': binned_T1xcal1T, 'cal1Txcal2T': binned_cal1Txcal2T,
+                                    'cal_factor': cal_factor, 'w2_depth1xcal1': w2_depth1xcal1, 'w2_cal1xcal2': w2_cal1xcal2 }
         else:
             spectra_output[line] = {'ell': centers, 'E1xB2': binned_E1xB2, 'E2xB1': binned_E2xB1, 
                                     'E1xE1': binned_E1xE1, 'B2xB2': binned_B2xB2, 'E2xE2': binned_E2xE2,

@@ -173,20 +173,27 @@ def apply_ivar_weighting(input_kspace_TEB_maps, input_ivar, mask):
     output_kspace_TEB_maps = enmap.map2harm(maps_ivar_weight, normalize = "phys")
     return output_kspace_TEB_maps
 
-def planck_trim_and_fourier_transform(planck_T,planck_T_ivar,shape,wcs,depth1_footprint,use_ivar_weight):
-    # Trimming planck maps to the size of the depth-1 map
-    planck_T_split_trimmed = enmap.extract(planck_T,shape,wcs)
-    planck_T_ivar_trimmed = enmap.extract(planck_T_ivar,shape,wcs)
+def cal_trim_and_fourier_transform(cal_T,cal_T_ivar,shape,wcs,depth1_mask,kx_cut,ky_cut,unpixwin,use_ivar_weight):
+    """For a given ACT coadd used for the overall calibration factor, trim the map to the size of the
+       depth-1 map, filter it as normal, ivar weight if use_ivar_weight=True, and return
+       Fourier transformed map and normalized weight mask for calculating w2 factor."""
+    # Trimming calibration maps to the size of the depth-1 map
+    cal_T_map_trimmed = enmap.extract(cal_T,shape,wcs)
+    cal_T_ivar_trimmed = enmap.extract(cal_T_ivar,shape,wcs)
+
+    # Filtering
+    filtered_cal_map_trimmed_fourier = apply_kspace_filter(cal_T_map_trimmed*depth1_mask, kx_cut, ky_cut, unpixwin=unpixwin)
+
     # Ivar weighting and converting to Fourier space
     if use_ivar_weight:
-        planck_split_ivar_weight = planck_T_split_trimmed*planck_T_ivar_trimmed*depth1_footprint
-        planck_split_fourier = enmap.map2harm(planck_split_ivar_weight, normalize = "phys")
-        w_planck = planck_T_ivar_trimmed*depth1_footprint
+        filtered_cal_map_trimmed_realspace = enmap.harm2map(filtered_cal_map_trimmed_fourier, normalize = "phys")
+        w_cal = cal_T_ivar_trimmed*depth1_mask / np.max(cal_T_ivar_trimmed*depth1_mask) # Don't need factor of 2 because these ivar maps were never divided by 2 when loaded
+        cal_map_fourier = enmap.map2harm(filtered_cal_map_trimmed_realspace*w_cal, normalize = "phys")
     else:
-        planck_split_fourier = enmap.map2harm(planck_T_split_trimmed*depth1_footprint, normalize = "phys")
-        w_planck = depth1_footprint
+        w_cal = depth1_mask
+        cal_map_fourier = filtered_cal_map_trimmed_fourier
 
-    return planck_split_fourier, w_planck
+    return cal_map_fourier, w_cal
 ##########################################################
 
 
