@@ -44,7 +44,7 @@ def apply_kspace_filter(maps, kx_cut, ky_cut, unpixwin):
     singleobs_TEB = enmap.map2harm(maps, normalize = "phys")
 
     if unpixwin:  # remove pixel window in Fourier space
-        if len(singleobs_TEB) > 1:
+        if len(singleobs_TEB.shape) == 3: # if there is a third index for multiple maps
             for i in range(len(singleobs_TEB)):
                 wy, wx = enmap.calc_window(singleobs_TEB[i].shape)
                 singleobs_TEB[i] /= wy[:, np.newaxis]
