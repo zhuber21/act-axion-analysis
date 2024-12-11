@@ -38,14 +38,21 @@ def apply_kspace_filter(maps, kx_cut, ky_cut, unpixwin):
     """
         Takes in a set of T/Q/U maps that already have a taper applied, apply
         a k-space filter to remove ground pickup, and returns the E and B maps
+
+        Adjusted later to work for filtering a single T map too.
     """
     singleobs_TEB = enmap.map2harm(maps, normalize = "phys")
 
     if unpixwin:  # remove pixel window in Fourier space
-        for i in range(len(singleobs_TEB)):
-            wy, wx = enmap.calc_window(singleobs_TEB[i].shape)
-            singleobs_TEB[i] /= wy[:, np.newaxis]
-            singleobs_TEB[i] /= wx[np.newaxis, :]
+        if len(singleobs_TEB) > 1:
+            for i in range(len(singleobs_TEB)):
+                wy, wx = enmap.calc_window(singleobs_TEB[i].shape)
+                singleobs_TEB[i] /= wy[:, np.newaxis]
+                singleobs_TEB[i] /= wx[np.newaxis, :]
+        else:
+            wy, wx = enmap.calc_window(singleobs_TEB.shape)
+            singleobs_TEB /= wy[:, np.newaxis]
+            singleobs_TEB /= wx[np.newaxis, :]
 
     ly, lx = singleobs_TEB.lmap()
     kfilter_x = np.abs(lx) >= kx_cut
