@@ -61,4 +61,5 @@ cal_ivar2_path: "/home/zbh5/act_analysis/dr6_analysis/cmb_night_pa6_f150_8way_co
 obs_list: '/home/zbh5/act_analysis/dr6_analysis/dr6_depth1_maps/dr6_depth1_test_map_w_second_batch_list.txt'
 #obs_list: '/home/zbh5/act_analysis/dr6_analysis/dr6_depth1_maps/dr6_depth1_test_map_list.txt'
 #obs_list: '/home/zbh5/act_analysis/dr6_analysis/dr6_depth1_maps/dr6_depth1_test_6maps_list.txt'
+#obs_list: '/home/zbh5/act_analysis/dr6_analysis/dr6_depth1_maps/dr6_depth1_test_9goodmaps_list.txt'
 obs_path_stem: "/home/zbh5/act_analysis/dr6_analysis/dr6_depth1_maps/"
