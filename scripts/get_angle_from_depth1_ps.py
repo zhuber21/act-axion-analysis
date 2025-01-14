@@ -334,7 +334,9 @@ for line in tqdm(lines):
         binned_E1xB1 /= tfunc
         binned_E2xB2 /= tfunc
         # Accounting for modes lost to the mask and filtering - uses w2_cross because estimator is made of cross spectra
-        binned_nu = bincount*w2_cross*tfunc
+        # The thing returned by get_tfunc() is the t_b^2 factor from Steve's PS paper, which is the right correction for each spectrum.
+        # We only want t_b in the mode correction, though, as in the text after Eq. 1 of Steve's paper.
+        binned_nu = bincount*w2_cross*np.sqrt(tfunc)
         
         if cross_calibrate:
             w2_depth1xcal1 = np.mean(w_depth1*w_cal1)
