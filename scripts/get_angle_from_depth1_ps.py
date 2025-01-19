@@ -227,7 +227,7 @@ for line in tqdm(lines):
     outputs = aoa.load_and_filter_depth1(map_path, ref_maps, galaxy_mask, 
                                             kx_cut, ky_cut, unpixwin, 
                                             filter_radius=filter_radius,plot_maps=plot_maps,
-                                            output_dir=output_dir_path)
+                                            output_dir=output_dir_path,use_ivar_weight=use_ivar_weight)
     # If the full map has been cut by the galaxy mask, it return error code 1 instead of the regular outputs
     if outputs == 1:
         # saves output flag so we can see it is cut
@@ -254,38 +254,40 @@ for line in tqdm(lines):
         # Otherwise do everything you would normally do
         depth1_TEB = outputs[0]
         depth1_ivar = outputs[1]
-        depth1_footprint = outputs[2]
-        ref_TEB = outputs[3]
-        ivar_sum = outputs[4]
+        depth1_filtering_mask = outputs[2]
+        depth1_ivar_mask_tapered = outputs[3]
+        depth1_ivar_mask_taper_indices = outputs[4]
+        ref_TEB = outputs[5]
+        ivar_sum = outputs[6]
 
         if cross_calibrate:
             # Moving trimming, ivar weighting, filtering, and Fourier transform to function
             # to avoid multiplying extra maps in memory - doing each cal map separately for same reason
             # These window factors are already normalized inside the mask
             cal_map1_fourier, w_cal1 = aoa.cal_trim_and_fourier_transform(cal_T_map1_act_footprint,cal_T_ivar1_act_footprint,
-                                                  depth1_TEB[0].shape,depth1_TEB[0].wcs,depth1_footprint,kx_cut,ky_cut,unpixwin,use_ivar_weight)
+                                                  depth1_TEB[0].shape,depth1_TEB[0].wcs,depth1_filtering_mask,depth1_ivar_mask_tapered,
+                                                  depth1_ivar_mask_taper_indices,kx_cut,ky_cut,unpixwin,use_ivar_weight)
             cal_map2_fourier, w_cal2 = aoa.cal_trim_and_fourier_transform(cal_T_map2_act_footprint,cal_T_ivar2_act_footprint,
-                                                  depth1_TEB[0].shape,depth1_TEB[0].wcs,depth1_footprint,kx_cut,ky_cut,unpixwin,use_ivar_weight)
+                                                  depth1_TEB[0].shape,depth1_TEB[0].wcs,depth1_filtering_mask,depth1_ivar_mask_tapered,
+                                                  depth1_ivar_mask_taper_indices,kx_cut,ky_cut,unpixwin,use_ivar_weight)
 
         if use_ivar_weight:
             # Ivar weighting for depth-1 map
-            depth1_TEB = aoa.apply_ivar_weighting(depth1_TEB, depth1_ivar, depth1_footprint)
+            depth1_TEB, total_depth1_ivar_mask = aoa.apply_ivar_weighting(depth1_TEB, depth1_ivar, depth1_ivar_mask_tapered, depth1_ivar_mask_taper_indices)
 
             # Ivar weighting for reference map - already filtered and trimmed from ref_TEB above
             ref_map_trimmed_ivar = enmap.extract(ref_ivar,depth1_TEB[0].shape,depth1_TEB[0].wcs)
-            ref_TEB = aoa.apply_ivar_weighting(ref_TEB, ref_map_trimmed_ivar, depth1_footprint)
+            ref_TEB, total_ref_ivar_mask = aoa.apply_ivar_weighting(ref_TEB, ref_map_trimmed_ivar, depth1_ivar_mask_tapered, depth1_ivar_mask_taper_indices)
 
             # Calculating approx correction for loss of power due to tapering for spectra for depth-1
-            # Normalized because we use a normalized ivar in aoa.apply_ivar_weighting and it makes correction comparable to geometric one
-            # Only normalizing the part inside the mask since that is the only part that appears in weighting
-            # It DOES change the w2 value significantly if you normalize the whole ivar map prior to masking!
-            w_depth1 = depth1_ivar*depth1_footprint / np.max(depth1_ivar*depth1_footprint)
+            # Normalized ivar and geometric factor combined in this mask - normalization done in aoa.apply_ivar_weighting()
+            w_depth1 = total_depth1_ivar_mask
             # Calculating approx correction for loss of power due to tapering for spectra for ref
-            w_ref = ref_map_trimmed_ivar*depth1_footprint / np.max(ref_map_trimmed_ivar*depth1_footprint)
+            w_ref = total_ref_ivar_mask
         else:
             # No ivar weighting
-            w_depth1 = depth1_footprint # use this if using flat weighting
-            w_ref = depth1_footprint # use this if using flat weighting 
+            w_depth1 = depth1_filtering_mask # use this if using flat weighting since only one taper is applied in this case
+            w_ref = depth1_filtering_mask    # use this if using flat weighting since only one taper is applied in this case
 
         depth1_E = depth1_TEB[1]
         depth1_B = depth1_TEB[2]
@@ -365,6 +367,9 @@ for line in tqdm(lines):
         logger.info("Fit values: "+str(fit_values))
         angle_estimates.append(fit_values)
         maps.append(line)
+
+        initial_timestamp, median_timestamp = aoa.calc_median_timestamp(map_path, depth1_filtering_mask, depth1_ivar_mask_tapered, use_ivar_weight)
+
         if cross_calibrate:
             spectra_output[line] = {'ell': centers, 'E1xB2': binned_E1xB2, 'E2xB1': binned_E2xB1, 
                                     'E1xE1': binned_E1xE1, 'B2xB2': binned_B2xB2, 'E2xE2': binned_E2xE2,
@@ -373,8 +378,9 @@ for line in tqdm(lines):
                                     'estimator': estimator, 'covariance': covariance,
                                     'CAMB_EE': CAMB_ClEE_binned, 'CAMB_BB': CAMB_ClBB_binned,
                                     'w2_depth1': w2_depth1, 'w2_cross': w2_cross, 'w2_ref': w2_ref,
-                                    'meas_angle': fit_values[0], 'meas_errbar': fit_values[1], 
-                                    'ivar_sum': ivar_sum, 'residual_mean': residual_mean, 
+                                    'meas_angle': fit_values[0], 'meas_errbar': fit_values[1],
+                                    'initial_timestamp': initial_timestamp, 'median_timestamp': median_timestamp, 
+                                    'ivar_sum': ivar_sum, 'residual_mean': residual_mean,
                                     'residual_sum': residual_sum, 'map_cut': 0,
                                     'T1xcal1T': binned_T1xcal1T, 'cal1Txcal2T': binned_cal1Txcal2T,
                                     'cal_factor': cal_factor, 'w2_depth1xcal1': w2_depth1xcal1, 'w2_cal1xcal2': w2_cal1xcal2 }
@@ -386,7 +392,8 @@ for line in tqdm(lines):
                                     'estimator': estimator, 'covariance': covariance,
                                     'CAMB_EE': CAMB_ClEE_binned, 'CAMB_BB': CAMB_ClBB_binned,
                                     'w2_depth1': w2_depth1, 'w2_cross': w2_cross, 'w2_ref': w2_ref,
-                                    'meas_angle': fit_values[0], 'meas_errbar': fit_values[1], 
+                                    'meas_angle': fit_values[0], 'meas_errbar': fit_values[1],
+                                    'initial_timestamp': initial_timestamp, 'median_timestamp': median_timestamp, 
                                     'ivar_sum': ivar_sum, 'residual_mean': residual_mean, 
                                     'residual_sum': residual_sum, 'map_cut': 0}            
 

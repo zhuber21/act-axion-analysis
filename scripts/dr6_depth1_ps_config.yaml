@@ -7,7 +7,7 @@ ky_cut: 50
 unpixwin: True
 
 # Apodization parameter
-filter_radius: 1.0  # nawrapper.apod_C2() - radius in degrees
+filter_radius: 0.5 # nawrapper.apod_C2() - radius in degrees, applied twice if using ivar weighting
 
 # Likelihood fitting settings
 angle_min_deg: -50.0

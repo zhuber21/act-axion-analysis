@@ -1,5 +1,5 @@
 import numpy as np
-from pixell import enmap, enplot
+from pixell import enmap, enplot, bunch
 import nawrapper as nw
 import matplotlib.pyplot as plt
 import os
@@ -96,18 +96,23 @@ def trim_ref_with_T(ref_maps,shape,wcs,plot=False):
     
     return ref_maps_cut
 
-def make_tapered_mask(map_to_mask,filter_radius=1.0,plot=False):
+def make_tapered_mask(map_to_mask,filter_radius=0.5,plot=False):
     """
         Makes a mask for a given map based on where the ivar map is nonzero.
         Also apodizes the mask and gets the indices of where the apodized
         mask is not equal to one (everything tapered or outside the mask)
         in order to set all points but those to zero after filtering.
+
+        The default radius is 0.5 deg - we apply this twice though when using ivar
+        weighting since we throw away the first taper post-filtering and make a new
+        one post-ivar weighting, so the total radius is still around 1.0 deg as it
+        originally was when tapering once.
     """
     footprint = 1*map_to_mask.astype(bool)
     mask = nw.apod_C2(footprint,filter_radius)
     
-    # Getting points to set to zero after filtering - left over from map-based method,
-    # but now used for calculating ivar_sum in the non-tapered region
+    # Getting points to set to zero after filtering used for 
+    # calculating ivar_sum in the non-tapered region and removing taper for second mask
     indices = np.nonzero(mask != 1)
     
     if plot:
@@ -115,7 +120,7 @@ def make_tapered_mask(map_to_mask,filter_radius=1.0,plot=False):
     
     return mask, indices
 
-def load_and_filter_depth1(fname, ref_maps, galaxy_mask, kx_cut, ky_cut, unpixwin, filter_radius=1.0,plot_maps=False,output_dir=None):
+def load_and_filter_depth1(fname, ref_maps, galaxy_mask, kx_cut, ky_cut, unpixwin, filter_radius=1.0,plot_maps=False,output_dir=None,use_ivar_weight=False):
     """Loads depth-1 TQU, trims reference map to same size as depth-1, apodizes and filters depth-1 and coadd.
        Returns filtered depth-1 TEB, depth-1 ivar, depth-1 mask, filtered reference map TEB, and sum of the 
        inverse variance inside the non-tapered region of the ivar mask for noise/hits cuts."""
@@ -125,32 +130,59 @@ def load_and_filter_depth1(fname, ref_maps, galaxy_mask, kx_cut, ky_cut, unpixwi
     galaxy_mask_cut = enmap.extract(galaxy_mask,shape,wcs)
        
     # Apodize depth-1 and apply galaxy mask
-    depth1_mask, depth1_indices = make_tapered_mask(depth1_ivar*galaxy_mask_cut,filter_radius=filter_radius)
+    depth1_filtering_mask, depth1_indices = make_tapered_mask(depth1_ivar*galaxy_mask_cut,filter_radius=filter_radius)
+    test_mask = depth1_filtering_mask
 
-    # Checking if the galaxy mask eliminated the whole map
-    if len(np.nonzero(depth1_mask)[0]) > 0:
+    # This is clunky but should prevent edge case crashes if galaxy mask plus tapering eliminate whole map 
+    if len(np.nonzero(depth1_filtering_mask)[0]) > 0:
+        # Set first mask's tapered region to zero and retaper to get mask for ivar weighting
+        depth1_ivar_mask = depth1_filtering_mask.copy() # ensuring no weirdness happens to first mask
+        depth1_ivar_mask[depth1_indices] = 0.0          # setting pixels in taper and outside to zero
+        depth1_ivar_mask_tapered, depth1_ivar_indices = make_tapered_mask(depth1_ivar_mask,filter_radius=filter_radius)
+
+        if use_ivar_weight:
+            test_mask = depth1_ivar_mask_tapered
+
+    # Checking if the galaxy mask and tapering eliminated the whole map
+    if len(np.nonzero(test_mask)[0]) > 0:
         # Filter depth-1
-        filtered_depth1_TEB = apply_kspace_filter(depth1_maps*depth1_mask, kx_cut, ky_cut, unpixwin=unpixwin)
+        filtered_depth1_TEB = apply_kspace_filter(depth1_maps*depth1_filtering_mask, kx_cut, ky_cut, unpixwin=unpixwin)
             
         # Apodize and filter coadd
-        ref_cut_TEB = apply_kspace_filter(ref_cut*depth1_mask, kx_cut, ky_cut, unpixwin=unpixwin)
+        ref_cut_TEB = apply_kspace_filter(ref_cut*depth1_filtering_mask, kx_cut, ky_cut, unpixwin=unpixwin)
 
-        # Calculating the sum of the ivar inside the mask (w/o tapered part) to test if it is a good metric for data cuts
+        # Calculating the sum of the ivar inside the second mask (w/o tapered part) to test if it is a good metric for data cuts
         # There might be more Pythonic ways to do this, but this works w/o changing the real mask
-        mask_without_taper = depth1_mask.copy() # So as to not alter the tapered mask
-        mask_without_taper[depth1_indices] = 0.0
-        ivar_sum = np.sum(mask_without_taper*depth1_ivar)
+        if use_ivar_weight:
+            final_mask_without_taper = depth1_ivar_mask_tapered.copy() # So as to not alter the tapered mask
+            final_mask_without_taper[depth1_ivar_indices] = 0.0
+            ivar_sum = np.sum(final_mask_without_taper*depth1_ivar)
+        else:
+            final_mask_without_taper = depth1_filtering_mask.copy() # So as to not alter the tapered mask
+            final_mask_without_taper[depth1_ivar_indices] = 0.0
+            ivar_sum = np.sum(final_mask_without_taper*depth1_ivar)
 
         if plot_maps:
-            map_fname = os.path.split(fname)[1][:-9] # removing "_map.fits"
-            plot_T_maps(output_dir, map_fname, depth1_mask*depth1_maps[0], **keys_ewrite_T)
-            plot_QU_maps(output_dir, map_fname, [depth1_mask*depth1_maps[1], depth1_mask*depth1_maps[2]], **keys_ewrite_QU)
-            plot_T_ref_maps(output_dir, map_fname, depth1_mask*ref_cut[0], **keys_ewrite_ref_T)
-            plot_QU_ref_maps(output_dir, map_fname, [depth1_mask*ref_cut[1], depth1_mask*ref_cut[2]],**keys_ewrite_ref_QU)
-            plot_mask(output_dir, map_fname, depth1_mask, **keys_ewrite_mask)
-            plot_EB_filtered_maps(output_dir, map_fname, filtered_depth1_TEB, depth1_mask, **keys_ewrite_EB)
+            if use_ivar_weight:
+                # Plotting using the doubly tapered mask for the ivar weighting
+                map_fname = os.path.split(fname)[1][:-9] # removing "_map.fits"
+                plot_T_maps(output_dir, map_fname, depth1_ivar_mask_tapered*depth1_maps[0], **keys_ewrite_T)
+                plot_QU_maps(output_dir, map_fname, [depth1_ivar_mask_tapered*depth1_maps[1], depth1_ivar_mask_tapered*depth1_maps[2]], **keys_ewrite_QU)
+                plot_T_ref_maps(output_dir, map_fname, depth1_ivar_mask_tapered*ref_cut[0], **keys_ewrite_ref_T)
+                plot_QU_ref_maps(output_dir, map_fname, [depth1_ivar_mask_tapered*ref_cut[1], depth1_ivar_mask_tapered*ref_cut[2]],**keys_ewrite_ref_QU)
+                plot_mask(output_dir, map_fname, depth1_ivar_mask_tapered, **keys_ewrite_mask)
+                plot_EB_filtered_maps(output_dir, map_fname, filtered_depth1_TEB, depth1_ivar_mask_tapered, **keys_ewrite_EB)
+            else:
+                # Plotting using the first (filtering) mask
+                map_fname = os.path.split(fname)[1][:-9] # removing "_map.fits"
+                plot_T_maps(output_dir, map_fname, depth1_filtering_mask*depth1_maps[0], **keys_ewrite_T)
+                plot_QU_maps(output_dir, map_fname, [depth1_filtering_mask*depth1_maps[1], depth1_filtering_mask*depth1_maps[2]], **keys_ewrite_QU)
+                plot_T_ref_maps(output_dir, map_fname, depth1_filtering_mask*ref_cut[0], **keys_ewrite_ref_T)
+                plot_QU_ref_maps(output_dir, map_fname, [depth1_filtering_mask*ref_cut[1], depth1_filtering_mask*ref_cut[2]],**keys_ewrite_ref_QU)
+                plot_mask(output_dir, map_fname, depth1_filtering_mask, **keys_ewrite_mask)
+                plot_EB_filtered_maps(output_dir, map_fname, filtered_depth1_TEB, depth1_filtering_mask, **keys_ewrite_EB)
         
-        return filtered_depth1_TEB, depth1_ivar, depth1_mask, ref_cut_TEB, ivar_sum
+        return filtered_depth1_TEB, depth1_ivar, depth1_filtering_mask, depth1_ivar_mask_tapered, depth1_ivar_indices, ref_cut_TEB, ivar_sum
     else:
         if plot_maps:
             # All will show nothing except the mask, but still want the empty plots for web viewer code
@@ -159,28 +191,48 @@ def load_and_filter_depth1(fname, ref_maps, galaxy_mask, kx_cut, ky_cut, unpixwi
             # but plotting everything else with mask to show it was completely cut
             plot_T_maps(output_dir, map_fname, depth1_maps[0], **keys_ewrite_T)
             plot_QU_maps(output_dir, map_fname, [depth1_maps[1], depth1_maps[2]], **keys_ewrite_QU)
-            plot_T_ref_maps(output_dir, map_fname, depth1_mask*ref_cut[0], **keys_ewrite_ref_T)
-            plot_QU_ref_maps(output_dir, map_fname, [depth1_mask*ref_cut[1], depth1_mask*ref_cut[2]],**keys_ewrite_ref_QU)
-            plot_mask(output_dir, map_fname, depth1_mask, **keys_ewrite_mask)
-            plot_EB_filtered_maps(output_dir, map_fname, depth1_maps, depth1_mask, cut_map=True, **keys_ewrite_EB)
+            plot_T_ref_maps(output_dir, map_fname, depth1_filtering_mask*ref_cut[0], **keys_ewrite_ref_T)
+            plot_QU_ref_maps(output_dir, map_fname, [depth1_filtering_mask*ref_cut[1], depth1_filtering_mask*ref_cut[2]],**keys_ewrite_ref_QU)
+            plot_mask(output_dir, map_fname, depth1_filtering_mask, **keys_ewrite_mask)
+            plot_EB_filtered_maps(output_dir, map_fname, depth1_maps, depth1_filtering_mask, cut_map=True, **keys_ewrite_EB)
         return 1 # returning an error code if there is nothing left in the map
 
-def apply_ivar_weighting(input_kspace_TEB_maps, input_ivar, mask):
+def apply_ivar_weighting(input_kspace_TEB_maps, input_ivar, ivar_mask, mask_indices):
     """For a set of TEB Fourier space maps, converts back to real space, multiplies by
        the normalized inverse variance map and the tapered mask, and converts back to Fourier space
-       for PS calculation."""
-    norm_ivar_T_mask = 2.0*input_ivar*mask / np.max(2.0*input_ivar*mask) # Weighting by the original temperature ivar for T
-    norm_ivar_QU_mask = input_ivar*mask / np.max(input_ivar*mask)
+       for PS calculation.
+       The normaalized inverse variance map is only calculated inside the tapered region so that the
+       structure of the ivar map doesn't make the taper non-smooth and so that we are ivar weighting
+       only in the region where the PS will be calculated.   
+    """
+    ivar_inside_taper = input_ivar.copy() # to ensure no weirdness happens to orignial ivar
+    ivar_inside_taper[mask_indices] = 0.0 # Setting all tapered points and beyond to zero so normalization doesn't happen to a tapered point
+    
+    # There are a small number of isolated outlier pixels in the ivar map. To prevent them from
+    # having a outsized effect on the normalization, we normalize to the 95th percentile of the map.
+    # Anything in the 95th-100th percentile is set to 1.0
+    norm_ivar_T_mask = 2.0*ivar_inside_taper / np.percentile(2.0*ivar_inside_taper, 95) # Weighting by the original temperature ivar for T
+    norm_ivar_T_mask[norm_ivar_T_mask > 1.0] = 1.0 # Setting any outliers to 1.0
+    norm_ivar_QU_mask = ivar_inside_taper / np.percentile(ivar_inside_taper, 95)
+    norm_ivar_QU_mask[norm_ivar_QU_mask > 1.0] = 1.0 # Setting any outliers to 1.0
+
+    # Now that things are normalized in the region we will take the PS on, set the region
+    # outside of it to 1.0 so that it gets tapered and masked appropriately by the PS mask
+    norm_ivar_T_mask[mask_indices] = 1.0
+    norm_ivar_QU_mask[mask_indices] = 1.0
+
+    # Converting Fourier space maps to realspace, then multiplying by normalized ivar
+    # mask and tapered PS mask
     maps_realspace = enmap.harm2map(input_kspace_TEB_maps, normalize = "phys")
     maps_ivar_weight = enmap.zeros((3,) + maps_realspace[0].shape, wcs=maps_realspace[0].wcs)
-    maps_ivar_weight[0] = maps_realspace[0]*norm_ivar_T_mask 
-    maps_ivar_weight[1] = maps_realspace[1]*norm_ivar_QU_mask
-    maps_ivar_weight[2] = maps_realspace[2]*norm_ivar_QU_mask
-    # Converting back to harmonic space - already multiplied by tapered mask above
+    maps_ivar_weight[0] = maps_realspace[0]*norm_ivar_T_mask*ivar_mask 
+    maps_ivar_weight[1] = maps_realspace[1]*norm_ivar_QU_mask*ivar_mask
+    maps_ivar_weight[2] = maps_realspace[2]*norm_ivar_QU_mask*ivar_mask
+    # Converting back to harmonic space - already multiplied by tapered Ivar_mask above
     output_kspace_TEB_maps = enmap.map2harm(maps_ivar_weight, normalize = "phys")
-    return output_kspace_TEB_maps
+    return output_kspace_TEB_maps, norm_ivar_QU_mask*ivar_mask
 
-def cal_trim_and_fourier_transform(cal_T,cal_T_ivar,shape,wcs,depth1_mask,kx_cut,ky_cut,unpixwin,use_ivar_weight):
+def cal_trim_and_fourier_transform(cal_T,cal_T_ivar,shape,wcs,depth1_filter_mask,depth1_ivar_mask,ivar_mask_indices,kx_cut,ky_cut,unpixwin,use_ivar_weight):
     """For a given ACT coadd used for the overall calibration factor, trim the map to the size of the
        depth-1 map, filter it as normal, ivar weight if use_ivar_weight=True, and return
        Fourier transformed map and normalized weight mask for calculating w2 factor."""
@@ -189,18 +241,48 @@ def cal_trim_and_fourier_transform(cal_T,cal_T_ivar,shape,wcs,depth1_mask,kx_cut
     cal_T_ivar_trimmed = enmap.extract(cal_T_ivar,shape,wcs)
 
     # Filtering
-    filtered_cal_map_trimmed_fourier = apply_kspace_filter(cal_T_map_trimmed*depth1_mask, kx_cut, ky_cut, unpixwin=unpixwin)
+    filtered_cal_map_trimmed_fourier = apply_kspace_filter(cal_T_map_trimmed*depth1_filter_mask, kx_cut, ky_cut, unpixwin=unpixwin)
 
     # Ivar weighting and converting to Fourier space
     if use_ivar_weight:
+        # Copying the ivar normalization prescription in apply_ivar_weighting() but only for T
+        ivar_inside_taper = cal_T_ivar_trimmed.copy() 
+        ivar_inside_taper[ivar_mask_indices] = 0.0
+        norm_ivar_T_mask = ivar_inside_taper / np.percentile(ivar_inside_taper, 95) # Don't need factor of 2 because these ivar maps were never divided by 2 when loaded
+        norm_ivar_T_mask[norm_ivar_T_mask > 1.0] = 1.0
+        norm_ivar_T_mask[ivar_mask_indices] = 1.0
+
         filtered_cal_map_trimmed_realspace = enmap.harm2map(filtered_cal_map_trimmed_fourier, normalize = "phys")
-        w_cal = cal_T_ivar_trimmed*depth1_mask / np.max(cal_T_ivar_trimmed*depth1_mask) # Don't need factor of 2 because these ivar maps were never divided by 2 when loaded
+        w_cal = norm_ivar_T_mask*depth1_ivar_mask
         cal_map_fourier = enmap.map2harm(filtered_cal_map_trimmed_realspace*w_cal, normalize = "phys")
     else:
-        w_cal = depth1_mask
+        w_cal = depth1_filter_mask
         cal_map_fourier = filtered_cal_map_trimmed_fourier
 
     return cal_map_fourier, w_cal
+
+def calc_median_timestamp(map_path, filtering_mask, ivar_mask, use_ivar_weight):
+    """
+        Using time.fits and info.hdf files that accompany each depth-1 map to calculate the median timestamp
+        of the region that is used for doing the power spectrum calculation (just the region where the tapered mask is 1.0). 
+
+        Returns both the initial timestamp of the file (info_file.t) and the median timestamp after adding the median offset of
+        the power spectrum region.
+    """
+    info_file_path = map_path[:-8] + 'info.hdf'
+    time_file_path = map_path[:-8] + 'time.fits'
+    info_file = bunch.read(info_file_path)    # info_file.t should be the timestamp in the file name - first timestamp in file
+    time_map = enmap.read_map(time_file_path) # this map gives the time offset from info_file.t
+    initial_timestamp = info_file.t
+    # Restricting time_map just to the area inside the taper
+    if use_ivar_weight:
+        masked_time_map = time_map*ivar_mask
+        median_time_offset = np.median(masked_time_map[ivar_mask==1.0])
+    else:
+        masked_time_map = time_map*filtering_mask
+        median_time_offset = np.median(masked_time_map[filtering_mask==1.0])
+    median_timestamp = initial_timestamp + median_time_offset # May want to round this eventually if median is not an integer...
+    return initial_timestamp, median_timestamp
 ##########################################################
 
 
@@ -214,9 +296,6 @@ def spectrum_from_maps(map1, map2, b_ell_bin_1, b_ell_bin_2, w2, bins):
     """
     spectrum = np.real(map1*np.conj(map2))
 
-    # Dividing by an approx. correction for the loss of power from tapering
-    spectrum /= w2
-
     modlmap = map1.modlmap()
 
     # Bin the power spectrum
@@ -224,6 +303,9 @@ def spectrum_from_maps(map1, map2, b_ell_bin_1, b_ell_bin_2, w2, bins):
     bincount = np.bincount(digitized)[1:-1]
     binned = np.bincount(digitized, spectrum.reshape(-1))[1:-1]/bincount
 
+    # Dividing by an approx. correction for the loss of power from tapering
+    binned /= w2
+    # Dividing by correction for the beam of each map
     binned /= (b_ell_bin_1*b_ell_bin_2)
 
     return binned, bincount
