@@ -368,7 +368,10 @@ for line in tqdm(lines):
         angle_estimates.append(fit_values)
         maps.append(line)
 
+        logger.info("Calculating median timestamp from time.fits and info.hdf files")
         initial_timestamp, median_timestamp = aoa.calc_median_timestamp(map_path, depth1_filtering_mask, depth1_ivar_mask_tapered, use_ivar_weight)
+        logger.info("Initial timestamp: "+str(initial_timestamp))
+        logger.info("Median timestamp: "+str(median_timestamp))
 
         if cross_calibrate:
             spectra_output[line] = {'ell': centers, 'E1xB2': binned_E1xB2, 'E2xB1': binned_E2xB1, 
