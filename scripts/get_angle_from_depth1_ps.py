@@ -273,26 +273,18 @@ for line in tqdm(lines):
 
         if use_ivar_weight:
             # Ivar weighting for depth-1 map
-            depth1_TEB, total_depth1_ivar_mask = aoa.apply_ivar_weighting(depth1_TEB, depth1_ivar, depth1_ivar_mask_tapered, depth1_ivar_mask_taper_indices)
+            # Calculating approx correction for loss of power due to tapering for spectra for depth-1
+            # w_depth1 combines normalized ivar and geometric factors in this mask - normalization done in aoa.apply_ivar_weighting()
+            depth1_TEB, w_depth1 = aoa.apply_ivar_weighting(depth1_TEB, depth1_ivar, depth1_ivar_mask_tapered, depth1_ivar_mask_taper_indices)
 
             # Ivar weighting for reference map - already filtered and trimmed from ref_TEB above
+            # w_ref combines normalized ivar and geometric factors in this mask
             ref_map_trimmed_ivar = enmap.extract(ref_ivar,depth1_TEB[0].shape,depth1_TEB[0].wcs)
-            ref_TEB, total_ref_ivar_mask = aoa.apply_ivar_weighting(ref_TEB, ref_map_trimmed_ivar, depth1_ivar_mask_tapered, depth1_ivar_mask_taper_indices)
-
-            # Calculating approx correction for loss of power due to tapering for spectra for depth-1
-            # Normalized ivar and geometric factor combined in this mask - normalization done in aoa.apply_ivar_weighting()
-            w_depth1 = total_depth1_ivar_mask
-            # Calculating approx correction for loss of power due to tapering for spectra for ref
-            w_ref = total_ref_ivar_mask
+            ref_TEB, w_ref = aoa.apply_ivar_weighting(ref_TEB, ref_map_trimmed_ivar, depth1_ivar_mask_tapered, depth1_ivar_mask_taper_indices)
         else:
             # No ivar weighting
             w_depth1 = depth1_filtering_mask # use this if using flat weighting since only one taper is applied in this case
             w_ref = depth1_filtering_mask    # use this if using flat weighting since only one taper is applied in this case
-
-        depth1_E = depth1_TEB[1]
-        depth1_B = depth1_TEB[2]
-        ref_E = ref_TEB[1]
-        ref_B = ref_TEB[2]
 
         # Calculating w2 factors - all the same if not using ivar weighting, but different if using it
         w2_depth1 = np.mean(w_depth1**2)
@@ -313,17 +305,17 @@ for line in tqdm(lines):
 
         # Calculate spectra
         # Spectra for estimator
-        binned_E1xB2, bincount = aoa.spectrum_from_maps(depth1_E, ref_B, b_ell_bin_1=depth1_beam, b_ell_bin_2=ref_beam, w2=w2_cross, bins=bins)
-        binned_E2xB1, _ = aoa.spectrum_from_maps(depth1_B, ref_E, b_ell_bin_1=ref_beam, b_ell_bin_2=depth1_beam, w2=w2_cross, bins=bins)
+        binned_E1xB2, bincount = aoa.spectrum_from_maps(depth1_TEB[1], ref_TEB[2], b_ell_bin_1=depth1_beam, b_ell_bin_2=ref_beam, w2=w2_cross, bins=bins)
+        binned_E2xB1, _ = aoa.spectrum_from_maps(depth1_TEB[2], ref_TEB[1], b_ell_bin_1=ref_beam, b_ell_bin_2=depth1_beam, w2=w2_cross, bins=bins)
         # Spectra for covariance
-        binned_E1xE1, _ = aoa.spectrum_from_maps(depth1_E, depth1_E, b_ell_bin_1=depth1_beam, b_ell_bin_2=depth1_beam, w2=w2_depth1, bins=bins)
-        binned_B2xB2, _ = aoa.spectrum_from_maps(ref_B, ref_B, b_ell_bin_1=ref_beam, b_ell_bin_2=ref_beam, w2=w2_ref, bins=bins)
-        binned_E2xE2, _ = aoa.spectrum_from_maps(ref_E, ref_E, b_ell_bin_1=ref_beam, b_ell_bin_2=ref_beam, w2=w2_ref, bins=bins)
-        binned_B1xB1, _ = aoa.spectrum_from_maps(depth1_B, depth1_B, b_ell_bin_1=depth1_beam, b_ell_bin_2=depth1_beam, w2=w2_depth1, bins=bins)
-        binned_E1xE2, _ = aoa.spectrum_from_maps(depth1_E, ref_E, b_ell_bin_1=depth1_beam, b_ell_bin_2=ref_beam, w2=w2_cross, bins=bins)
-        binned_B1xB2, _ = aoa.spectrum_from_maps(depth1_B, ref_B, b_ell_bin_1=depth1_beam, b_ell_bin_2=ref_beam, w2=w2_cross, bins=bins)
-        binned_E1xB1, _ = aoa.spectrum_from_maps(depth1_E, depth1_B, b_ell_bin_1=depth1_beam, b_ell_bin_2=depth1_beam, w2=w2_depth1, bins=bins)
-        binned_E2xB2, _ = aoa.spectrum_from_maps(ref_E, ref_B, b_ell_bin_1=ref_beam, b_ell_bin_2=ref_beam, w2=w2_ref, bins=bins)    
+        binned_E1xE1, _ = aoa.spectrum_from_maps(depth1_TEB[1], depth1_TEB[1], b_ell_bin_1=depth1_beam, b_ell_bin_2=depth1_beam, w2=w2_depth1, bins=bins)
+        binned_B2xB2, _ = aoa.spectrum_from_maps(ref_TEB[2], ref_TEB[2], b_ell_bin_1=ref_beam, b_ell_bin_2=ref_beam, w2=w2_ref, bins=bins)
+        binned_E2xE2, _ = aoa.spectrum_from_maps(ref_TEB[1], ref_TEB[1], b_ell_bin_1=ref_beam, b_ell_bin_2=ref_beam, w2=w2_ref, bins=bins)
+        binned_B1xB1, _ = aoa.spectrum_from_maps(depth1_TEB[2], depth1_TEB[2], b_ell_bin_1=depth1_beam, b_ell_bin_2=depth1_beam, w2=w2_depth1, bins=bins)
+        binned_E1xE2, _ = aoa.spectrum_from_maps(depth1_TEB[1], ref_TEB[1], b_ell_bin_1=depth1_beam, b_ell_bin_2=ref_beam, w2=w2_cross, bins=bins)
+        binned_B1xB2, _ = aoa.spectrum_from_maps(depth1_TEB[2], ref_TEB[2], b_ell_bin_1=depth1_beam, b_ell_bin_2=ref_beam, w2=w2_cross, bins=bins)
+        binned_E1xB1, _ = aoa.spectrum_from_maps(depth1_TEB[1], depth1_TEB[2], b_ell_bin_1=depth1_beam, b_ell_bin_2=depth1_beam, w2=w2_depth1, bins=bins)
+        binned_E2xB2, _ = aoa.spectrum_from_maps(ref_TEB[1], ref_TEB[2], b_ell_bin_1=ref_beam, b_ell_bin_2=ref_beam, w2=w2_ref, bins=bins)    
         # Accounting for transfer function
         binned_E1xB2 /= tfunc
         binned_E2xB1 /= tfunc
