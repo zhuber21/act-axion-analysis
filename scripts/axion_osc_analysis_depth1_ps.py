@@ -120,6 +120,20 @@ def make_tapered_mask(map_to_mask,filter_radius=0.5,plot=False):
     
     return mask, indices
 
+def calc_ivar_sum(tapered_mask, indices, ivar):
+    """Moving the ivar sum calculation to another function to reduce memory overhead"""
+    final_mask_without_taper = tapered_mask.copy() # So as to not alter the tapered mask
+    final_mask_without_taper[indices] = 0.0
+    ivar_sum = np.sum(final_mask_without_taper*ivar)
+    return ivar_sum
+
+def taper_mask_second_time(first_mask, first_indices, filter_radius):
+    """Moving the second tapering of mask to make mask for ivar weighting to another function to reduce memory overhead"""
+    first_mask_copy = first_mask.copy()      # ensuring no weirdness happens to first mask
+    first_mask_copy[first_indices] = 0.0     # setting pixels in taper and outside to zero
+    second_mask_tapered, second_indices = make_tapered_mask(first_mask_copy,filter_radius=filter_radius)
+    return second_mask_tapered, second_indices
+
 def load_and_filter_depth1(fname, ref_maps, galaxy_mask, kx_cut, ky_cut, unpixwin, filter_radius=1.0,plot_maps=False,output_dir=None,use_ivar_weight=False):
     """Loads depth-1 TQU, trims reference map to same size as depth-1, apodizes and filters depth-1 and coadd.
        Returns filtered depth-1 TEB, depth-1 ivar, depth-1 mask, filtered reference map TEB, and sum of the 
@@ -136,9 +150,7 @@ def load_and_filter_depth1(fname, ref_maps, galaxy_mask, kx_cut, ky_cut, unpixwi
     # This is clunky but should prevent edge case crashes if galaxy mask plus tapering eliminate whole map 
     if len(np.nonzero(depth1_filtering_mask)[0]) > 0:
         # Set first mask's tapered region to zero and retaper to get mask for ivar weighting
-        depth1_ivar_mask = depth1_filtering_mask.copy() # ensuring no weirdness happens to first mask
-        depth1_ivar_mask[depth1_indices] = 0.0          # setting pixels in taper and outside to zero
-        depth1_ivar_mask_tapered, depth1_ivar_indices = make_tapered_mask(depth1_ivar_mask,filter_radius=filter_radius)
+        depth1_ivar_mask_tapered, depth1_ivar_indices = taper_mask_second_time(depth1_filtering_mask, depth1_indices, filter_radius)
 
         if use_ivar_weight:
             test_mask = depth1_ivar_mask_tapered
@@ -154,13 +166,9 @@ def load_and_filter_depth1(fname, ref_maps, galaxy_mask, kx_cut, ky_cut, unpixwi
         # Calculating the sum of the ivar inside the second mask (w/o tapered part) to test if it is a good metric for data cuts
         # There might be more Pythonic ways to do this, but this works w/o changing the real mask
         if use_ivar_weight:
-            final_mask_without_taper = depth1_ivar_mask_tapered.copy() # So as to not alter the tapered mask
-            final_mask_without_taper[depth1_ivar_indices] = 0.0
-            ivar_sum = np.sum(final_mask_without_taper*depth1_ivar)
+            ivar_sum = calc_ivar_sum(depth1_ivar_mask_tapered, depth1_ivar_indices, depth1_ivar)
         else:
-            final_mask_without_taper = depth1_filtering_mask.copy() # So as to not alter the tapered mask
-            final_mask_without_taper[depth1_ivar_indices] = 0.0
-            ivar_sum = np.sum(final_mask_without_taper*depth1_ivar)
+            ivar_sum = calc_ivar_sum(depth1_filtering_mask, depth1_ivar_indices, depth1_ivar)
 
         if plot_maps:
             if use_ivar_weight:
@@ -197,6 +205,33 @@ def load_and_filter_depth1(fname, ref_maps, galaxy_mask, kx_cut, ky_cut, unpixwi
             plot_EB_filtered_maps(output_dir, map_fname, depth1_maps, depth1_filtering_mask, cut_map=True, **keys_ewrite_EB)
         return 1 # returning an error code if there is nothing left in the map
 
+def normalize_ivar_mask(input_ivar, mask_indices):
+    """Putting the normalization of the ivar mask into a function to reduce memory footprint"""
+    ivar_inside_taper = input_ivar.copy() # to ensure no weirdness happens to original ivar
+    ivar_inside_taper[mask_indices] = 0.0 # Setting all tapered points and beyond to zero so normalization doesn't happen to a tapered point
+
+    # There are a small number of isolated outlier pixels in the ivar map. To prevent them from
+    # having a outsized effect on the normalization, we normalize to the 95th percentile of the map.
+    # Anything in the 95th-100th percentile is set to 1.0
+    # For very small maps, sometimes numpy rounds np.percentile to 0.0 - catch these and normalize by np.max() in those cases
+    if np.percentile(2.0*ivar_inside_taper, 95)!=0.0:
+        norm_ivar_T_mask = 2.0*ivar_inside_taper / np.percentile(2.0*ivar_inside_taper, 95) # Weighting by the original temperature ivar for T
+        norm_ivar_T_mask[norm_ivar_T_mask > 1.0] = 1.0 # Setting any outliers to 1.0
+    else:
+        norm_ivar_T_mask = 2.0*ivar_inside_taper / np.max(2.0*ivar_inside_taper)
+    if np.percentile(ivar_inside_taper, 95)!=0.0:
+        norm_ivar_QU_mask = ivar_inside_taper / np.percentile(ivar_inside_taper, 95)
+        norm_ivar_QU_mask[norm_ivar_QU_mask > 1.0] = 1.0 # Setting any outliers to 1.0
+    else:
+        norm_ivar_QU_mask = ivar_inside_taper / np.max(ivar_inside_taper)
+
+    # Now that things are normalized in the region we will take the PS on, set the region
+    # outside of it to 1.0 so that it gets tapered and masked appropriately by the PS mask
+    norm_ivar_T_mask[mask_indices] = 1.0
+    norm_ivar_QU_mask[mask_indices] = 1.0
+    
+    return norm_ivar_T_mask, norm_ivar_QU_mask
+
 def apply_ivar_weighting(input_kspace_TEB_maps, input_ivar, ivar_mask, mask_indices):
     """For a set of TEB Fourier space maps, converts back to real space, multiplies by
        the normalized inverse variance map and the tapered mask, and converts back to Fourier space
@@ -205,21 +240,7 @@ def apply_ivar_weighting(input_kspace_TEB_maps, input_ivar, ivar_mask, mask_indi
        structure of the ivar map doesn't make the taper non-smooth and so that we are ivar weighting
        only in the region where the PS will be calculated.   
     """
-    ivar_inside_taper = input_ivar.copy() # to ensure no weirdness happens to orignial ivar
-    ivar_inside_taper[mask_indices] = 0.0 # Setting all tapered points and beyond to zero so normalization doesn't happen to a tapered point
-    
-    # There are a small number of isolated outlier pixels in the ivar map. To prevent them from
-    # having a outsized effect on the normalization, we normalize to the 95th percentile of the map.
-    # Anything in the 95th-100th percentile is set to 1.0
-    norm_ivar_T_mask = 2.0*ivar_inside_taper / np.percentile(2.0*ivar_inside_taper, 95) # Weighting by the original temperature ivar for T
-    norm_ivar_T_mask[norm_ivar_T_mask > 1.0] = 1.0 # Setting any outliers to 1.0
-    norm_ivar_QU_mask = ivar_inside_taper / np.percentile(ivar_inside_taper, 95)
-    norm_ivar_QU_mask[norm_ivar_QU_mask > 1.0] = 1.0 # Setting any outliers to 1.0
-
-    # Now that things are normalized in the region we will take the PS on, set the region
-    # outside of it to 1.0 so that it gets tapered and masked appropriately by the PS mask
-    norm_ivar_T_mask[mask_indices] = 1.0
-    norm_ivar_QU_mask[mask_indices] = 1.0
+    norm_ivar_T_mask, norm_ivar_QU_mask = normalize_ivar_mask(input_ivar, mask_indices)
 
     # Converting Fourier space maps to realspace, then multiplying by normalized ivar
     # mask and tapered PS mask
