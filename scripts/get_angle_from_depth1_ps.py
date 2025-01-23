@@ -254,37 +254,38 @@ for line in tqdm(lines):
         # Otherwise do everything you would normally do
         depth1_TEB = outputs[0]
         depth1_ivar = outputs[1]
-        depth1_filtering_mask = outputs[2]
-        depth1_ivar_mask_tapered = outputs[3]
-        depth1_ivar_mask_taper_indices = outputs[4]
-        ref_TEB = outputs[5]
-        ivar_sum = outputs[6]
+        # depth1_mask will be the doubly tapered mask if use_ivar_weight=True, the filtering mask if False
+        # Same with indices
+        depth1_mask = outputs[2]
+        depth1_mask_indices = outputs[3]
+        ref_TEB = outputs[4]
+        ivar_sum = outputs[5]
 
         if cross_calibrate:
             # Moving trimming, ivar weighting, filtering, and Fourier transform to function
             # to avoid multiplying extra maps in memory - doing each cal map separately for same reason
             # These window factors are already normalized inside the mask
             cal_map1_fourier, w_cal1 = aoa.cal_trim_and_fourier_transform(cal_T_map1_act_footprint,cal_T_ivar1_act_footprint,
-                                                  depth1_TEB[0].shape,depth1_TEB[0].wcs,depth1_filtering_mask,depth1_ivar_mask_tapered,
-                                                  depth1_ivar_mask_taper_indices,kx_cut,ky_cut,unpixwin,use_ivar_weight)
+                                                  depth1_TEB[0].shape,depth1_TEB[0].wcs,depth1_mask,
+                                                  depth1_mask_indices,kx_cut,ky_cut,unpixwin,use_ivar_weight)
             cal_map2_fourier, w_cal2 = aoa.cal_trim_and_fourier_transform(cal_T_map2_act_footprint,cal_T_ivar2_act_footprint,
-                                                  depth1_TEB[0].shape,depth1_TEB[0].wcs,depth1_filtering_mask,depth1_ivar_mask_tapered,
-                                                  depth1_ivar_mask_taper_indices,kx_cut,ky_cut,unpixwin,use_ivar_weight)
+                                                  depth1_TEB[0].shape,depth1_TEB[0].wcs,depth1_mask,
+                                                  depth1_mask_indices,kx_cut,ky_cut,unpixwin,use_ivar_weight)
 
         if use_ivar_weight:
             # Ivar weighting for depth-1 map
             # Calculating approx correction for loss of power due to tapering for spectra for depth-1
             # w_depth1 combines normalized ivar and geometric factors in this mask - normalization done in aoa.apply_ivar_weighting()
-            depth1_TEB, w_depth1 = aoa.apply_ivar_weighting(depth1_TEB, depth1_ivar, depth1_ivar_mask_tapered, depth1_ivar_mask_taper_indices)
+            depth1_TEB, w_depth1 = aoa.apply_ivar_weighting(depth1_TEB, depth1_ivar, depth1_mask, depth1_mask_indices)
 
             # Ivar weighting for reference map - already filtered and trimmed from ref_TEB above
             # w_ref combines normalized ivar and geometric factors in this mask
             ref_map_trimmed_ivar = enmap.extract(ref_ivar,depth1_TEB[0].shape,depth1_TEB[0].wcs)
-            ref_TEB, w_ref = aoa.apply_ivar_weighting(ref_TEB, ref_map_trimmed_ivar, depth1_ivar_mask_tapered, depth1_ivar_mask_taper_indices)
+            ref_TEB, w_ref = aoa.apply_ivar_weighting(ref_TEB, ref_map_trimmed_ivar, depth1_mask, depth1_mask_indices)
         else:
             # No ivar weighting
-            w_depth1 = depth1_filtering_mask # use this if using flat weighting since only one taper is applied in this case
-            w_ref = depth1_filtering_mask    # use this if using flat weighting since only one taper is applied in this case
+            w_depth1 = depth1_mask # use this if using flat weighting since only one taper is applied in this case
+            w_ref = depth1_mask    # use this if using flat weighting since only one taper is applied in this case
 
         # Calculating w2 factors - all the same if not using ivar weighting, but different if using it
         w2_depth1 = np.mean(w_depth1**2)
@@ -361,7 +362,8 @@ for line in tqdm(lines):
         maps.append(line)
 
         logger.info("Calculating median timestamp from time.fits and info.hdf files")
-        initial_timestamp, median_timestamp = aoa.calc_median_timestamp(map_path, depth1_filtering_mask, depth1_ivar_mask_tapered, use_ivar_weight)
+        # depth1_mask will be the doubly tapered one if ivar weighting is on, the first filtering one if not
+        initial_timestamp, median_timestamp = aoa.calc_median_timestamp(map_path, depth1_mask)
         logger.info("Initial timestamp: "+str(initial_timestamp))
         logger.info("Median timestamp: "+str(median_timestamp))
 
