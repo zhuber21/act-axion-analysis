@@ -239,7 +239,8 @@ for line in tqdm(lines):
                                 'E1xB1': np.zeros(ell_len), 'E2xB2': np.zeros(ell_len), 'binned_nu': np.zeros(ell_len),
                                 'estimator': np.zeros(ell_len), 'covariance': np.zeros(ell_len),
                                 'CAMB_EE': CAMB_ClEE_binned, 'CAMB_BB': CAMB_ClBB_binned,
-                                'w2_depth1': -9999, 'w2_cross': -9999, 'w2_ref': -9999,
+                                'w2_depth1': -9999, 'w2_cross': -9999, 'w2_ref': -9999, 'fsky': -9999,
+                                'w2w4_depth1': -9999, 'w2w4_cross': -9999, 'w2w4_ref': -9999,
                                 'meas_angle': -9999, 'meas_errbar': -9999, 
                                 'ivar_sum': -9999, 'residual_mean': -9999, 
                                 'residual_sum': -9999, 'map_cut': 1}
@@ -291,6 +292,10 @@ for line in tqdm(lines):
         w2_depth1 = np.mean(w_depth1**2)
         w2_cross = np.mean(w_depth1*w_ref)
         w2_ref = np.mean(w_ref**2)
+        # Calculating w2w4 factors for comparison
+        w2w4_depth1 = np.mean(w_depth1**2)**2 / np.mean(w_depth1**4)
+        w2w4_cross = np.mean(w_depth1*w_ref)**2 / np.mean(w_depth1**2 * w_ref**2)
+        w2w4_ref = np.mean(w_ref**2)**2 / np.mean(w_ref**4)
 
         # Selecting the correct beam
         map_array = line.split('_')[2]
@@ -332,6 +337,7 @@ for line in tqdm(lines):
         # The thing returned by get_tfunc() is the t_b^2 factor from Steve's PS paper, which is the right correction for each spectrum.
         # We only want t_b in the mode correction, though, as in the text after Eq. 1 of Steve's paper.
         binned_nu = bincount*w2_cross*np.sqrt(tfunc)
+        fsky = depth1_mask.area()/(4.*np.pi) # For comparing binned_nu to theoretical number of modes
         
         if cross_calibrate:
             w2_depth1xcal1 = np.mean(w_depth1*w_cal1)
@@ -374,7 +380,8 @@ for line in tqdm(lines):
                                     'E1xB1': binned_E1xB1, 'E2xB2': binned_E2xB2, 'binned_nu': binned_nu,
                                     'estimator': estimator, 'covariance': covariance,
                                     'CAMB_EE': CAMB_ClEE_binned, 'CAMB_BB': CAMB_ClBB_binned,
-                                    'w2_depth1': w2_depth1, 'w2_cross': w2_cross, 'w2_ref': w2_ref,
+                                    'w2_depth1': w2_depth1, 'w2_cross': w2_cross, 'w2_ref': w2_ref, 'fsky': fsky,
+                                    'w2w4_depth1': w2w4_depth1, 'w2w4_cross': w2w4_cross, 'w2w4_ref': w2w4_ref,
                                     'meas_angle': fit_values[0], 'meas_errbar': fit_values[1],
                                     'initial_timestamp': initial_timestamp, 'median_timestamp': median_timestamp, 
                                     'ivar_sum': ivar_sum, 'residual_mean': residual_mean,
@@ -388,7 +395,8 @@ for line in tqdm(lines):
                                     'E1xB1': binned_E1xB1, 'E2xB2': binned_E2xB2, 'binned_nu': binned_nu,
                                     'estimator': estimator, 'covariance': covariance,
                                     'CAMB_EE': CAMB_ClEE_binned, 'CAMB_BB': CAMB_ClBB_binned,
-                                    'w2_depth1': w2_depth1, 'w2_cross': w2_cross, 'w2_ref': w2_ref,
+                                    'w2_depth1': w2_depth1, 'w2_cross': w2_cross, 'w2_ref': w2_ref, 'fsky': fsky,
+                                    'w2w4_depth1': w2w4_depth1, 'w2w4_cross': w2w4_cross, 'w2w4_ref': w2w4_ref,
                                     'meas_angle': fit_values[0], 'meas_errbar': fit_values[1],
                                     'initial_timestamp': initial_timestamp, 'median_timestamp': median_timestamp, 
                                     'ivar_sum': ivar_sum, 'residual_mean': residual_mean, 
