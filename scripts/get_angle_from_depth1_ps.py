@@ -44,6 +44,8 @@ logging.basicConfig(level=logging.INFO, datefmt='%Y-%m-%d %H:%M:%S', style='{',
 logger.info("Using config file: " + str(yaml_name))
 
 # Setting common variables set in the config file
+freq = config['freq'] # The frequency being tested this run
+logger.info("Analyzing frequency " + freq)
 kx_cut = config['kx_cut']
 ky_cut = config['ky_cut']
 unpixwin = config['unpixwin']
@@ -78,15 +80,17 @@ if not os.path.exists(ref_path):
 if not os.path.exists(ref_ivar_path): 
     logger.error("Cannot find ref map ivar file! Check config. Exiting.")
     sys.exit()
-if not os.path.exists(pa4_beam_path): 
-    logger.error("Cannot find pa4 beam file! Check config. Exiting.")
-    sys.exit()
-if not os.path.exists(pa5_beam_path): 
-    logger.error("Cannot find pa5 beam file! Check config. Exiting.")
-    sys.exit()
-if not os.path.exists(pa6_beam_path): 
-    logger.error("Cannot find pa6 beam file! Check config. Exiting.")
-    sys.exit()
+if freq=='f150' or freq=='f220':
+    if not os.path.exists(pa4_beam_path): 
+        logger.error("Cannot find pa4 beam file! Check config. Exiting.")
+        sys.exit()
+if freq=='f090' or freq=='f150':
+    if not os.path.exists(pa5_beam_path): 
+        logger.error("Cannot find pa5 beam file! Check config. Exiting.")
+        sys.exit()
+    if not os.path.exists(pa6_beam_path): 
+        logger.error("Cannot find pa6 beam file! Check config. Exiting.")
+        sys.exit()
 if not os.path.exists(galaxy_mask_path):
     logger.error("Cannot find galaxy mask file! Check config. Exiting.")
     sys.exit()
@@ -170,20 +174,43 @@ logger.info("Finished loading ref map")
 
 # Loading all beams
 logger.info("Starting to load beams")
-pa4_beam = aoa.load_and_bin_beam(pa4_beam_path,bins)
-pa5_beam = aoa.load_and_bin_beam(pa5_beam_path,bins)
-pa6_beam = aoa.load_and_bin_beam(pa6_beam_path,bins)
-# For now, average these beams to get coadd/ref beam
-ref_beam = (pa4_beam+pa5_beam+pa6_beam)/3.0
-if plot_beam:
-    pa4_beam_name = os.path.split(pa4_beam_path)[1][:-4] # Extracting file name from path and dropping '.txt'
-    aoa.plot_beam(output_dir_path, pa4_beam_name, centers, pa4_beam)
-    pa5_beam_name = os.path.split(pa5_beam_path)[1][:-4] # Extracting file name from path and dropping '.txt'
-    aoa.plot_beam(output_dir_path, pa5_beam_name, centers, pa5_beam)
-    pa6_beam_name = os.path.split(pa6_beam_path)[1][:-4] # Extracting file name from path and dropping '.txt'
-    aoa.plot_beam(output_dir_path, pa6_beam_name, centers, pa6_beam)
-    ref_beam_name = "coadd_avg_beam"
-    aoa.plot_beam(output_dir_path, ref_beam_name, centers, ref_beam)
+if freq=='f090':
+    # Only pa5 and pa6 at f090
+    pa5_beam = aoa.load_and_bin_beam(pa5_beam_path,bins)
+    pa6_beam = aoa.load_and_bin_beam(pa6_beam_path,bins)
+    # For now, average these beams to get coadd/ref beam
+    ref_beam = (pa5_beam+pa6_beam)/2.0
+    if plot_beam:
+        pa5_beam_name = os.path.split(pa5_beam_path)[1][:-4] # Extracting file name from path and dropping '.txt'
+        aoa.plot_beam(output_dir_path, pa5_beam_name, centers, pa5_beam)
+        pa6_beam_name = os.path.split(pa6_beam_path)[1][:-4] # Extracting file name from path and dropping '.txt'
+        aoa.plot_beam(output_dir_path, pa6_beam_name, centers, pa6_beam)
+        ref_beam_name = "f090_coadd_avg_beam"
+        aoa.plot_beam(output_dir_path, ref_beam_name, centers, ref_beam)
+elif freq=='f150':
+    pa4_beam = aoa.load_and_bin_beam(pa4_beam_path,bins)
+    pa5_beam = aoa.load_and_bin_beam(pa5_beam_path,bins)
+    pa6_beam = aoa.load_and_bin_beam(pa6_beam_path,bins)
+    # For now, average these beams to get coadd/ref beam
+    ref_beam = (pa4_beam+pa5_beam+pa6_beam)/3.0
+    if plot_beam:
+        pa4_beam_name = os.path.split(pa4_beam_path)[1][:-4] # Extracting file name from path and dropping '.txt'
+        aoa.plot_beam(output_dir_path, pa4_beam_name, centers, pa4_beam)
+        pa5_beam_name = os.path.split(pa5_beam_path)[1][:-4] # Extracting file name from path and dropping '.txt'
+        aoa.plot_beam(output_dir_path, pa5_beam_name, centers, pa5_beam)
+        pa6_beam_name = os.path.split(pa6_beam_path)[1][:-4] # Extracting file name from path and dropping '.txt'
+        aoa.plot_beam(output_dir_path, pa6_beam_name, centers, pa6_beam)
+        ref_beam_name = "f150_coadd_avg_beam"
+        aoa.plot_beam(output_dir_path, ref_beam_name, centers, ref_beam)
+elif freq=='f220':
+    pa4_beam = aoa.load_and_bin_beam(pa4_beam_path,bins)
+    # only pa4 at f220
+    ref_beam = pa4_beam
+    if plot_beam:
+        pa4_beam_name = os.path.split(pa4_beam_path)[1][:-4] # Extracting file name from path and dropping '.txt'
+        aoa.plot_beam(output_dir_path, pa4_beam_name, centers, pa4_beam)
+        ref_beam_name = "f220_coadd_avg_beam"
+        aoa.plot_beam(output_dir_path, ref_beam_name, centers, ref_beam)
 logger.info("Finished loading beams")
 
 # Loading in galaxy mask
@@ -241,7 +268,8 @@ for line in tqdm(lines):
                                 'CAMB_EE': CAMB_ClEE_binned, 'CAMB_BB': CAMB_ClBB_binned,
                                 'w2_depth1': -9999, 'w2_cross': -9999, 'w2_ref': -9999, 'fsky': -9999,
                                 'w2w4_depth1': -9999, 'w2w4_cross': -9999, 'w2w4_ref': -9999,
-                                'meas_angle': -9999, 'meas_errbar': -9999, 
+                                'meas_angle': -9999, 'meas_errbar': -9999,
+                                'initial_timestamp': -9999, 'median_timestamp': -9999, 
                                 'ivar_sum': -9999, 'residual_mean': -9999, 
                                 'residual_sum': -9999, 'map_cut': 1}
         angle_estimates.append((-9999,-9999))
@@ -289,10 +317,11 @@ for line in tqdm(lines):
             w_ref = depth1_mask    # use this if using flat weighting since only one taper is applied in this case
 
         # Calculating w2 factors - all the same if not using ivar weighting, but different if using it
+        # Using w2 factors for spectra corrections
         w2_depth1 = np.mean(w_depth1**2)
         w2_cross = np.mean(w_depth1*w_ref)
         w2_ref = np.mean(w_ref**2)
-        # Calculating w2w4 factors for comparison
+        # Calculating w2w4 factors - using w2w4_cross for the mode correction
         w2w4_depth1 = np.mean(w_depth1**2)**2 / np.mean(w_depth1**4)
         w2w4_cross = np.mean(w_depth1*w_ref)**2 / np.mean(w_depth1**2 * w_ref**2)
         w2w4_ref = np.mean(w_ref**2)**2 / np.mean(w_ref**4)
@@ -333,14 +362,15 @@ for line in tqdm(lines):
         binned_B1xB2 /= tfunc
         binned_E1xB1 /= tfunc
         binned_E2xB2 /= tfunc
-        # Accounting for modes lost to the mask and filtering - uses w2_cross because estimator is made of cross spectra
+        # Accounting for modes lost to the mask and filtering - uses w2w4_cross because estimator is made of cross spectra
+        # Though the spectra are corrected by w2, the number of modes is corrected by w2w4
         # The thing returned by get_tfunc() is the t_b^2 factor from Steve's PS paper, which is the right correction for each spectrum.
         # We only want t_b in the mode correction, though, as in the text after Eq. 1 of Steve's paper.
-        binned_nu = bincount*w2_cross*np.sqrt(tfunc)
+        binned_nu = bincount*w2w4_cross*np.sqrt(tfunc)
         fsky = depth1_mask.area()/(4.*np.pi) # For comparing binned_nu to theoretical number of modes
         
         if cross_calibrate:
-            w2_depth1xcal1 = np.mean(w_depth1*w_cal1)
+            w2_depth1xcal1 = np.mean(w_depth1*w_cal1) # Should change to w2w4
             w2_cal1xcal2 = np.mean(w_cal1*w_cal2)
             # Depth-1 T cross cal map 1 T (pa5 coadd)
             binned_T1xcal1T, _ = aoa.spectrum_from_maps(depth1_TEB[0], cal_map1_fourier, b_ell_bin_1=depth1_beam, b_ell_bin_2=pa5_beam, w2=w2_depth1xcal1, bins=bins)

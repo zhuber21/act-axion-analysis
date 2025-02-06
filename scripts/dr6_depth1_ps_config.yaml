@@ -1,6 +1,9 @@
 # dr6_depth1_ps_config.yaml
 # All the parameters for running get_angle_from_depth1_ps.py
 
+# The frequency being analyzed for this run
+freq: 'f150'
+
 # Filtering parameters
 kx_cut: 90
 ky_cut: 50
@@ -17,9 +20,9 @@ use_curvefit: True
 
 # Binning settings
 bin_settings: "regular" # Options are "regular" and "DR4" to use even bins of "bin_size" or to use the ACT DR4 bins
-bin_size: 200    # Used with "regular"
-lmin: 500        # Used with "regular"
-lmax: 2501       # Used with "regular" - set to 2501 to ensure we get the bin that ranges from 2450-2500
+bin_size: 400    # Used with "regular"
+lmin: 1000        # Used with "regular"
+lmax: 3001       # Used with "regular" - set to 2501 to ensure we get the bin that ranges from 2450-2500
 start_index: 11  # Used with "DR4"
 stop_index: 47   # Used with "DR4"
 
@@ -63,4 +66,6 @@ obs_list: '/home/zbh5/act_analysis/dr6_analysis/dr6_depth1_maps/dr6_depth1_test_
 #obs_list: '/home/zbh5/act_analysis/dr6_analysis/dr6_depth1_maps/dr6_depth1_test_6maps_list.txt'
 #obs_list: '/home/zbh5/act_analysis/dr6_analysis/dr6_depth1_maps/dr6_depth1_test_9goodmaps_list.txt'
 #obs_list: '/home/zbh5/act_analysis/dr6_analysis/dr6_depth1_maps/dr6_depth1_test_15goodmaps_list.txt'
+#obs_list: '/home/zbh5/act_analysis/dr6_analysis/dr6_depth1_maps/dr6_depth1_test_f090_maps_list.txt'
+#obs_list: '/home/zbh5/act_analysis/dr6_analysis/dr6_depth1_maps/dr6_depth1_test_f220_maps_list.txt'
 obs_path_stem: "/home/zbh5/act_analysis/dr6_analysis/dr6_depth1_maps/"
