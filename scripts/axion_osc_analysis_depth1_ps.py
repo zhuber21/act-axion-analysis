@@ -766,8 +766,8 @@ def plot_spectra_individually(output_dir, spectra):
             # Just make empty linear scale plots so the web viewer layout is correct
             fig = plt.figure(figsize=(6.4,4.8), layout='constrained')
             plt.plot(ell_b, cl_to_dl(spectra[maps[i]]['E1xE1'],ell_b), marker='.', alpha=1.0)
-            plt.ylabel("$D_{\ell}^{E1xE1}$")
-            plt.xlabel("$\ell$")
+            plt.ylabel(r"$D_{\ell}^{E1xE1}$")
+            plt.xlabel(r"$\ell$")
             plt.title("E1xE1 " + maps[i][:-9])
             plt.grid()
             output_fname = save_dir + maps[i][:-9] + "_e1xe1_spectrum_withCAMBee.png"
@@ -776,8 +776,8 @@ def plot_spectra_individually(output_dir, spectra):
             
             fig = plt.figure(figsize=(6.4,4.8), layout='constrained')
             plt.plot(ell_b, cl_to_dl(spectra[maps[i]]['E2xE2'],ell_b), marker='.', alpha=1.0)
-            plt.ylabel("$D_{\ell}^{E2xE2}$")
-            plt.xlabel("$\ell$") 
+            plt.ylabel(r"$D_{\ell}^{E2xE2}$")
+            plt.xlabel(r"$\ell$") 
             plt.title("E2xE2 " + maps[i][:-9])
             plt.grid()
             output_fname = save_dir + maps[i][:-9] + "_e2xe2_spectrum_withCAMBee.png"
@@ -786,8 +786,8 @@ def plot_spectra_individually(output_dir, spectra):
 
             fig = plt.figure(figsize=(6.4,4.8), layout='constrained')
             plt.plot(ell_b, cl_to_dl(spectra[maps[i]]['B1xB1'],ell_b), marker='.', alpha=1.0)
-            plt.ylabel("$D_{\ell}^{B1xB1}$")
-            plt.xlabel("$\ell$")
+            plt.ylabel(r"$D_{\ell}^{B1xB1}$")
+            plt.xlabel(r"$\ell$")
             plt.title("B1xB1 " + maps[i][:-9])
             plt.grid()
             output_fname = save_dir + maps[i][:-9] + "_b1xb1_spectrum_withCAMBbb.png"
@@ -796,8 +796,8 @@ def plot_spectra_individually(output_dir, spectra):
             
             fig = plt.figure(figsize=(6.4,4.8), layout='constrained')
             plt.plot(ell_b, cl_to_dl(spectra[maps[i]]['B2xB2'],ell_b), marker='.', alpha=1.0)
-            plt.ylabel("$D_{\ell}^{B2xB2}$")
-            plt.xlabel("$\ell$") 
+            plt.ylabel(r"$D_{\ell}^{B2xB2}$")
+            plt.xlabel(r"$\ell$") 
             plt.title("B2xB2 " + maps[i][:-9])
             plt.grid()
             output_fname = save_dir + maps[i][:-9] + "_b2xb2_spectrum_withCAMBbb.png"
@@ -806,8 +806,8 @@ def plot_spectra_individually(output_dir, spectra):
 
             fig = plt.figure(figsize=(6.4,4.8), layout='constrained')
             plt.plot(ell_b, cl_to_dl(spectra[maps[i]]['E1xB2'],ell_b), marker='.', alpha=1.0)
-            plt.ylabel("$D_{\ell}^{E1xB2}$")
-            plt.xlabel("$\ell$")
+            plt.ylabel(r"$D_{\ell}^{E1xB2}$")
+            plt.xlabel(r"$\ell$")
             plt.title("E1xB2 " + maps[i][:-9])
             plt.grid()
             plt.axhline(y=0,color='gray',linewidth=2)
@@ -817,8 +817,8 @@ def plot_spectra_individually(output_dir, spectra):
             
             fig = plt.figure(figsize=(6.4,4.8), layout='constrained')
             plt.plot(ell_b, cl_to_dl(spectra[maps[i]]['E2xB1'],ell_b), marker='.', alpha=1.0)
-            plt.ylabel("$D_{\ell}^{E2xB1}$")
-            plt.xlabel("$\ell$") 
+            plt.ylabel(r"$D_{\ell}^{E2xB1}$")
+            plt.xlabel(r"$\ell$") 
             plt.title("E2xB1 " + maps[i][:-9])
             plt.grid()
             plt.axhline(y=0,color='gray',linewidth=2)
@@ -830,7 +830,7 @@ def plot_spectra_individually(output_dir, spectra):
             d_ell_covariance = cl_to_dl(cl_to_dl(spectra[maps[i]]['covariance'],ell_b),ell_b)
             plt.plot(ell_b, d_ell_covariance, marker='.', alpha=1.0) # Two factors of C_ell to D_ell because made of squares of spectra
             plt.ylabel("Covariance")
-            plt.xlabel("$\ell$")
+            plt.xlabel(r"$\ell$")
             plt.title("Covariance " + maps[i][:-9])
             plt.grid()
             plt.axhline(y=0,color='gray',linewidth=2)
@@ -840,8 +840,8 @@ def plot_spectra_individually(output_dir, spectra):
 
             fig = plt.figure(figsize=(6.4,4.8), layout='constrained')
             plt.plot(ell_b, cl_to_dl(spectra[maps[i]]['estimator'],ell_b), marker='.', alpha=1.0, label='Estimator')
-            plt.ylabel("$D_{\ell}^{E1xB2} - D_{\ell}^{E2xB1}$")
-            plt.xlabel("$\ell$")
+            plt.ylabel(r"$D_{\ell}^{E1xB2} - D_{\ell}^{E2xB1}$")
+            plt.xlabel(r"$\ell$")
             plt.title("Estimator " + maps[i][:-9])
             plt.legend()
             plt.grid()
@@ -853,7 +853,7 @@ def plot_spectra_individually(output_dir, spectra):
             fig = plt.figure(figsize=(6.4,4.8), layout='constrained')
             plt.plot(ell_b, spectra[maps[i]]['binned_nu'], marker='.', alpha=1.0) # Not a spectra, so no conversion to D_ell
             plt.ylabel("Effective modes per bin")
-            plt.xlabel("$\ell$")
+            plt.xlabel(r"$\ell$")
             plt.title("$\\nu_b$ " + maps[i][:-9])
             plt.grid()
             plt.axhline(y=0,color='gray',linewidth=2)
@@ -864,8 +864,8 @@ def plot_spectra_individually(output_dir, spectra):
             fig = plt.figure(figsize=(6.4,4.8), layout='constrained')
             plt.semilogy(ell_b, cl_to_dl(spectra[maps[i]]['E1xE1'],ell_b), marker='.', alpha=1.0)
             plt.semilogy(ell_b, cl_to_dl(CAMB_ClEE_binned,ell_b), 'r.--', label="CAMB EE")
-            plt.ylabel("$D_{\ell}^{E1xE1}$")
-            plt.xlabel("$\ell$")
+            plt.ylabel(r"$D_{\ell}^{E1xE1}$")
+            plt.xlabel(r"$\ell$")
             plt.title("E1xE1 " + maps[i][:-9])
             plt.grid()
             plt.legend()
@@ -876,8 +876,8 @@ def plot_spectra_individually(output_dir, spectra):
             fig = plt.figure(figsize=(6.4,4.8), layout='constrained')
             plt.semilogy(ell_b, cl_to_dl(spectra[maps[i]]['E2xE2'],ell_b), marker='.', alpha=1.0)
             plt.semilogy(ell_b, cl_to_dl(CAMB_ClEE_binned,ell_b), 'r.--', label="CAMB EE")
-            plt.ylabel("$D_{\ell}^{E2xE2}$")
-            plt.xlabel("$\ell$") 
+            plt.ylabel(r"$D_{\ell}^{E2xE2}$")
+            plt.xlabel(r"$\ell$") 
             plt.title("E2xE2 " + maps[i][:-9])
             plt.grid()
             plt.legend()
@@ -888,8 +888,8 @@ def plot_spectra_individually(output_dir, spectra):
             fig = plt.figure(figsize=(6.4,4.8), layout='constrained')
             plt.semilogy(ell_b, cl_to_dl(spectra[maps[i]]['B1xB1'],ell_b), marker='.', alpha=1.0)
             plt.semilogy(ell_b, cl_to_dl(CAMB_ClBB_binned,ell_b), 'r.--', label="CAMB BB")
-            plt.ylabel("$D_{\ell}^{B1xB1}$")
-            plt.xlabel("$\ell$")
+            plt.ylabel(r"$D_{\ell}^{B1xB1}$")
+            plt.xlabel(r"$\ell$")
             plt.title("B1xB1 " + maps[i][:-9])
             plt.grid()
             plt.legend()
@@ -900,8 +900,8 @@ def plot_spectra_individually(output_dir, spectra):
             fig = plt.figure(figsize=(6.4,4.8), layout='constrained')
             plt.semilogy(ell_b, cl_to_dl(spectra[maps[i]]['B2xB2'],ell_b), marker='.', alpha=1.0)
             plt.semilogy(ell_b, cl_to_dl(CAMB_ClBB_binned,ell_b), 'r.--', label="CAMB BB")
-            plt.ylabel("$D_{\ell}^{B2xB2}$")
-            plt.xlabel("$\ell$") 
+            plt.ylabel(r"$D_{\ell}^{B2xB2}$")
+            plt.xlabel(r"$\ell$") 
             plt.title("B2xB2 " + maps[i][:-9])
             plt.grid()
             plt.legend()
@@ -911,8 +911,8 @@ def plot_spectra_individually(output_dir, spectra):
 
             fig = plt.figure(figsize=(6.4,4.8), layout='constrained')
             plt.plot(ell_b, cl_to_dl(spectra[maps[i]]['E1xB2'],ell_b), marker='.', alpha=1.0)
-            plt.ylabel("$D_{\ell}^{E1xB2}$")
-            plt.xlabel("$\ell$")
+            plt.ylabel(r"$D_{\ell}^{E1xB2}$")
+            plt.xlabel(r"$\ell$")
             plt.title("E1xB2 " + maps[i][:-9])
             plt.grid()
             plt.axhline(y=0,color='gray',linewidth=2)
@@ -922,8 +922,8 @@ def plot_spectra_individually(output_dir, spectra):
             
             fig = plt.figure(figsize=(6.4,4.8), layout='constrained')
             plt.plot(ell_b, cl_to_dl(spectra[maps[i]]['E2xB1'],ell_b), marker='.', alpha=1.0)
-            plt.ylabel("$D_{\ell}^{E2xB1}$")
-            plt.xlabel("$\ell$") 
+            plt.ylabel(r"$D_{\ell}^{E2xB1}$")
+            plt.xlabel(r"$\ell$") 
             plt.title("E2xB1 " + maps[i][:-9])
             plt.grid()
             plt.axhline(y=0,color='gray',linewidth=2)
@@ -935,7 +935,7 @@ def plot_spectra_individually(output_dir, spectra):
             d_ell_covariance = cl_to_dl(cl_to_dl(spectra[maps[i]]['covariance'],ell_b),ell_b)
             plt.plot(ell_b, d_ell_covariance, marker='.', alpha=1.0) # Two factors of C_ell to D_ell because made of squares of spectra
             plt.ylabel("Covariance")
-            plt.xlabel("$\ell$")
+            plt.xlabel(r"$\ell$")
             plt.title("Covariance " + maps[i][:-9])
             plt.grid()
             plt.axhline(y=0,color='gray',linewidth=2)
@@ -953,8 +953,8 @@ def plot_spectra_individually(output_dir, spectra):
             # Plotting 1 sigma shadow above and below theory curve
             plt.fill_between(ell_b, 1.0*cl_to_dl(CAMB_ClEE_binned,ell_b)*np.sin(2*(angle_rad+angle_errbar_rad)), 
                             1.0*cl_to_dl(CAMB_ClEE_binned,ell_b)*np.sin(2*(angle_rad-angle_errbar_rad)), alpha=0.3, color='red')
-            plt.ylabel("$D_{\ell}^{E1xB2} - D_{\ell}^{E2xB1}$")
-            plt.xlabel("$\ell$")
+            plt.ylabel(r"$D_{\ell}^{E1xB2} - D_{\ell}^{E2xB1}$")
+            plt.xlabel(r"$\ell$")
             plt.title("Estimator " + maps[i][:-9])
             plt.legend()
             plt.grid()
@@ -966,7 +966,7 @@ def plot_spectra_individually(output_dir, spectra):
             fig = plt.figure(figsize=(6.4,4.8), layout='constrained')
             plt.plot(ell_b, spectra[maps[i]]['binned_nu'], marker='.', alpha=1.0) # Not a spectra, so no conversion to D_ell
             plt.ylabel("Effective modes per bin")
-            plt.xlabel("$\ell$")
+            plt.xlabel(r"$\ell$")
             plt.title("$\\nu_b$ " + maps[i][:-9])
             plt.grid()
             plt.axhline(y=0,color='gray',linewidth=2)
@@ -990,8 +990,8 @@ def plot_spectra_summary(output_dir, spectra):
             continue
         else:
             plt.semilogy(ell_b, cl_to_dl(spectra[maps[i]]['E1xE1'],ell_b),alpha=0.3)
-    plt.ylabel("$D_{\ell}^{EE}$")
-    plt.xlabel("$\ell$")
+    plt.ylabel(r"$D_{\ell}^{EE}$")
+    plt.xlabel(r"$\ell$")
     plt.grid()
     plt.legend()
     plt.title("EE Autospectra for All Depth-1 Maps")
@@ -1007,8 +1007,8 @@ def plot_spectra_summary(output_dir, spectra):
             continue
         else:
             plt.semilogy(ell_b, cl_to_dl(spectra[maps[i]]['E2xE2'],ell_b),alpha=0.3)
-    plt.ylabel("$D_{\ell}^{EE}$")
-    plt.xlabel("$\ell$")
+    plt.ylabel(r"$D_{\ell}^{EE}$")
+    plt.xlabel(r"$\ell$")
     plt.grid()
     plt.legend()
     plt.title("EE Ref Map Autospectra in All Depth-1 Footprints")
@@ -1024,8 +1024,8 @@ def plot_spectra_summary(output_dir, spectra):
             continue
         else:
             plt.semilogy(ell_b, cl_to_dl(spectra[maps[i]]['B1xB1'],ell_b),alpha=0.3)
-    plt.ylabel("$D_{\ell}^{BB}$")
-    plt.xlabel("$\ell$")
+    plt.ylabel(r"$D_{\ell}^{BB}$")
+    plt.xlabel(r"$\ell$")
     plt.grid()
     plt.legend()
     plt.title("BB Autospectra for All Depth-1 Maps")
@@ -1041,8 +1041,8 @@ def plot_spectra_summary(output_dir, spectra):
             continue
         else:
             plt.semilogy(ell_b, cl_to_dl(spectra[maps[i]]['B2xB2'],ell_b),alpha=0.3)
-    plt.ylabel("$D_{\ell}^{BB}$")
-    plt.xlabel("$\ell$")
+    plt.ylabel(r"$D_{\ell}^{BB}$")
+    plt.xlabel(r"$\ell$")
     plt.grid()
     plt.legend()
     plt.title("BB Ref Map Autospectra in All Depth-1 Footprints")
@@ -1058,7 +1058,7 @@ def plot_likelihood(output_dir, map_name, angles, likelihood, gauss_fits, residu
     mean = gauss_fits[0]
     stddev = gauss_fits[1]
     fig = plt.figure(figsize=(6.4,4.8), layout='constrained')
-    plt.plot(angles, likelihood, 'b.', label='Mean={:1.3f}\n$\sigma$={:1.3f}'.format(mean,stddev))
+    plt.plot(angles, likelihood, 'b.', label='Mean={:1.3f}\n$\\sigma$={:1.3f}'.format(mean,stddev))
     plt.axvline(mean,alpha=0.3,color='black')
     # Could also move label to plt.figtext, but legend will auto adjust for me
     plt.plot(angles, gaussian(angles,mean,stddev), 'r', label='Fit Gaussian')
@@ -1080,7 +1080,7 @@ def plot_beam(output_dir, beam_name, ell, beam):
     fig = plt.figure(figsize=(6.4,4.8), layout='constrained')
     plt.plot(ell, beam, 'b.')
     plt.ylabel("Beam transfer function")
-    plt.xlabel("$\ell$")
+    plt.xlabel(r"$\ell$")
     plt.grid()
     plt.title("Beam Profile: " + beam_name)
     plt.savefig(save_dir+save_fname_beam, dpi=300)
@@ -1096,7 +1096,7 @@ def plot_tfunc(output_dir, kx, ky, ell, tfunc):
     fig = plt.figure(figsize=(6.4,4.8), layout='constrained')
     plt.plot(ell, tfunc, 'b.')
     plt.ylabel("Filtering transfer function")
-    plt.xlabel("$\ell$")
+    plt.xlabel(r"$\ell$")
     plt.grid()
     plt.title("Filtering tfunc for kx,ky: " + str(kx) + ',' + str(ky))
     plt.savefig(save_dir+save_fname_tfunc, dpi=300)

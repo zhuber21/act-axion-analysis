@@ -445,7 +445,7 @@ for line in tqdm(lines):
                                     'ivar_sum': ivar_sum, 'residual_mean': residual_mean, 
                                     'residual_sum': residual_sum, 'map_cut': 0}            
 
-# Converting rho estimates to float from np.float64 for readability in yaml
+# Converting angle estimates to float from np.float64 for readability in yaml
 angle_estimates_float = [[float(v),float(w)] for (v,w) in angle_estimates]
 
 # Saving spectra to a numpy file
