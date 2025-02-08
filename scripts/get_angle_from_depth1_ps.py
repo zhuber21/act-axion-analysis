@@ -55,6 +55,7 @@ num_pts = config['num_pts']
 use_curvefit = config['use_curvefit']
 y_min = config['y_min']
 y_max = config['y_max']
+cal_num_pts = config['cal_num_pts']
 cal_use_curvefit = config['cal_use_curvefit']
 use_ivar_weight = config['use_ivar_weight']
 cross_calibrate = config['cross_calibrate']
@@ -291,25 +292,6 @@ for line in tqdm(lines):
         ref_TEB = outputs[4]
         ivar_sum = outputs[5]
 
-        if cross_calibrate:
-            # Moving trimming, ivar weighting, filtering, and Fourier transform to function
-            # to avoid multiplying extra maps in memory - doing each cal map separately for same reason
-            # These window factors are already normalized inside the mask
-            cal_map1_fourier, w_cal1 = aoa.cal_trim_and_fourier_transform(cal_T_map1_act_footprint, depth1_ivar, galaxy_mask,
-                                                  depth1_TEB[0].shape, depth1_TEB[0].wcs, depth1_mask,
-                                                  kx_cut, ky_cut, unpixwin, filter_radius, use_ivar_weight)
-            cal_map2_fourier, w_cal2 = aoa.cal_trim_and_fourier_transform(cal_T_map2_act_footprint, depth1_ivar, galaxy_mask,
-                                                  depth1_TEB[0].shape, depth1_TEB[0].wcs, depth1_mask,
-                                                  kx_cut, ky_cut, unpixwin, filter_radius, use_ivar_weight)
-            if use_ivar_weight:
-                # Will overwrite the filtered maps and w factors above with ivar weighted versions
-                cal_map1_fourier, w_cal1 = aoa.cal_apply_ivar_weighting(cal_map1_fourier, cal_T_ivar1_act_footprint,
-                                                                        depth1_TEB[0].shape, depth1_TEB[0].wcs,
-                                                                        depth1_mask, depth1_mask_indices)
-                cal_map2_fourier, w_cal2 = aoa.cal_apply_ivar_weighting(cal_map2_fourier, cal_T_ivar2_act_footprint,
-                                                                        depth1_TEB[0].shape, depth1_TEB[0].wcs,
-                                                                        depth1_mask, depth1_mask_indices)
-
         if use_ivar_weight:
             # Ivar weighting for depth-1 map
             # Calculating approx correction for loss of power due to tapering for spectra for depth-1
@@ -394,6 +376,24 @@ for line in tqdm(lines):
         maps.append(line)
 
         if cross_calibrate:
+            # Moving trimming, ivar weighting, filtering, and Fourier transform to function
+            # to avoid multiplying extra maps in memory - doing each cal map separately for same reason
+            # These window factors are already normalized inside the mask
+            cal_map1_fourier, w_cal1 = aoa.cal_trim_and_fourier_transform(cal_T_map1_act_footprint, depth1_ivar, galaxy_mask,
+                                                  depth1_TEB[0].shape, depth1_TEB[0].wcs, depth1_mask,
+                                                  kx_cut, ky_cut, unpixwin, filter_radius, use_ivar_weight)
+            cal_map2_fourier, w_cal2 = aoa.cal_trim_and_fourier_transform(cal_T_map2_act_footprint, depth1_ivar, galaxy_mask,
+                                                  depth1_TEB[0].shape, depth1_TEB[0].wcs, depth1_mask,
+                                                  kx_cut, ky_cut, unpixwin, filter_radius, use_ivar_weight)
+            if use_ivar_weight:
+                # Will overwrite the filtered maps and w factors above with ivar weighted versions
+                cal_map1_fourier, w_cal1 = aoa.cal_apply_ivar_weighting(cal_map1_fourier, cal_T_ivar1_act_footprint,
+                                                                        depth1_TEB[0].shape, depth1_TEB[0].wcs,
+                                                                        depth1_mask, depth1_mask_indices)
+                cal_map2_fourier, w_cal2 = aoa.cal_apply_ivar_weighting(cal_map2_fourier, cal_T_ivar2_act_footprint,
+                                                                        depth1_TEB[0].shape, depth1_TEB[0].wcs,
+                                                                        depth1_mask, depth1_mask_indices)
+
             # Calculate calibration spectra and factor from likelihood
             w2_depth1xcal1 = np.mean(w_depth1*w_cal1)
             w2_depth1xcal2 = np.mean(w_depth1*w_cal2)
@@ -431,7 +431,7 @@ for line in tqdm(lines):
 
             # Evaluating likelihood and fitting Gaussian for best fit calibration factor
             cal_fit_values = aoa.cal_sample_likelihood_and_fit(binned_cal1Txcal2T, binned_T1xcal1T, cal_cov, 
-                                                               y_min=y_min,y_max=y_max,num_pts=num_pts,use_curvefit=cal_use_curvefit)
+                                                               y_min=y_min,y_max=y_max,num_pts=cal_num_pts,use_curvefit=cal_use_curvefit)
 
             logger.info("TT calibration fit values: "+str(cal_fit_values))
 
