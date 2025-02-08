@@ -55,6 +55,7 @@ num_pts = config['num_pts']
 use_curvefit = config['use_curvefit']
 y_min = config['y_min']
 y_max = config['y_max']
+cal_use_curvefit = config['cal_use_curvefit']
 use_ivar_weight = config['use_ivar_weight']
 cross_calibrate = config['cross_calibrate']
 
@@ -430,7 +431,7 @@ for line in tqdm(lines):
 
             # Evaluating likelihood and fitting Gaussian for best fit calibration factor
             cal_fit_values = aoa.cal_sample_likelihood_and_fit(binned_cal1Txcal2T, binned_T1xcal1T, cal_cov, 
-                                                               y_min=y_min,y_max=y_max,num_pts=num_pts,use_curvefit=use_curvefit)
+                                                               y_min=y_min,y_max=y_max,num_pts=num_pts,use_curvefit=cal_use_curvefit)
 
             logger.info("TT calibration fit values: "+str(cal_fit_values))
 
@@ -455,7 +456,7 @@ for line in tqdm(lines):
                                     'residual_sum': residual_sum, 'map_cut': 0,
                                     'T1xcal1T': binned_T1xcal1T, 'cal1Txcal2T': binned_cal1Txcal2T,
                                     'cal1Txcal1T': binned_cal1Txcal1T, 'cal2Txcal2T': binned_cal2Txcal2T, 
-                                    'T1xT1': binned_T1xT1, 'T1xcal2T': binned_T1xcal2T,
+                                    'T1xT1': binned_T1xT1, 'T1xcal2T': binned_T1xcal2T, 'cal_binned_nu': cal_binned_nu,
                                     'cal_factor': cal_fit_values[0], 'cal_factor_errbar': cal_fit_values[1],
                                     'w2_depth1xcal1': w2_depth1xcal1, 'w2_depth1xcal2': w2_depth1xcal2,
                                     'w2_cal1xcal2': w2_cal1xcal2, 'w2_cal1xcal1': w2_cal1xcal1, 'w2_cal2xcal2': w2_cal2xcal2,

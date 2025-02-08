@@ -21,6 +21,7 @@ use_curvefit: True
 # Calibration factor likelihood fitting settings
 y_min: 0.5
 y_max: 1.5
+cal_use_curvefit: False
 
 # Binning settings
 bin_settings: "regular" # Options are "regular" and "DR4" to use even bins of "bin_size" or to use the ACT DR4 bins
