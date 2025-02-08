@@ -18,6 +18,10 @@ angle_max_deg: 50.0
 num_pts: 200000
 use_curvefit: True
 
+# Calibration factor likelihood fitting settings
+y_min: 0.5
+y_max: 1.5
+
 # Binning settings
 bin_settings: "regular" # Options are "regular" and "DR4" to use even bins of "bin_size" or to use the ACT DR4 bins
 bin_size: 400    # Used with "regular"
@@ -56,8 +60,10 @@ pa6_beam_path: "/home/zbh5/act_analysis/dr6_analysis/dr6v3_beams_20230129/coadd_
 
 galaxy_mask_path: "/home/zbh5/act_analysis/dr6_analysis/act_mask_20220316_GAL070_rms_70.00_downgrade_None.fits"
 
+# Map 1's beam is currently hardcoded in get_angle_from_depth1_ps.py to use pa5_beam_path
 cal_map1_path: "/home/zbh5/act_analysis/dr6_analysis/cmb_night_pa5_f150_8way_coadd_map_srcfree.fits"
 cal_ivar1_path: "/home/zbh5/act_analysis/dr6_analysis/cmb_night_pa5_f150_8way_coadd_ivar.fits"
+# Map 2's beam is currently hardcoded in get_angle_from_depth1_ps.py to use pa6_beam_path
 cal_map2_path: "/home/zbh5/act_analysis/dr6_analysis/cmb_night_pa6_f150_8way_coadd_map_srcfree.fits"
 cal_ivar2_path: "/home/zbh5/act_analysis/dr6_analysis/cmb_night_pa6_f150_8way_coadd_ivar.fits"
 

@@ -1,9 +1,9 @@
 import numpy as np
 from pixell import enmap, enplot, bunch
-import nawrapper as nw
 import matplotlib.pyplot as plt
 import os
 from tqdm import tqdm
+import scipy
 from scipy import optimize as op
 
 ##########################################################
@@ -96,6 +96,67 @@ def trim_ref_with_T(ref_maps,shape,wcs,plot=False):
     
     return ref_maps_cut
 
+def get_distance(input_mask):
+    """
+    Copied from nawrapper to remove dependency, Feb 2025
+    
+    Construct a map of the distance to the nearest zero pixel in the input.
+
+    Parameters
+    ----------
+    input_mask : enmap
+        The input mask
+
+    Returns
+    -------
+    dist : enmap
+        This map is the same size as the `input_mask`. Each pixel of this map
+        contains the distance to the nearest zero pixel at the corresponding
+        location in the input_mask.
+
+    """
+    pixSize_arcmin = np.sqrt(input_mask.pixsize() * (60 * 180 / np.pi) ** 2)
+    dist = scipy.ndimage.distance_transform_edt(np.asarray(input_mask))
+    dist *= pixSize_arcmin / 60
+    return dist
+
+
+def apod_C2(input_mask, radius):
+    """
+    Copied from nawrapper to remove dependency, Feb 2025
+
+    Apodizes an input mask over a radius in degrees.
+
+    A sharp mask will cause complicated mode coupling and ringing. One solution
+    is to smooth out the sharp edges. This function applies the C2 apodisation
+    as defined in 0903.2350_.
+
+    .. _0903.2350: https://arxiv.org/abs/0903.2350
+
+    Parameters
+    ----------
+    input_mask: enmap
+        The input mask (must have all pixel values be non-negative).
+    radius: float
+        Apodization radius in degrees.
+
+    Returns
+    -------
+    result : enmap
+        The apodized mask.
+
+    """
+    if radius == 0:
+        return input_mask
+    else:
+        dist = get_distance(input_mask)
+        id = np.where(dist > radius)
+        win = dist / radius - np.sin(2 * np.pi * dist / radius) / (2 * np.pi)
+        win[id] = 1
+
+    return enmap.ndmap(win, input_mask.wcs)
+
+
 def make_tapered_mask(map_to_mask,filter_radius=0.5,plot=False):
     """
         Makes a mask for a given map based on where the ivar map is nonzero.
@@ -109,7 +170,7 @@ def make_tapered_mask(map_to_mask,filter_radius=0.5,plot=False):
         originally was when tapering once.
     """
     footprint = 1*map_to_mask.astype(bool)
-    mask = nw.apod_C2(footprint,filter_radius)
+    mask = apod_C2(footprint,filter_radius)
     
     # Getting points to set to zero after filtering used for 
     # calculating ivar_sum in the non-tapered region and removing taper for second mask
@@ -255,35 +316,54 @@ def apply_ivar_weighting(input_kspace_TEB_maps, input_ivar, ivar_mask, mask_indi
     output_kspace_TEB_maps = enmap.map2harm(maps_ivar_weight, normalize = "phys")
     return output_kspace_TEB_maps, norm_ivar_QU_mask*ivar_mask
 
-def cal_trim_and_fourier_transform(cal_T,cal_T_ivar,shape,wcs,depth1_filter_mask,depth1_ivar_mask,ivar_mask_indices,kx_cut,ky_cut,unpixwin,use_ivar_weight):
-    """For a given ACT coadd used for the overall calibration factor, trim the map to the size of the
-       depth-1 map, filter it as normal, ivar weight if use_ivar_weight=True, and return
-       Fourier transformed map and normalized weight mask for calculating w2 factor."""
+def cal_trim_and_fourier_transform(cal_T,depth1_ivar,galaxy_mask,shape,wcs,depth1_mask,kx_cut,ky_cut,unpixwin,filter_radius,use_ivar_weight):
+    """
+        For a given ACT coadd used for the overall calibration factor, trim the map to the size of the
+        depth-1 map, filter it as normal, and return Fourier-transformed map and weight
+        mask for calculating w2 factor in absence of ivar weighting.
+    """
     # Trimming calibration maps to the size of the depth-1 map
     cal_T_map_trimmed = enmap.extract(cal_T,shape,wcs)
-    cal_T_ivar_trimmed = enmap.extract(cal_T_ivar,shape,wcs)
 
-    # TO BE IMPLEMENTED - REMAKE FILTERING MASK HERE
+    # Remaking the filtering mask here if using ivar weighting to save space in RAM
+    # If not using ivar weighting, the input depth1_mask is already the filtering mask calculated earlier.
+    if use_ivar_weight:
+        depth1_filtering_mask, _ = taper_mask_first_time(depth1_ivar, galaxy_mask, shape, wcs, filter_radius)
+    else:
+        depth1_filtering_mask = depth1_mask
 
     # Filtering
-    filtered_cal_map_trimmed_fourier = apply_kspace_filter(cal_T_map_trimmed*depth1_filter_mask, kx_cut, ky_cut, unpixwin=unpixwin)
+    filtered_cal_map_trimmed_fourier = apply_kspace_filter(cal_T_map_trimmed*depth1_filtering_mask, kx_cut, ky_cut, unpixwin=unpixwin)
+    w_cal = depth1_filtering_mask
 
+    return filtered_cal_map_trimmed_fourier, w_cal
+
+def cal_normalize_ivar_mask(input_ivar, mask_indices):
+    """Moving normalization of ivar mask for TT calibration to function to save memory"""
+    ivar_inside_taper = input_ivar.copy() 
+    ivar_inside_taper[mask_indices] = 0.0
+    norm_ivar_T_mask = ivar_inside_taper / np.percentile(ivar_inside_taper, 95) # Don't need factor of 2 because these ivar maps were never divided by 2 when loaded
+    norm_ivar_T_mask[norm_ivar_T_mask > 1.0] = 1.0
+    norm_ivar_T_mask[mask_indices] = 1.0
+    return norm_ivar_T_mask
+
+def cal_apply_ivar_weighting(filtered_cal_T_fourier, cal_T_ivar, shape, wcs, depth1_ivar_mask, ivar_mask_indices):
+    """
+        Applying inverse variance weighting for TT calibration. This function is only called
+        if the ivar weighting option is True, so it doesn't check for that. This also means that
+        depth1_ivar_mask and ivar_mask_indices are guaranteed to be the doubly-tapered mask
+        calculated earlier for the depth-1 mask.
+
+        Returns the ivar weighted T map in Fourier space and the ivar weighted w factor.
+    """
+    cal_T_ivar_trimmed = enmap.extract(cal_T_ivar,shape,wcs)
     # Ivar weighting and converting to Fourier space
-    if use_ivar_weight:
-        # Copying the ivar normalization prescription in apply_ivar_weighting() but only for T
-        ivar_inside_taper = cal_T_ivar_trimmed.copy() 
-        ivar_inside_taper[ivar_mask_indices] = 0.0
-        norm_ivar_T_mask = ivar_inside_taper / np.percentile(ivar_inside_taper, 95) # Don't need factor of 2 because these ivar maps were never divided by 2 when loaded
-        norm_ivar_T_mask[norm_ivar_T_mask > 1.0] = 1.0
-        norm_ivar_T_mask[ivar_mask_indices] = 1.0
+    # Copying the ivar normalization prescription in apply_ivar_weighting() but only for T
+    norm_ivar_T_mask = cal_normalize_ivar_mask(cal_T_ivar_trimmed,ivar_mask_indices)
 
-        filtered_cal_map_trimmed_realspace = enmap.harm2map(filtered_cal_map_trimmed_fourier, normalize = "phys")
-        w_cal = norm_ivar_T_mask*depth1_ivar_mask
-        cal_map_fourier = enmap.map2harm(filtered_cal_map_trimmed_realspace*w_cal, normalize = "phys")
-    else:
-        w_cal = depth1_filter_mask
-        cal_map_fourier = filtered_cal_map_trimmed_fourier
-
+    filtered_cal_map_trimmed_realspace = enmap.harm2map(filtered_cal_T_fourier, normalize = "phys")
+    w_cal = norm_ivar_T_mask*depth1_ivar_mask
+    cal_map_fourier = enmap.map2harm(filtered_cal_map_trimmed_realspace*w_cal, normalize = "phys")
     return cal_map_fourier, w_cal
 
 def calc_median_timestamp(map_path, mask):
@@ -356,19 +436,33 @@ def estimator_likelihood(angle, estimator, covariance, ClEE):
     likelihood = np.exp(-np.sum(numerator/denominator))
     return likelihood
 
+def cal_likelihood(y, cal1xcal2, cal1xdepth1, covariance):
+    """
+        Calculates the likelihood for TT calibration for an input
+        value of the calibration factor, y.
+
+        estimator = TT_cal1xcal2 - y*TT_cal1xdepth1
+    """
+    numerator = (cal1xcal2 - y*cal1xdepth1)**2
+    denominator = 2*covariance
+    likelihood = np.exp(-np.sum(numerator/denominator))
+    return likelihood
+
 def gaussian(x,mean,sigma):
     """Normalized Gaussian for curve_fit"""
     amp = 1.0
     return amp*np.exp(-(x-mean)**2/(2*sigma**2))
 
-def gaussian_fit_curvefit(angles,data):
+def gaussian_fit_curvefit(angles,data,guess=[1.0*np.pi/180.0, 5.0*np.pi/180.0]):
     """
         Uses scipy.optimize.curve_fit() to fit a Gaussian to the likelihood to
         get the mean and standard deviation.
 
-        Assumes everything is in radians.
+        Assumes everything is in radians when fitting angles.
+
+        The default guess (mean 1 deg, std dev 5 deg) here is for the angle likelihood. 
+        When using this function to fit the TT calibration likelihood, pass in a different guess.
     """
-    guess = [1.0*np.pi/180.0, 5.0*np.pi/180.0] # Mean=1, stddev=5 worked well for 73 test maps
     popt, pcov = op.curve_fit(gaussian,angles,data,guess,maxfev=50000)
     mean = popt[0]
     std_dev = np.abs(popt[1])
@@ -379,7 +473,7 @@ def gaussian_fit_moment(angles,data):
        Uses moments to quickly find mean and standard deviation of a Gaussian
        for the likelihood.
 
-       Assumes everything is in radians.
+       Assumes everything is in radians when fitting angles.
     """
     mean = np.sum(angles*data)/np.sum(data)
     std_dev = np.sqrt(abs(np.sum((angles-mean)**2*data)/np.sum(data)))
@@ -403,6 +497,7 @@ def sample_likelihood_and_fit(estimator,covariance,theory_ClEE,angle_min_deg=-20
     norm_sampled_likelihood = bin_sampled_likelihood/np.max(bin_sampled_likelihood)
     
     if use_curvefit:
+        # Using default guess starting values set in function
         fit_values = gaussian_fit_curvefit(angles_rad,norm_sampled_likelihood)
         fit_values_deg = [np.rad2deg(fit_values[0]), np.rad2deg(fit_values[1])]
         # Could add some flag or option to redo the fit for a given map if curve_fit() returns
@@ -424,6 +519,28 @@ def sample_likelihood_and_fit(estimator,covariance,theory_ClEE,angle_min_deg=-20
         plot_likelihood(output_dir, map_name, angles_deg, norm_sampled_likelihood,fit_values_deg,residual)
 
     return fit_values_deg, residual_mean, residual_sum
+
+def cal_sample_likelihood_and_fit(cal1xcal2, cal1xdepth1, covariance, y_min=0.7,y_max=1.3,
+                              num_pts=50000,use_curvefit=True):
+    """
+        Samples the likelihood for the TT calibration at num_pts values of the calibration
+        factor, y, between the values y_min and y_max.
+    """
+    if(y_min >= y_max): 
+        raise ValueError("The min y value must be smaller than the max!")
+    y_values = np.linspace(y_min,y_max,num=num_pts)
+    
+    cal_sampled_likelihood = [cal_likelihood(y, cal1xcal2, cal1xdepth1, covariance) for y in y_values]
+    norm_sampled_likelihood = cal_sampled_likelihood/np.max(cal_sampled_likelihood)
+
+    if use_curvefit:
+        # The default guess starting values are for the angle likelihood, so pass new ones here
+        guess = [1.0, 0.2] # Guessing a center value of 1.0 with std dev 0.2
+        fit_values = gaussian_fit_curvefit(y_values,norm_sampled_likelihood, guess=guess)
+    else:
+        fit_values = gaussian_fit_moment(y_values,norm_sampled_likelihood)
+    
+    return fit_values
 
 #########################################################
 #########################################################
