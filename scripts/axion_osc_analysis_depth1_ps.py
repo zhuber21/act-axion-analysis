@@ -542,6 +542,83 @@ def cal_sample_likelihood_and_fit(cal1xcal2, cal1xdepth1, covariance, y_min=0.7,
     
     return fit_values
 
+def cross_calibrate(cal_T_map1_act_footprint, cal_T_map2_act_footprint,
+                    cal_T_ivar1_act_footprint, cal_T_ivar2_act_footprint,
+                    depth1_ivar, depth1_mask, depth1_mask_indices,
+                    galaxy_mask, depth1_T, w_depth1, w2_depth1, bins, tfunc,
+                    kx_cut, ky_cut, unpixwin, filter_radius, use_ivar_weight,
+                    depth1_beam, pa5_beam, pa6_beam, y_min, y_max, cal_num_pts, cal_use_curvefit):
+    """
+        High-level function to do the TT cross-calibration. 
+        Allows intermediate maps to be cleaned up when function closes for better RAM usage.
+
+        Takes in all the variables needed for the subfunctions cal_trim_and_fourier_transform(),
+        cal_apply_ivar_weighting(), spectrum_from_maps(), and cal_sample_likelihood_and_fit().
+
+        Returns the calibration factor and uncertainty, all of the spectra, and all w factors.
+    """
+    shape = depth1_T.shape
+    wcs = depth1_T.wcs
+
+    # Moving trimming, ivar weighting, filtering, and Fourier transform to function
+    # to avoid multiplying extra maps in memory - doing each cal map separately for same reason
+    # These window factors are already normalized inside the mask
+    cal_map1_fourier, w_cal1 = cal_trim_and_fourier_transform(cal_T_map1_act_footprint, depth1_ivar, galaxy_mask,
+                                            shape, wcs, depth1_mask, kx_cut, ky_cut, unpixwin, filter_radius, use_ivar_weight)
+    cal_map2_fourier, w_cal2 = cal_trim_and_fourier_transform(cal_T_map2_act_footprint, depth1_ivar, galaxy_mask,
+                                            shape, wcs, depth1_mask, kx_cut, ky_cut, unpixwin, filter_radius, use_ivar_weight)
+    if use_ivar_weight:
+        # Will overwrite the filtered maps and w factors above with ivar weighted versions
+        cal_map1_fourier, w_cal1 = cal_apply_ivar_weighting(cal_map1_fourier, cal_T_ivar1_act_footprint,
+                                                            shape, wcs, depth1_mask, depth1_mask_indices)
+        cal_map2_fourier, w_cal2 = cal_apply_ivar_weighting(cal_map2_fourier, cal_T_ivar2_act_footprint,
+                                                            shape, wcs, depth1_mask, depth1_mask_indices)
+
+    # Calculate calibration spectra and factor from likelihood
+    w2_depth1xcal1 = np.mean(w_depth1*w_cal1)
+    w2_depth1xcal2 = np.mean(w_depth1*w_cal2)
+    w2_cal1xcal2 = np.mean(w_cal1*w_cal2)
+    w2_cal1xcal1 = np.mean(w_cal1*w_cal1)
+    w2_cal2xcal2 = np.mean(w_cal2*w_cal2)
+    w2w4_depth1xcal1 = np.mean(w_depth1*w_cal1)**2 / np.mean(w_depth1**2 * w_cal1**2)
+    w2w4_cal1xcal2 = np.mean(w_cal1*w_cal2)**2 / np.mean(w_cal1**2 * w_cal2**2)
+    # Depth-1 T cross cal map 1 T (pa5 coadd)
+      # bincount should be same for all spectra in same footprint, so recalculate it here instead of passing it as argument
+    binned_T1xcal1T, bincount = spectrum_from_maps(depth1_T,cal_map1_fourier,b_ell_bin_1=depth1_beam,b_ell_bin_2=pa5_beam,w2=w2_depth1xcal1,bins=bins)
+    binned_T1xcal1T /= tfunc
+    # cal map 1 T (pa5 coadd) cross cal map 2 T (pa6 coadd)
+    binned_cal1Txcal2T, _ = spectrum_from_maps(cal_map1_fourier,cal_map2_fourier,b_ell_bin_1=pa5_beam,b_ell_bin_2=pa6_beam,w2=w2_cal1xcal2,bins=bins)
+    binned_cal1Txcal2T /= tfunc
+    # Getting spectra for the covariance
+    # cal map 1 T (pa5 coadd) cross cal map 1 T (pa5 coadd)
+    binned_cal1Txcal1T, _ = spectrum_from_maps(cal_map1_fourier,cal_map1_fourier,b_ell_bin_1=pa5_beam,b_ell_bin_2=pa5_beam,w2=w2_cal1xcal1,bins=bins)
+    binned_cal1Txcal1T /= tfunc
+    # cal map 2 T (pa6 coadd) cross cal map 2 T (pa6 coadd)
+    binned_cal2Txcal2T, _ = spectrum_from_maps(cal_map2_fourier,cal_map2_fourier,b_ell_bin_1=pa6_beam,b_ell_bin_2=pa6_beam,w2=w2_cal2xcal2,bins=bins)
+    binned_cal2Txcal2T /= tfunc
+    # Depth-1 T cross depth-1 T
+    binned_T1xT1, _ = spectrum_from_maps(depth1_T,depth1_T,b_ell_bin_1=depth1_beam,b_ell_bin_2=depth1_beam,w2=w2_depth1,bins=bins)
+    binned_T1xT1 /= tfunc
+    # Depth-1 T cross cal map 2 T (pa6 coadd)
+    binned_T1xcal2T, _ = spectrum_from_maps(depth1_T,cal_map2_fourier,b_ell_bin_1=depth1_beam,b_ell_bin_2=pa6_beam,w2=w2_depth1xcal2,bins=bins)
+    binned_T1xcal2T /= tfunc
+
+    # Constructing covariance
+    w2w4_cal = np.sqrt(w2w4_depth1xcal1*w2w4_cal1xcal2)
+    cal_binned_nu = bincount*w2w4_cal*np.sqrt(tfunc)
+    cal_cov = ((1/cal_binned_nu)*((binned_cal1Txcal1T*binned_cal2Txcal2T+binned_cal1Txcal2T**2)
+                                    +(binned_T1xT1*binned_cal1Txcal1T+binned_T1xcal1T**2)
+                                -2*(binned_T1xcal1T*binned_cal1Txcal2T+binned_cal1Txcal1T*binned_T1xcal2T)))
+
+    # Evaluating likelihood and fitting Gaussian for best fit calibration factor
+    cal_fit_values = cal_sample_likelihood_and_fit(binned_cal1Txcal2T, binned_T1xcal1T, cal_cov, 
+                                                   y_min=y_min,y_max=y_max,num_pts=cal_num_pts,use_curvefit=cal_use_curvefit)
+    # Returning all the variables that I want to store in the output
+    return  (cal_fit_values, binned_T1xcal1T, binned_cal1Txcal2T, binned_cal1Txcal1T, 
+             binned_cal2Txcal2T, binned_T1xT1, binned_T1xcal2T, cal_binned_nu, 
+             w2_depth1xcal1, w2_depth1xcal2, w2_cal1xcal2, w2_cal1xcal1, 
+             w2_cal2xcal2, w2w4_cal, w2w4_depth1xcal1, w2w4_cal1xcal2)
+
 #########################################################
 #########################################################
 #########################################################
