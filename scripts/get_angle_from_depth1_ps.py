@@ -177,8 +177,8 @@ logger.info("Finished loading ref map")
 logger.info("Starting to load beams")
 if freq=='f090':
     # Only pa5 and pa6 at f090
-    logger.info("Using pa5 beam ", pa5_beam_path)
-    logger.info("Using pa6 beam ", pa6_beam_path)
+    logger.info("Using pa5 beam " + str(pa5_beam_path))
+    logger.info("Using pa6 beam " + str(pa6_beam_path))
     pa5_beam = aoa.load_and_bin_beam(pa5_beam_path,bins)
     pa6_beam = aoa.load_and_bin_beam(pa6_beam_path,bins)
     # For now, average these beams to get coadd/ref beam
@@ -191,9 +191,9 @@ if freq=='f090':
         ref_beam_name = "f090_coadd_avg_beam"
         aoa.plot_beam(output_dir_path, ref_beam_name, centers, ref_beam)
 elif freq=='f150':
-    logger.info("Using pa4 beam ", pa4_beam_path)
-    logger.info("Using pa5 beam ", pa5_beam_path)
-    logger.info("Using pa6 beam ", pa6_beam_path)
+    logger.info("Using pa4 beam " + str(pa4_beam_path))
+    logger.info("Using pa5 beam " + str(pa5_beam_path))
+    logger.info("Using pa6 beam " + str(pa6_beam_path))
     pa4_beam = aoa.load_and_bin_beam(pa4_beam_path,bins)
     pa5_beam = aoa.load_and_bin_beam(pa5_beam_path,bins)
     pa6_beam = aoa.load_and_bin_beam(pa6_beam_path,bins)
@@ -209,7 +209,7 @@ elif freq=='f150':
         ref_beam_name = "f150_coadd_avg_beam"
         aoa.plot_beam(output_dir_path, ref_beam_name, centers, ref_beam)
 elif freq=='f220':
-    logger.info("Using pa4 beam ", pa4_beam_path)
+    logger.info("Using pa4 beam " + str(pa4_beam_path))
     pa4_beam = aoa.load_and_bin_beam(pa4_beam_path,bins)
     # only pa4 at f220
     ref_beam = pa4_beam
