@@ -53,10 +53,6 @@ angle_min_deg = config['angle_min_deg']
 angle_max_deg = config['angle_max_deg']
 num_pts = config['num_pts']
 use_curvefit = config['use_curvefit']
-y_min = config['y_min']
-y_max = config['y_max']
-cal_num_pts = config['cal_num_pts']
-cal_use_curvefit = config['cal_use_curvefit']
 use_ivar_weight = config['use_ivar_weight']
 cross_calibrate = config['cross_calibrate']
 
@@ -106,6 +102,13 @@ else:
     logger.error("Please enter a valid text file in the obs_list field in the YAML file. Exiting.")
     sys.exit()
 if cross_calibrate:
+    y_min = config['y_min']
+    y_max = config['y_max']
+    cal_num_pts = config['cal_num_pts']
+    cal_use_curvefit = config['cal_use_curvefit']
+    cal_bin_size = config['cal_bin_size']
+    cal_lmin = config['cal_lmin']
+    cal_lmax = config['cal_lmax']
     cal_map1_path = config['cal_map1_path']
     cal_ivar1_path = config['cal_ivar1_path']
     cal_map2_path = config['cal_map2_path']
@@ -122,6 +125,8 @@ if cross_calibrate:
     if not os.path.exists(cal_ivar2_path): 
         logger.error("Cannot find calibration ivar 2 file! Check config. Exiting.")
         sys.exit()
+    # Setting up bins for calibration
+    cal_bins = np.arange(cal_lmin, cal_lmax, cal_bin_size)
 
 # Setting bins
 if config['bin_settings'] == "regular":
@@ -265,7 +270,7 @@ for line in tqdm(lines):
         spectra_output[line] = {'ell': centers, 'E1xB2': np.zeros(ell_len), 'E2xB1': np.zeros(ell_len), 
                                 'E1xE1': np.zeros(ell_len), 'B2xB2': np.zeros(ell_len), 'E2xE2': np.zeros(ell_len),
                                 'B1xB1': np.zeros(ell_len), 'E1xE2': np.zeros(ell_len), 'B1xB2': np.zeros(ell_len),
-                                'E1xB1': np.zeros(ell_len), 'E2xB2': np.zeros(ell_len), 'binned_nu': np.zeros(ell_len),
+                                'E1xB1': np.zeros(ell_len), 'E2xB2': np.zeros(ell_len), 'bincount': np.zeros(ell_len),
                                 'estimator': np.zeros(ell_len), 'covariance': np.zeros(ell_len),
                                 'CAMB_EE': CAMB_ClEE_binned, 'CAMB_BB': CAMB_ClBB_binned,
                                 'w2_depth1': -9999, 'w2_cross': -9999, 'w2_ref': -9999, 'fsky': -9999,
@@ -388,10 +393,10 @@ for line in tqdm(lines):
             cal_outputs = aoa.cross_calibrate(cal_T_map1_act_footprint, cal_T_map2_act_footprint, 
                                             cal_T_ivar1_act_footprint, cal_T_ivar2_act_footprint,
                                             depth1_ivar, depth1_mask, depth1_mask_indices,
-                                            galaxy_mask, depth1_TEB[0], w_depth1, w2_depth1, bins, tfunc,
-                                            kx_cut, ky_cut, unpixwin, filter_radius, use_ivar_weight,
-                                            depth1_beam, pa5_beam, pa6_beam, y_min, y_max, cal_num_pts,
-                                            cal_use_curvefit)
+                                            galaxy_mask, depth1_TEB[0], w_depth1, w2_depth1, bincount,
+                                            cal_bins, tfunc, kx_cut, ky_cut, unpixwin, filter_radius, 
+                                            use_ivar_weight, depth1_beam, pa5_beam, pa6_beam, y_min, 
+                                            y_max, cal_num_pts, cal_use_curvefit)
             # Renaming them to make sure all are present for spectra_output
             cal_fit_values = cal_outputs[0]
             binned_T1xcal1T = cal_outputs[1]
@@ -400,22 +405,21 @@ for line in tqdm(lines):
             binned_cal2Txcal2T = cal_outputs[4]
             binned_T1xT1 = cal_outputs[5]
             binned_T1xcal2T = cal_outputs[6]
-            cal_binned_nu = cal_outputs[7]
-            w2_depth1xcal1 = cal_outputs[8]
-            w2_depth1xcal2 = cal_outputs[9]
-            w2_cal1xcal2 = cal_outputs[10]
-            w2_cal1xcal1 = cal_outputs[11]
-            w2_cal2xcal2 = cal_outputs[12]
-            w2w4_cal = cal_outputs[13]
-            w2w4_depth1xcal1 = cal_outputs[14]
-            w2w4_cal1xcal2 = cal_outputs[15]
+            w2_depth1xcal1 = cal_outputs[7]
+            w2_depth1xcal2 = cal_outputs[8]
+            w2_cal1xcal2 = cal_outputs[9]
+            w2_cal1xcal1 = cal_outputs[10]
+            w2_cal2xcal2 = cal_outputs[11]
+            w2w4_all_three = cal_outputs[12]
+            w2w4_depth1xcal1 = cal_outputs[13]
+            w2w4_cal1xcal2 = cal_outputs[14]
 
             logger.info("TT calibration fit values: "+str(cal_fit_values))
 
             spectra_output[line] = {'ell': centers, 'E1xB2': binned_E1xB2, 'E2xB1': binned_E2xB1, 
                                     'E1xE1': binned_E1xE1, 'B2xB2': binned_B2xB2, 'E2xE2': binned_E2xE2,
                                     'B1xB1': binned_B1xB1, 'E1xE2': binned_E1xE2, 'B1xB2': binned_B1xB2,
-                                    'E1xB1': binned_E1xB1, 'E2xB2': binned_E2xB2, 'binned_nu': binned_nu,
+                                    'E1xB1': binned_E1xB1, 'E2xB2': binned_E2xB2, 'bincount': bincount,
                                     'estimator': estimator, 'covariance': covariance,
                                     'CAMB_EE': CAMB_ClEE_binned, 'CAMB_BB': CAMB_ClBB_binned,
                                     'w2_depth1': w2_depth1, 'w2_cross': w2_cross, 'w2_ref': w2_ref, 'fsky': fsky,
@@ -426,16 +430,16 @@ for line in tqdm(lines):
                                     'residual_sum': residual_sum, 'map_cut': 0,
                                     'T1xcal1T': binned_T1xcal1T, 'cal1Txcal2T': binned_cal1Txcal2T,
                                     'cal1Txcal1T': binned_cal1Txcal1T, 'cal2Txcal2T': binned_cal2Txcal2T, 
-                                    'T1xT1': binned_T1xT1, 'T1xcal2T': binned_T1xcal2T, 'cal_binned_nu': cal_binned_nu,
+                                    'T1xT1': binned_T1xT1, 'T1xcal2T': binned_T1xcal2T,
                                     'cal_factor': cal_fit_values[0], 'cal_factor_errbar': cal_fit_values[1],
                                     'w2_depth1xcal1': w2_depth1xcal1, 'w2_depth1xcal2': w2_depth1xcal2,
                                     'w2_cal1xcal2': w2_cal1xcal2, 'w2_cal1xcal1': w2_cal1xcal1, 'w2_cal2xcal2': w2_cal2xcal2,
-                                    'w2w4_cal': w2w4_cal, 'w2w4_depth1xcal1': w2w4_depth1xcal1, 'w2w4_cal1xcal2': w2w4_cal1xcal2}
+                                    'w2w4_all_three': w2w4_all_three, 'w2w4_depth1xcal1': w2w4_depth1xcal1, 'w2w4_cal1xcal2': w2w4_cal1xcal2}
         else:
             spectra_output[line] = {'ell': centers, 'E1xB2': binned_E1xB2, 'E2xB1': binned_E2xB1, 
                                     'E1xE1': binned_E1xE1, 'B2xB2': binned_B2xB2, 'E2xE2': binned_E2xE2,
                                     'B1xB1': binned_B1xB1, 'E1xE2': binned_E1xE2, 'B1xB2': binned_B1xB2,
-                                    'E1xB1': binned_E1xB1, 'E2xB2': binned_E2xB2, 'binned_nu': binned_nu,
+                                    'E1xB1': binned_E1xB1, 'E2xB2': binned_E2xB2, 'bincount': bincount,
                                     'estimator': estimator, 'covariance': covariance,
                                     'CAMB_EE': CAMB_ClEE_binned, 'CAMB_BB': CAMB_ClBB_binned,
                                     'w2_depth1': w2_depth1, 'w2_cross': w2_cross, 'w2_ref': w2_ref, 'fsky': fsky,

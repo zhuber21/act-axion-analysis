@@ -436,14 +436,24 @@ def estimator_likelihood(angle, estimator, covariance, ClEE):
     likelihood = np.exp(-np.sum(numerator/denominator))
     return likelihood
 
-def cal_likelihood(y, cal1xcal2, cal1xdepth1, covariance):
+def cal_likelihood(y, cal1xcal2, cal1xdepth1, cal1xcal1, cal2xcal2, cal2xdepth1, depth1xdepth1,
+                   nu_cal1_cal2, nu_cal1_depth1, nu_all_three):
     """
         Calculates the likelihood for TT calibration for an input
         value of the calibration factor, y.
 
         estimator = TT_cal1xcal2 - y*TT_cal1xdepth1
+
+        The covariance has different mode count factors for each of the
+        three covariance terms that are summed to get the full covariance.
+        The y factor also multiplies the TT spectrum for cal1xdepth1 
+        wherever it appears in the covariance to account for how the
+        changing calibration factor affects the covariance.
     """
     numerator = (cal1xcal2 - y*cal1xdepth1)**2
+    covariance = ((1/nu_cal1_cal2)*(cal1xcal1*cal2xcal2+cal1xcal2**2)
+                 +(1/nu_cal1_depth1)*(depth1xdepth1*cal1xcal1+y**2*cal1xdepth1**2)
+               -2*(1/nu_all_three)*(y*cal1xdepth1*cal1xcal2+cal1xcal1*cal2xdepth1))
     denominator = 2*covariance
     likelihood = np.exp(-np.sum(numerator/denominator))
     return likelihood
@@ -520,8 +530,9 @@ def sample_likelihood_and_fit(estimator,covariance,theory_ClEE,angle_min_deg=-20
 
     return fit_values_deg, residual_mean, residual_sum
 
-def cal_sample_likelihood_and_fit(cal1xcal2, cal1xdepth1, covariance, y_min=0.7,y_max=1.3,
-                              num_pts=50000,use_curvefit=True):
+def cal_sample_likelihood_and_fit(cal1xcal2, cal1xdepth1, cal1xcal1, cal2xcal2, cal2xdepth1, 
+                                  depth1xdepth1, nu_cal1_cal2, nu_cal1_depth1, nu_all_three, 
+                                  y_min=0.7, y_max=1.3, num_pts=50000, use_curvefit=True):
     """
         Samples the likelihood for the TT calibration at num_pts values of the calibration
         factor, y, between the values y_min and y_max.
@@ -529,8 +540,10 @@ def cal_sample_likelihood_and_fit(cal1xcal2, cal1xdepth1, covariance, y_min=0.7,
     if(y_min >= y_max): 
         raise ValueError("The min y value must be smaller than the max!")
     y_values = np.linspace(y_min,y_max,num=num_pts)
-    
-    cal_sampled_likelihood = [cal_likelihood(y, cal1xcal2, cal1xdepth1, covariance) for y in y_values]
+
+    cal_sampled_likelihood = [cal_likelihood(y, cal1xcal2, cal1xdepth1, cal1xcal1, 
+                                             cal2xcal2, cal2xdepth1, depth1xdepth1,
+                                             nu_cal1_cal2, nu_cal1_depth1, nu_all_three) for y in y_values]
     norm_sampled_likelihood = cal_sampled_likelihood/np.max(cal_sampled_likelihood)
 
     if use_curvefit:
@@ -545,7 +558,7 @@ def cal_sample_likelihood_and_fit(cal1xcal2, cal1xdepth1, covariance, y_min=0.7,
 def cross_calibrate(cal_T_map1_act_footprint, cal_T_map2_act_footprint,
                     cal_T_ivar1_act_footprint, cal_T_ivar2_act_footprint,
                     depth1_ivar, depth1_mask, depth1_mask_indices,
-                    galaxy_mask, depth1_T, w_depth1, w2_depth1, bins, tfunc,
+                    galaxy_mask, depth1_T, w_depth1, w2_depth1, bincount, bins, tfunc,
                     kx_cut, ky_cut, unpixwin, filter_radius, use_ivar_weight,
                     depth1_beam, pa5_beam, pa6_beam, y_min, y_max, cal_num_pts, cal_use_curvefit):
     """
@@ -580,11 +593,11 @@ def cross_calibrate(cal_T_map1_act_footprint, cal_T_map2_act_footprint,
     w2_cal1xcal2 = np.mean(w_cal1*w_cal2)
     w2_cal1xcal1 = np.mean(w_cal1*w_cal1)
     w2_cal2xcal2 = np.mean(w_cal2*w_cal2)
-    w2w4_depth1xcal1 = np.mean(w_depth1*w_cal1)**2 / np.mean(w_depth1**2 * w_cal1**2)
-    w2w4_cal1xcal2 = np.mean(w_cal1*w_cal2)**2 / np.mean(w_cal1**2 * w_cal2**2)
+    w2w4_depth1xcal1 = w2_depth1xcal1**2 / np.mean(w_depth1**2 * w_cal1**2)
+    w2w4_cal1xcal2 = w2_cal1xcal2**2 / np.mean(w_cal1**2 * w_cal2**2)
+    w2w4_all_three = w2_cal1xcal2*w2_depth1xcal1 / np.mean(w_cal1*w_cal1*w_cal2*w_depth1)
     # Depth-1 T cross cal map 1 T (pa5 coadd)
-      # bincount should be same for all spectra in same footprint, so recalculate it here instead of passing it as argument
-    binned_T1xcal1T, bincount = spectrum_from_maps(depth1_T,cal_map1_fourier,b_ell_bin_1=depth1_beam,b_ell_bin_2=pa5_beam,w2=w2_depth1xcal1,bins=bins)
+    binned_T1xcal1T, _ = spectrum_from_maps(depth1_T,cal_map1_fourier,b_ell_bin_1=depth1_beam,b_ell_bin_2=pa5_beam,w2=w2_depth1xcal1,bins=bins)
     binned_T1xcal1T /= tfunc
     # cal map 1 T (pa5 coadd) cross cal map 2 T (pa6 coadd)
     binned_cal1Txcal2T, _ = spectrum_from_maps(cal_map1_fourier,cal_map2_fourier,b_ell_bin_1=pa5_beam,b_ell_bin_2=pa6_beam,w2=w2_cal1xcal2,bins=bins)
@@ -603,21 +616,21 @@ def cross_calibrate(cal_T_map1_act_footprint, cal_T_map2_act_footprint,
     binned_T1xcal2T, _ = spectrum_from_maps(depth1_T,cal_map2_fourier,b_ell_bin_1=depth1_beam,b_ell_bin_2=pa6_beam,w2=w2_depth1xcal2,bins=bins)
     binned_T1xcal2T /= tfunc
 
-    # Constructing covariance
-    w2w4_cal = np.sqrt(w2w4_depth1xcal1*w2w4_cal1xcal2)
-    cal_binned_nu = bincount*w2w4_cal*np.sqrt(tfunc)
-    cal_cov = ((1/cal_binned_nu)*((binned_cal1Txcal1T*binned_cal2Txcal2T+binned_cal1Txcal2T**2)
-                                    +(binned_T1xT1*binned_cal1Txcal1T+binned_T1xcal1T**2)
-                                -2*(binned_T1xcal1T*binned_cal1Txcal2T+binned_cal1Txcal1T*binned_T1xcal2T)))
+    # Constructing covariance mode count factors
+    cal_binned_nu_cal1_cal2 = bincount*w2w4_cal1xcal2*np.sqrt(tfunc)
+    cal_binned_nu_cal1_depth1 = bincount*w2w4_depth1xcal1*np.sqrt(tfunc)
+    cal_binned_nu_all_three = bincount*w2w4_all_three*np.sqrt(tfunc)
 
     # Evaluating likelihood and fitting Gaussian for best fit calibration factor
-    cal_fit_values = cal_sample_likelihood_and_fit(binned_cal1Txcal2T, binned_T1xcal1T, cal_cov, 
+    cal_fit_values = cal_sample_likelihood_and_fit(binned_cal1Txcal2T, binned_T1xcal1T, binned_cal1Txcal1T,
+                                                   binned_cal2Txcal2T, binned_T1xcal2T, binned_T1xT1,
+                                                   cal_binned_nu_cal1_cal2, cal_binned_nu_cal1_depth1, cal_binned_nu_all_three,
                                                    y_min=y_min,y_max=y_max,num_pts=cal_num_pts,use_curvefit=cal_use_curvefit)
     # Returning all the variables that I want to store in the output
     return  (cal_fit_values, binned_T1xcal1T, binned_cal1Txcal2T, binned_cal1Txcal1T, 
-             binned_cal2Txcal2T, binned_T1xT1, binned_T1xcal2T, cal_binned_nu, 
+             binned_cal2Txcal2T, binned_T1xT1, binned_T1xcal2T,
              w2_depth1xcal1, w2_depth1xcal2, w2_cal1xcal2, w2_cal1xcal1, 
-             w2_cal2xcal2, w2w4_cal, w2w4_depth1xcal1, w2w4_cal1xcal2)
+             w2_cal2xcal2, w2w4_all_three, w2w4_depth1xcal1, w2w4_cal1xcal2)
 
 #########################################################
 #########################################################

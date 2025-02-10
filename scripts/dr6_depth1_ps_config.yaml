@@ -24,7 +24,12 @@ y_max: 1.5
 cal_num_pts: 50000
 cal_use_curvefit: False
 
-# Binning settings
+# Calibration factor binning settings
+cal_bin_size: 200
+cal_lmin: 1000
+cal_lmax: 2001
+
+# Angle estimator binning settings
 bin_settings: "regular" # Options are "regular" and "DR4" to use even bins of "bin_size" or to use the ACT DR4 bins
 bin_size: 400    # Used with "regular"
 lmin: 1000        # Used with "regular"
