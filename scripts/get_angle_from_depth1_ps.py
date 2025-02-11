@@ -303,6 +303,17 @@ for line in tqdm(lines):
             logger.info("TT calibration fit values: "+str(cal_fit_values))
             # Adding calibration keys to final dictionary
             output_dict.update(cal_output_dict)
+    else:
+        if cross_calibrate:
+            # To ensure all keys are present whether map is cut or not
+            ell_len = len(output_dict['ell'])
+            output_dict.update({{'T1xcal1T': np.zeros(ell_len), 'cal1Txcal2T': np.zeros(ell_len),
+                                 'cal1Txcal1T': np.zeros(ell_len), 'cal2Txcal2T': np.zeros(ell_len), 
+                                 'T1xT1': np.zeros(ell_len), 'T1xcal2T': np.zeros(ell_len),
+                                 'cal_factor': -9999, 'cal_factor_errbar': -9999,
+                                 'w2_depth1xcal1': -9999, 'w2_depth1xcal2': -9999,
+                                 'w2_cal1xcal2': -9999, 'w2_cal1xcal1': -9999, 'w2_cal2xcal2': -9999,
+                                 'w2w4_all_three': -9999, 'w2w4_depth1xcal1': -9999, 'w2w4_cal1xcal2': -9999}})
 
     # At the end, assign the output_dict to the line in results_output
     # If the mask cuts the whole map, this will be the dict with -9999 everywhere
