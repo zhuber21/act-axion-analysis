@@ -19,8 +19,8 @@ num_pts: 200000
 use_curvefit: True
 
 # Calibration factor likelihood fitting settings
-y_min: 0.5
-y_max: 1.5
+y_min: 0.0
+y_max: 2.0
 cal_num_pts: 50000
 cal_use_curvefit: False
 
@@ -39,17 +39,17 @@ stop_index: 47   # Used with "DR4"
 
 # Power spectra analysis settings
 use_ivar_weight: True  # Whether or not to use inverse variance weighting for calculating spectra - slower
-cross_calibrate: False     # Whether or not to do a TT calibration with maps listed below 
+cross_calibrate: True     # Whether or not to do a TT calibration with maps listed below 
 
 # Whether to save various plots
 output_dir_root: "/home/zbh5/act_analysis/act_axion_analysis/results/"
-plot_maps: True
-plot_all_spectra: True
-plot_summary_spectra: True
-plot_likelihood: True
-plot_beam: True
-plot_tfunc: True
-plot_angle_hist: True
+plot_maps: False
+plot_all_spectra: False
+plot_summary_spectra: False
+plot_likelihood: False
+plot_beam: False
+plot_tfunc: False
+plot_angle_hist: False
 
 theory_curves_path: "/home/zbh5/act_analysis/act_axion_analysis/resources/camb_19413797_lensedtotcls.dat"
 
@@ -74,8 +74,9 @@ cal_ivar1_path: "/home/zbh5/act_analysis/dr6_analysis/cmb_night_pa5_f150_8way_co
 cal_map2_path: "/home/zbh5/act_analysis/dr6_analysis/cmb_night_pa6_f150_8way_coadd_map_srcfree.fits"
 cal_ivar2_path: "/home/zbh5/act_analysis/dr6_analysis/cmb_night_pa6_f150_8way_coadd_ivar.fits"
 
-obs_list: '/home/zbh5/act_analysis/dr6_analysis/dr6_depth1_maps/dr6_depth1_test_map_w_second_batch_list.txt'
+#obs_list: '/home/zbh5/act_analysis/dr6_analysis/dr6_depth1_maps/dr6_depth1_test_map_w_second_batch_list.txt'
 #obs_list: '/home/zbh5/act_analysis/dr6_analysis/dr6_depth1_maps/dr6_depth1_test_map_list.txt'
+obs_list: '/home/zbh5/act_analysis/dr6_analysis/dr6_depth1_maps/dr6_depth1_test_map_list_first_49.txt'
 #obs_list: '/home/zbh5/act_analysis/dr6_analysis/dr6_depth1_maps/dr6_depth1_test_6maps_list.txt'
 #obs_list: '/home/zbh5/act_analysis/dr6_analysis/dr6_depth1_maps/dr6_depth1_test_9goodmaps_list.txt'
 #obs_list: '/home/zbh5/act_analysis/dr6_analysis/dr6_depth1_maps/dr6_depth1_test_15goodmaps_list.txt'
