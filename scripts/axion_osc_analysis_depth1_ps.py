@@ -342,8 +342,14 @@ def cal_normalize_ivar_mask(input_ivar, mask_indices):
     """Moving normalization of ivar mask for TT calibration to function to save memory"""
     ivar_inside_taper = input_ivar.copy() 
     ivar_inside_taper[mask_indices] = 0.0
-    norm_ivar_T_mask = ivar_inside_taper / np.percentile(ivar_inside_taper, 95) # Don't need factor of 2 because these ivar maps were never divided by 2 when loaded
-    norm_ivar_T_mask[norm_ivar_T_mask > 1.0] = 1.0
+
+    if np.percentile(ivar_inside_taper, 95)!=0.0:
+        # Don't need factor of 2 because these ivar maps were never divided by 2 when loaded
+        norm_ivar_T_mask = ivar_inside_taper / np.percentile(ivar_inside_taper, 95)
+        norm_ivar_T_mask[norm_ivar_T_mask > 1.0] = 1.0 # Setting any outliers to 1.0
+    else:
+        norm_ivar_T_mask = ivar_inside_taper / np.max(ivar_inside_taper)
+
     norm_ivar_T_mask[mask_indices] = 1.0
     return norm_ivar_T_mask
 
