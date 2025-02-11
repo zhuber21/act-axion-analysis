@@ -186,6 +186,7 @@ if freq=='f090':
     # Only pa5 and pa6 at f090
     logger.info("Using pa5 beam " + str(pa5_beam_path))
     logger.info("Using pa6 beam " + str(pa6_beam_path))
+    pa4_beam = []
     pa5_beam = aoa.load_and_bin_beam(pa5_beam_path,bins)
     pa6_beam = aoa.load_and_bin_beam(pa6_beam_path,bins)
     # For now, average these beams to get coadd/ref beam
@@ -218,6 +219,8 @@ elif freq=='f150':
 elif freq=='f220':
     logger.info("Using pa4 beam " + str(pa4_beam_path))
     pa4_beam = aoa.load_and_bin_beam(pa4_beam_path,bins)
+    pa5_beam = []
+    pa6_beam = []
     # only pa4 at f220
     ref_beam = pa4_beam
     if plot_beam:
@@ -244,7 +247,7 @@ if cross_calibrate:
 
 maps = []
 angle_estimates = []
-spectra_output = {}
+results_output = {}
 
 # Calculate filtering transfer function once since filtering is same for all maps
 tfunc = aoa.get_tfunc(kx_cut, ky_cut, bins)
@@ -257,225 +260,80 @@ with open(obs_list) as f:
 for line in tqdm(lines):
     logger.info(line)
     map_path = obs_list_path + line
+    # outputs will be 1 if the map is cut, a bunch of things needed
+    # for time estimation and TT calibration if not
+    output_dict, outputs = aoa.estimate_pol_angle(map_path, line, logger, ref_maps, ref_ivar, galaxy_mask,
+                                                  kx_cut, ky_cut, unpixwin, filter_radius, use_ivar_weight,
+                                                  plot_maps, plot_likelihood, output_dir_path, 
+                                                  bins, centers, CAMB_ClEE_binned, CAMB_ClBB_binned, 
+                                                  pa4_beam, pa5_beam, pa6_beam, ref_beam, tfunc, 
+                                                  num_pts, angle_min_deg, angle_max_deg, use_curvefit)
 
-    outputs = aoa.load_and_filter_depth1(map_path, ref_maps, galaxy_mask, 
-                                            kx_cut, ky_cut, unpixwin, 
-                                            filter_radius=filter_radius,plot_maps=plot_maps,
-                                            output_dir=output_dir_path,use_ivar_weight=use_ivar_weight)
-    # If the full map has been cut by the galaxy mask, it return error code 1 instead of the regular outputs
-    if outputs == 1:
-        # saves output flag so we can see it is cut
-        logger.info("Map " + line + " was completely cut by galaxy mask.")
-        ell_len = len(centers)
-        spectra_output[line] = {'ell': centers, 'E1xB2': np.zeros(ell_len), 'E2xB1': np.zeros(ell_len), 
-                                'E1xE1': np.zeros(ell_len), 'B2xB2': np.zeros(ell_len), 'E2xE2': np.zeros(ell_len),
-                                'B1xB1': np.zeros(ell_len), 'E1xE2': np.zeros(ell_len), 'B1xB2': np.zeros(ell_len),
-                                'E1xB1': np.zeros(ell_len), 'E2xB2': np.zeros(ell_len), 'bincount': np.zeros(ell_len),
-                                'estimator': np.zeros(ell_len), 'covariance': np.zeros(ell_len),
-                                'CAMB_EE': CAMB_ClEE_binned, 'CAMB_BB': CAMB_ClBB_binned,
-                                'w2_depth1': -9999, 'w2_cross': -9999, 'w2_ref': -9999, 'fsky': -9999,
-                                'w2w4_depth1': -9999, 'w2w4_cross': -9999, 'w2w4_ref': -9999,
-                                'meas_angle': -9999, 'meas_errbar': -9999,
-                                'initial_timestamp': -9999, 'median_timestamp': -9999, 
-                                'ivar_sum': -9999, 'residual_mean': -9999, 
-                                'residual_sum': -9999, 'map_cut': 1}
-        angle_estimates.append((-9999,-9999))
-        maps.append(line)
-        if plot_likelihood:
-            # Make empty likelihood plot for web viewer
-            angles_deg = np.linspace(angle_min_deg,angle_max_deg,num=num_pts)
-            map_name = os.path.split(line)[1][:-9] # removing "_map.fits"
-            aoa.plot_likelihood(output_dir_path, map_name, angles_deg, np.zeros(num_pts), (-9999,-9999), np.zeros(num_pts))
-    else: 
-        # Otherwise do everything you would normally do
-        depth1_TEB = outputs[0]
-        depth1_ivar = outputs[1]
-        # depth1_mask will be the doubly tapered mask if use_ivar_weight=True, the filtering mask if False
-        # Same with indices
-        depth1_mask = outputs[2]
-        depth1_mask_indices = outputs[3]
-        ref_TEB = outputs[4]
-        ivar_sum = outputs[5]
-
-        if use_ivar_weight:
-            # Ivar weighting for depth-1 map
-            # Calculating approx correction for loss of power due to tapering for spectra for depth-1
-            # w_depth1 combines normalized ivar and geometric factors in this mask - normalization done in aoa.apply_ivar_weighting()
-            depth1_TEB, w_depth1 = aoa.apply_ivar_weighting(depth1_TEB, depth1_ivar, depth1_mask, depth1_mask_indices)
-
-            # Ivar weighting for reference map - already filtered and trimmed from ref_TEB above
-            # w_ref combines normalized ivar and geometric factors in this mask
-            ref_map_trimmed_ivar = enmap.extract(ref_ivar,depth1_TEB[0].shape,depth1_TEB[0].wcs)
-            ref_TEB, w_ref = aoa.apply_ivar_weighting(ref_TEB, ref_map_trimmed_ivar, depth1_mask, depth1_mask_indices)
-        else:
-            # No ivar weighting
-            w_depth1 = depth1_mask # use this if using flat weighting since only one taper is applied in this case
-            w_ref = depth1_mask    # use this if using flat weighting since only one taper is applied in this case
-
-        # Calculating w2 factors - all the same if not using ivar weighting, but different if using it
-        # Using w2 factors for spectra corrections
-        w2_depth1 = np.mean(w_depth1**2)
-        w2_cross = np.mean(w_depth1*w_ref)
-        w2_ref = np.mean(w_ref**2)
-        # Calculating w2w4 factors - using w2w4_cross for the mode correction
-        w2w4_depth1 = np.mean(w_depth1**2)**2 / np.mean(w_depth1**4)
-        w2w4_cross = np.mean(w_depth1*w_ref)**2 / np.mean(w_depth1**2 * w_ref**2)
-        w2w4_ref = np.mean(w_ref**2)**2 / np.mean(w_ref**4)
-
-        # Selecting the correct beam
-        map_array = line.split('_')[2]
-        if map_array == 'pa4':
-            depth1_beam = pa4_beam
-        elif map_array == 'pa5':
-            depth1_beam = pa5_beam
-        elif map_array == 'pa6':
-            depth1_beam = pa6_beam
-        else:
-            logger.info("Map " + line + " not in standard format for array beam selection! Choosing averaged beam.")
-            depth1_beam = ref_beam
-
-        # Calculate spectra
-        # Spectra for estimator
-        binned_E1xB2, bincount = aoa.spectrum_from_maps(depth1_TEB[1], ref_TEB[2], b_ell_bin_1=depth1_beam, b_ell_bin_2=ref_beam, w2=w2_cross, bins=bins)
-        binned_E2xB1, _ = aoa.spectrum_from_maps(depth1_TEB[2], ref_TEB[1], b_ell_bin_1=ref_beam, b_ell_bin_2=depth1_beam, w2=w2_cross, bins=bins)
-        # Spectra for covariance
-        binned_E1xE1, _ = aoa.spectrum_from_maps(depth1_TEB[1], depth1_TEB[1], b_ell_bin_1=depth1_beam, b_ell_bin_2=depth1_beam, w2=w2_depth1, bins=bins)
-        binned_B2xB2, _ = aoa.spectrum_from_maps(ref_TEB[2], ref_TEB[2], b_ell_bin_1=ref_beam, b_ell_bin_2=ref_beam, w2=w2_ref, bins=bins)
-        binned_E2xE2, _ = aoa.spectrum_from_maps(ref_TEB[1], ref_TEB[1], b_ell_bin_1=ref_beam, b_ell_bin_2=ref_beam, w2=w2_ref, bins=bins)
-        binned_B1xB1, _ = aoa.spectrum_from_maps(depth1_TEB[2], depth1_TEB[2], b_ell_bin_1=depth1_beam, b_ell_bin_2=depth1_beam, w2=w2_depth1, bins=bins)
-        binned_E1xE2, _ = aoa.spectrum_from_maps(depth1_TEB[1], ref_TEB[1], b_ell_bin_1=depth1_beam, b_ell_bin_2=ref_beam, w2=w2_cross, bins=bins)
-        binned_B1xB2, _ = aoa.spectrum_from_maps(depth1_TEB[2], ref_TEB[2], b_ell_bin_1=depth1_beam, b_ell_bin_2=ref_beam, w2=w2_cross, bins=bins)
-        binned_E1xB1, _ = aoa.spectrum_from_maps(depth1_TEB[1], depth1_TEB[2], b_ell_bin_1=depth1_beam, b_ell_bin_2=depth1_beam, w2=w2_depth1, bins=bins)
-        binned_E2xB2, _ = aoa.spectrum_from_maps(ref_TEB[1], ref_TEB[2], b_ell_bin_1=ref_beam, b_ell_bin_2=ref_beam, w2=w2_ref, bins=bins)    
-        # Accounting for transfer function
-        binned_E1xB2 /= tfunc
-        binned_E2xB1 /= tfunc
-        binned_E1xE1 /= tfunc
-        binned_B2xB2 /= tfunc
-        binned_E2xE2 /= tfunc
-        binned_B1xB1 /= tfunc
-        binned_E1xE2 /= tfunc
-        binned_B1xB2 /= tfunc
-        binned_E1xB1 /= tfunc
-        binned_E2xB2 /= tfunc
-        # Accounting for modes lost to the mask and filtering - uses w2w4_cross because estimator is made of cross spectra
-        # Though the spectra are corrected by w2, the number of modes is corrected by w2w4
-        # The thing returned by get_tfunc() is the t_b^2 factor from Steve's PS paper, which is the right correction for each spectrum.
-        # We only want t_b in the mode correction, though, as in the text after Eq. 1 of Steve's paper.
-        binned_nu = bincount*w2w4_cross*np.sqrt(tfunc)
-        fsky = depth1_mask.area()/(4.*np.pi) # For comparing binned_nu to theoretical number of modes
-
-        # Calculate estimator and covariance
-        estimator = binned_E1xB2-binned_E2xB1
-        covariance = ((1/binned_nu)*((binned_E1xE1*binned_B2xB2+binned_E1xB2**2)
-                                    +(binned_E2xE2*binned_B1xB1+binned_E2xB1**2)
-                                    -2*(binned_E1xE2*binned_B1xB2+binned_E1xB1*binned_E2xB2)))
-
-        fit_values, residual_mean, residual_sum = aoa.sample_likelihood_and_fit(estimator,covariance,CAMB_ClEE_binned,num_pts=num_pts,
-                                                                                angle_min_deg=angle_min_deg, angle_max_deg=angle_max_deg,
-                                                                                use_curvefit=use_curvefit,plot_like=plot_likelihood,
-                                                                                output_dir=output_dir_path,map_fname=line)
-
+    fit_values = [output_dict['meas_angle'], output_dict['meas_errbar']]
+    if output_dict['map_cut']==0:
+        depth1_mask = outputs[0]
+        depth1_mask_indices = outputs[1]
+        depth1_ivar = outputs[2]
+        depth1_T = outputs[3]
+        w_depth1 = outputs[4]
+        depth1_beam = outputs[5]
+        w2_depth1 = output_dict['w2_depth1']
+        bincount = output_dict['bincount']
         logger.info("Fit values: "+str(fit_values))
-        angle_estimates.append(fit_values)
-        maps.append(line)
-
         logger.info("Calculating median timestamp from time.fits and info.hdf files")
         # depth1_mask will be the doubly tapered one if ivar weighting is on, the first filtering one if not
         initial_timestamp, median_timestamp = aoa.calc_median_timestamp(map_path, depth1_mask)
         logger.info("Initial timestamp: "+str(initial_timestamp))
         logger.info("Median timestamp: "+str(median_timestamp))
+        output_dict.update({'initial_timestamp': initial_timestamp, 'median_timestamp': median_timestamp})
 
         if cross_calibrate:
             # Calling a single function to do all the TT cross-calibration
             # This makes the code a bit harder to read but improves memory usage by allowing
             # intermediate maps to be cleaned up when function call ends.
-            cal_outputs = aoa.cross_calibrate(cal_T_map1_act_footprint, cal_T_map2_act_footprint, 
-                                            cal_T_ivar1_act_footprint, cal_T_ivar2_act_footprint,
-                                            depth1_ivar, depth1_mask, depth1_mask_indices,
-                                            galaxy_mask, depth1_TEB[0], w_depth1, w2_depth1, bincount,
-                                            cal_bins, tfunc, kx_cut, ky_cut, unpixwin, filter_radius, 
-                                            use_ivar_weight, depth1_beam, pa5_beam, pa6_beam, y_min, 
-                                            y_max, cal_num_pts, cal_use_curvefit)
-            # Renaming them to make sure all are present for spectra_output
-            cal_fit_values = cal_outputs[0]
-            binned_T1xcal1T = cal_outputs[1]
-            binned_cal1Txcal2T = cal_outputs[2]
-            binned_cal1Txcal1T = cal_outputs[3]
-            binned_cal2Txcal2T = cal_outputs[4]
-            binned_T1xT1 = cal_outputs[5]
-            binned_T1xcal2T = cal_outputs[6]
-            w2_depth1xcal1 = cal_outputs[7]
-            w2_depth1xcal2 = cal_outputs[8]
-            w2_cal1xcal2 = cal_outputs[9]
-            w2_cal1xcal1 = cal_outputs[10]
-            w2_cal2xcal2 = cal_outputs[11]
-            w2w4_all_three = cal_outputs[12]
-            w2w4_depth1xcal1 = cal_outputs[13]
-            w2w4_cal1xcal2 = cal_outputs[14]
-
+            cal_output_dict = aoa.cross_calibrate(cal_T_map1_act_footprint, cal_T_map2_act_footprint, 
+                                                  cal_T_ivar1_act_footprint, cal_T_ivar2_act_footprint,
+                                                  depth1_ivar, depth1_mask, depth1_mask_indices,
+                                                  galaxy_mask, depth1_T, w_depth1, w2_depth1, bincount,
+                                                  cal_bins, tfunc, kx_cut, ky_cut, unpixwin, filter_radius, 
+                                                  use_ivar_weight, depth1_beam, pa5_beam, pa6_beam, y_min, 
+                                                  y_max, cal_num_pts, cal_use_curvefit)
+            # Printing out calibration factor and errorbar
+            cal_fit_values = (cal_output_dict['cal_factor'], cal_output_dict['cal_factor_errbar'])
             logger.info("TT calibration fit values: "+str(cal_fit_values))
+            # Adding calibration keys to final dictionary
+            output_dict.update(cal_output_dict)
 
-            spectra_output[line] = {'ell': centers, 'E1xB2': binned_E1xB2, 'E2xB1': binned_E2xB1, 
-                                    'E1xE1': binned_E1xE1, 'B2xB2': binned_B2xB2, 'E2xE2': binned_E2xE2,
-                                    'B1xB1': binned_B1xB1, 'E1xE2': binned_E1xE2, 'B1xB2': binned_B1xB2,
-                                    'E1xB1': binned_E1xB1, 'E2xB2': binned_E2xB2, 'bincount': bincount,
-                                    'estimator': estimator, 'covariance': covariance,
-                                    'CAMB_EE': CAMB_ClEE_binned, 'CAMB_BB': CAMB_ClBB_binned,
-                                    'w2_depth1': w2_depth1, 'w2_cross': w2_cross, 'w2_ref': w2_ref, 'fsky': fsky,
-                                    'w2w4_depth1': w2w4_depth1, 'w2w4_cross': w2w4_cross, 'w2w4_ref': w2w4_ref,
-                                    'meas_angle': fit_values[0], 'meas_errbar': fit_values[1],
-                                    'initial_timestamp': initial_timestamp, 'median_timestamp': median_timestamp, 
-                                    'ivar_sum': ivar_sum, 'residual_mean': residual_mean,
-                                    'residual_sum': residual_sum, 'map_cut': 0,
-                                    'T1xcal1T': binned_T1xcal1T, 'cal1Txcal2T': binned_cal1Txcal2T,
-                                    'cal1Txcal1T': binned_cal1Txcal1T, 'cal2Txcal2T': binned_cal2Txcal2T, 
-                                    'T1xT1': binned_T1xT1, 'T1xcal2T': binned_T1xcal2T,
-                                    'cal_factor': cal_fit_values[0], 'cal_factor_errbar': cal_fit_values[1],
-                                    'w2_depth1xcal1': w2_depth1xcal1, 'w2_depth1xcal2': w2_depth1xcal2,
-                                    'w2_cal1xcal2': w2_cal1xcal2, 'w2_cal1xcal1': w2_cal1xcal1, 'w2_cal2xcal2': w2_cal2xcal2,
-                                    'w2w4_all_three': w2w4_all_three, 'w2w4_depth1xcal1': w2w4_depth1xcal1, 'w2w4_cal1xcal2': w2w4_cal1xcal2}
-        else:
-            spectra_output[line] = {'ell': centers, 'E1xB2': binned_E1xB2, 'E2xB1': binned_E2xB1, 
-                                    'E1xE1': binned_E1xE1, 'B2xB2': binned_B2xB2, 'E2xE2': binned_E2xE2,
-                                    'B1xB1': binned_B1xB1, 'E1xE2': binned_E1xE2, 'B1xB2': binned_B1xB2,
-                                    'E1xB1': binned_E1xB1, 'E2xB2': binned_E2xB2, 'bincount': bincount,
-                                    'estimator': estimator, 'covariance': covariance,
-                                    'CAMB_EE': CAMB_ClEE_binned, 'CAMB_BB': CAMB_ClBB_binned,
-                                    'w2_depth1': w2_depth1, 'w2_cross': w2_cross, 'w2_ref': w2_ref, 'fsky': fsky,
-                                    'w2w4_depth1': w2w4_depth1, 'w2w4_cross': w2w4_cross, 'w2w4_ref': w2w4_ref,
-                                    'meas_angle': fit_values[0], 'meas_errbar': fit_values[1],
-                                    'initial_timestamp': initial_timestamp, 'median_timestamp': median_timestamp, 
-                                    'ivar_sum': ivar_sum, 'residual_mean': residual_mean, 
-                                    'residual_sum': residual_sum, 'map_cut': 0}            
+    # At the end, assign the output_dict to the line in results_output
+    # If the mask cuts the whole map, this will be the dict with -9999 everywhere
+    results_output[line] = output_dict
+    maps.append(line)
+    angle_estimates.append(fit_values)              
 
-# Converting angle estimates to float from np.float64 for readability in yaml
-angle_estimates_float = [[float(v),float(w)] for (v,w) in angle_estimates]
-
-# Saving spectra to a numpy file
-# Can be loaded with np.load(spectra_output_fname, allow_pickle=True).item()
-spectra_output_fname = output_dir_path + 'angle_calc_' + output_time + '_spectra.npy'
-np.save(spectra_output_fname, spectra_output)
-
+# Plot summary plots if desired
 if plot_all_spectra:
     logger.info("Beginning to save plots for all spectra. This could take a while.")
-    aoa.plot_spectra_individually(output_dir_path, spectra_output)
+    aoa.plot_spectra_individually(output_dir_path, results_output)
     logger.info("Finished saving plots for all spectra.")
 if plot_summary_spectra:
     logger.info("Beginning to save summary spectra plots.")
-    aoa.plot_spectra_summary(output_dir_path, spectra_output)
+    aoa.plot_spectra_summary(output_dir_path, results_output)
     logger.info("Finished saving summary spectra plots.")
 if plot_angle_hist:
     logger.info("Plotting histogram of angles")
     aoa.plot_angle_hist(output_dir_path, np.array(angle_estimates)[:,0], maps)
 
-# Dump all inputs and outputs to a YAML log
-output_dict = config
-output_dict['angle_estimates'] = angle_estimates_float
-output_dict['list_of_maps'] = maps
-output_dict['spectra_output_fname'] = spectra_output_fname
+# Saving results to a numpy file
+# Can be loaded with np.load(results_output_fname, allow_pickle=True).item()
+results_output_fname = output_dir_path + 'angle_calc_' + output_time + '_results.npy'
+np.save(results_output_fname, results_output)
 
-output_name = output_dir_path + 'angle_calc_' + output_time + ".yaml"
+# Dump all config info to YAML
+output_dict = config
+output_dict['list_of_maps'] = maps
+output_dict['results_output_fname'] = results_output_fname
+
+output_name = output_dir_path + 'angle_calc_config_' + output_time + ".yaml"
 with open(output_name, 'w') as file:
     yaml.dump(output_dict, file)
 logger.info("Finished running get_angle_from_depth1_ps.py. Output is in: " + str(output_name))

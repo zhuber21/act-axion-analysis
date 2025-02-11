@@ -536,6 +536,148 @@ def sample_likelihood_and_fit(estimator,covariance,theory_ClEE,angle_min_deg=-20
 
     return fit_values_deg, residual_mean, residual_sum
 
+def estimate_pol_angle(map_path, line, logger, ref_maps, ref_ivar, galaxy_mask,
+                       kx_cut, ky_cut, unpixwin, filter_radius, use_ivar_weight,
+                       plot_maps, plot_likelihood, output_dir_path, 
+                       bins, centers, CAMB_ClEE_binned, CAMB_ClBB_binned, 
+                       pa4_beam, pa5_beam, pa6_beam, ref_beam, tfunc, 
+                       num_pts, angle_min_deg, angle_max_deg, use_curvefit):
+    """
+        High-level function to do the polarization angle estimation for each depth-1 map. 
+        Allows intermediate maps to be cleaned up when function closes for better RAM usage.
+    """
+    outputs = load_and_filter_depth1(map_path, ref_maps, galaxy_mask, 
+                                     kx_cut, ky_cut, unpixwin, 
+                                     filter_radius=filter_radius,plot_maps=plot_maps,
+                                     output_dir=output_dir_path,use_ivar_weight=use_ivar_weight)
+    
+    # If the full map has been cut by the galaxy mask, it return error code 1 instead of the regular outputs
+    if outputs == 1:
+        # saves output flag so we can see it is cut
+        logger.info("Map " + line + " was completely cut by galaxy mask.")
+        ell_len = len(centers)
+        output_dict = {'ell': centers, 'E1xB2': np.zeros(ell_len), 'E2xB1': np.zeros(ell_len), 
+                       'E1xE1': np.zeros(ell_len), 'B2xB2': np.zeros(ell_len), 'E2xE2': np.zeros(ell_len),
+                       'B1xB1': np.zeros(ell_len), 'E1xE2': np.zeros(ell_len), 'B1xB2': np.zeros(ell_len),
+                       'E1xB1': np.zeros(ell_len), 'E2xB2': np.zeros(ell_len), 'bincount': np.zeros(ell_len),
+                       'estimator': np.zeros(ell_len), 'covariance': np.zeros(ell_len),
+                       'CAMB_EE': CAMB_ClEE_binned, 'CAMB_BB': CAMB_ClBB_binned,
+                       'w2_depth1': -9999, 'w2_cross': -9999, 'w2_ref': -9999, 'fsky': -9999,
+                       'w2w4_depth1': -9999, 'w2w4_cross': -9999, 'w2w4_ref': -9999,
+                       'meas_angle': -9999, 'meas_errbar': -9999,
+                       'initial_timestamp': -9999, 'median_timestamp': -9999, 
+                       'ivar_sum': -9999, 'residual_mean': -9999, 
+                       'residual_sum': -9999, 'map_cut': 1}
+        if plot_likelihood:
+            # Make empty likelihood plot for web viewer
+            angles_deg = np.linspace(angle_min_deg,angle_max_deg,num=num_pts)
+            map_name = os.path.split(line)[1][:-9] # removing "_map.fits"
+            plot_likelihood(output_dir_path, map_name, angles_deg, np.zeros(num_pts), (-9999,-9999), np.zeros(num_pts))
+        return output_dict, 1
+    else: 
+        # Otherwise do everything you would normally do
+        depth1_TEB = outputs[0]
+        depth1_ivar = outputs[1]
+        # depth1_mask will be the doubly tapered mask if use_ivar_weight=True, the filtering mask if False
+        # Same with indices
+        depth1_mask = outputs[2]
+        depth1_mask_indices = outputs[3]
+        ref_TEB = outputs[4]
+        ivar_sum = outputs[5]
+
+        if use_ivar_weight:
+            # Ivar weighting for depth-1 map
+            # Calculating approx correction for loss of power due to tapering for spectra for depth-1
+            # w_depth1 combines normalized ivar and geometric factors in this mask - normalization done in aoa.apply_ivar_weighting()
+            depth1_TEB, w_depth1 = apply_ivar_weighting(depth1_TEB, depth1_ivar, depth1_mask, depth1_mask_indices)
+
+            # Ivar weighting for reference map - already filtered and trimmed from ref_TEB above
+            # w_ref combines normalized ivar and geometric factors in this mask
+            ref_map_trimmed_ivar = enmap.extract(ref_ivar,depth1_TEB[0].shape,depth1_TEB[0].wcs)
+            ref_TEB, w_ref = apply_ivar_weighting(ref_TEB, ref_map_trimmed_ivar, depth1_mask, depth1_mask_indices)
+        else:
+            # No ivar weighting
+            w_depth1 = depth1_mask # use this if using flat weighting since only one taper is applied in this case
+            w_ref = depth1_mask    # use this if using flat weighting since only one taper is applied in this case
+
+        # Calculating w2 factors - all the same if not using ivar weighting, but different if using it
+        # Using w2 factors for spectra corrections
+        w2_depth1 = np.mean(w_depth1**2)
+        w2_cross = np.mean(w_depth1*w_ref)
+        w2_ref = np.mean(w_ref**2)
+        # Calculating w2w4 factors - using w2w4_cross for the mode correction
+        w2w4_depth1 = np.mean(w_depth1**2)**2 / np.mean(w_depth1**4)
+        w2w4_cross = np.mean(w_depth1*w_ref)**2 / np.mean(w_depth1**2 * w_ref**2)
+        w2w4_ref = np.mean(w_ref**2)**2 / np.mean(w_ref**4)
+
+        # Selecting the correct beam
+        map_array = line.split('_')[2]
+        if map_array == 'pa4':
+            depth1_beam = pa4_beam
+        elif map_array == 'pa5':
+            depth1_beam = pa5_beam
+        elif map_array == 'pa6':
+            depth1_beam = pa6_beam
+        else:
+            logger.info("Map " + line + " not in standard format for array beam selection! Choosing averaged beam.")
+            depth1_beam = ref_beam
+
+        # Calculate spectra
+        # Spectra for estimator
+        binned_E1xB2, bincount = spectrum_from_maps(depth1_TEB[1], ref_TEB[2], b_ell_bin_1=depth1_beam, b_ell_bin_2=ref_beam, w2=w2_cross, bins=bins)
+        binned_E2xB1, _ = spectrum_from_maps(depth1_TEB[2], ref_TEB[1], b_ell_bin_1=ref_beam, b_ell_bin_2=depth1_beam, w2=w2_cross, bins=bins)
+        # Spectra for covariance
+        binned_E1xE1, _ = spectrum_from_maps(depth1_TEB[1], depth1_TEB[1], b_ell_bin_1=depth1_beam, b_ell_bin_2=depth1_beam, w2=w2_depth1, bins=bins)
+        binned_B2xB2, _ = spectrum_from_maps(ref_TEB[2], ref_TEB[2], b_ell_bin_1=ref_beam, b_ell_bin_2=ref_beam, w2=w2_ref, bins=bins)
+        binned_E2xE2, _ = spectrum_from_maps(ref_TEB[1], ref_TEB[1], b_ell_bin_1=ref_beam, b_ell_bin_2=ref_beam, w2=w2_ref, bins=bins)
+        binned_B1xB1, _ = spectrum_from_maps(depth1_TEB[2], depth1_TEB[2], b_ell_bin_1=depth1_beam, b_ell_bin_2=depth1_beam, w2=w2_depth1, bins=bins)
+        binned_E1xE2, _ = spectrum_from_maps(depth1_TEB[1], ref_TEB[1], b_ell_bin_1=depth1_beam, b_ell_bin_2=ref_beam, w2=w2_cross, bins=bins)
+        binned_B1xB2, _ = spectrum_from_maps(depth1_TEB[2], ref_TEB[2], b_ell_bin_1=depth1_beam, b_ell_bin_2=ref_beam, w2=w2_cross, bins=bins)
+        binned_E1xB1, _ = spectrum_from_maps(depth1_TEB[1], depth1_TEB[2], b_ell_bin_1=depth1_beam, b_ell_bin_2=depth1_beam, w2=w2_depth1, bins=bins)
+        binned_E2xB2, _ = spectrum_from_maps(ref_TEB[1], ref_TEB[2], b_ell_bin_1=ref_beam, b_ell_bin_2=ref_beam, w2=w2_ref, bins=bins)    
+        # Accounting for transfer function
+        binned_E1xB2 /= tfunc
+        binned_E2xB1 /= tfunc
+        binned_E1xE1 /= tfunc
+        binned_B2xB2 /= tfunc
+        binned_E2xE2 /= tfunc
+        binned_B1xB1 /= tfunc
+        binned_E1xE2 /= tfunc
+        binned_B1xB2 /= tfunc
+        binned_E1xB1 /= tfunc
+        binned_E2xB2 /= tfunc
+        # Accounting for modes lost to the mask and filtering - uses w2w4_cross because estimator is made of cross spectra
+        # Though the spectra are corrected by w2, the number of modes is corrected by w2w4
+        # The thing returned by get_tfunc() is the t_b^2 factor from Steve's PS paper, which is the right correction for each spectrum.
+        # We only want t_b in the mode correction, though, as in the text after Eq. 1 of Steve's paper.
+        binned_nu = bincount*w2w4_cross*np.sqrt(tfunc)
+        fsky = depth1_mask.area()/(4.*np.pi) # For comparing binned_nu to theoretical number of modes
+
+        # Calculate estimator and covariance
+        estimator = binned_E1xB2-binned_E2xB1
+        covariance = ((1/binned_nu)*((binned_E1xE1*binned_B2xB2+binned_E1xB2**2)
+                                    +(binned_E2xE2*binned_B1xB1+binned_E2xB1**2)
+                                    -2*(binned_E1xE2*binned_B1xB2+binned_E1xB1*binned_E2xB2)))
+
+        fit_values, residual_mean, residual_sum = sample_likelihood_and_fit(estimator,covariance,CAMB_ClEE_binned,num_pts=num_pts,
+                                                                            angle_min_deg=angle_min_deg, angle_max_deg=angle_max_deg,
+                                                                            use_curvefit=use_curvefit,plot_like=plot_likelihood,
+                                                                            output_dir=output_dir_path,map_fname=line)
+
+        output_dict = {'ell': centers, 'E1xB2': binned_E1xB2, 'E2xB1': binned_E2xB1, 
+                        'E1xE1': binned_E1xE1, 'B2xB2': binned_B2xB2, 'E2xE2': binned_E2xE2,
+                        'B1xB1': binned_B1xB1, 'E1xE2': binned_E1xE2, 'B1xB2': binned_B1xB2,
+                        'E1xB1': binned_E1xB1, 'E2xB2': binned_E2xB2, 'bincount': bincount,
+                        'estimator': estimator, 'covariance': covariance,
+                        'CAMB_EE': CAMB_ClEE_binned, 'CAMB_BB': CAMB_ClBB_binned,
+                        'w2_depth1': w2_depth1, 'w2_cross': w2_cross, 'w2_ref': w2_ref, 'fsky': fsky,
+                        'w2w4_depth1': w2w4_depth1, 'w2w4_cross': w2w4_cross, 'w2w4_ref': w2w4_ref,
+                        'meas_angle': fit_values[0], 'meas_errbar': fit_values[1],
+                        'ivar_sum': ivar_sum, 'residual_mean': residual_mean, 
+                        'residual_sum': residual_sum, 'map_cut': 0}
+        return output_dict, (depth1_mask, depth1_mask_indices, depth1_ivar, depth1_TEB[0], w_depth1, depth1_beam)
+
+
 def cal_sample_likelihood_and_fit(cal1xcal2, cal1xdepth1, cal1xcal1, cal2xcal2, cal2xdepth1, 
                                   depth1xdepth1, nu_cal1_cal2, nu_cal1_depth1, nu_all_three, 
                                   y_min=0.7, y_max=1.3, num_pts=50000, use_curvefit=True):
@@ -633,10 +775,15 @@ def cross_calibrate(cal_T_map1_act_footprint, cal_T_map2_act_footprint,
                                                    cal_binned_nu_cal1_cal2, cal_binned_nu_cal1_depth1, cal_binned_nu_all_three,
                                                    y_min=y_min,y_max=y_max,num_pts=cal_num_pts,use_curvefit=cal_use_curvefit)
     # Returning all the variables that I want to store in the output
-    return  (cal_fit_values, binned_T1xcal1T, binned_cal1Txcal2T, binned_cal1Txcal1T, 
-             binned_cal2Txcal2T, binned_T1xT1, binned_T1xcal2T,
-             w2_depth1xcal1, w2_depth1xcal2, w2_cal1xcal2, w2_cal1xcal1, 
-             w2_cal2xcal2, w2w4_all_three, w2w4_depth1xcal1, w2w4_cal1xcal2)
+    cal_output_dict = {'T1xcal1T': binned_T1xcal1T, 'cal1Txcal2T': binned_cal1Txcal2T,
+                       'cal1Txcal1T': binned_cal1Txcal1T, 'cal2Txcal2T': binned_cal2Txcal2T, 
+                       'T1xT1': binned_T1xT1, 'T1xcal2T': binned_T1xcal2T,
+                       'cal_factor': cal_fit_values[0], 'cal_factor_errbar': cal_fit_values[1],
+                       'w2_depth1xcal1': w2_depth1xcal1, 'w2_depth1xcal2': w2_depth1xcal2,
+                       'w2_cal1xcal2': w2_cal1xcal2, 'w2_cal1xcal1': w2_cal1xcal1, 'w2_cal2xcal2': w2_cal2xcal2,
+                       'w2w4_all_three': w2w4_all_three, 'w2w4_depth1xcal1': w2w4_depth1xcal1, 'w2w4_cal1xcal2': w2w4_cal1xcal2}
+
+    return cal_output_dict
 
 #########################################################
 #########################################################
