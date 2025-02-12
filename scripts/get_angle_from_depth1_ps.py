@@ -4,10 +4,15 @@ import argparse
 import time
 import logging
 import os
-import sys
 from pixell import enmap
 from tqdm import tqdm
 import axion_osc_analysis_depth1_ps as aoa
+from mpi4py import MPI
+
+# Setting up MPI comm
+comm = MPI.COMM_WORLD
+rank = comm.Get_rank()
+size = comm.Get_size()
 
 start_time = time.time()
 
@@ -15,7 +20,13 @@ start_time = time.time()
 parser = argparse.ArgumentParser()
 parser.add_argument("config_file", help=
     "The name of the YAML config file",type=str)
+parser.add_argument("output_dir_tag", help=
+    "Tag to put in output directory/file names. \
+    E.g. angle_calc_<output_dir_tag> will be output directory",type=str)
 args = parser.parse_args()
+
+#######################################################################################
+# Loading all preliminaries 
 
 # Load in the YAML file
 yaml_name = args.config_file
@@ -24,21 +35,22 @@ with open(yaml_name, 'r') as file:
     config = yaml.safe_load(file)
 
 # Output file path
-output_time = str(int(round(time.time())))
+output_tag = args.output_dir_tag
 output_dir_root = config['output_dir_root']
 if not os.path.exists(output_dir_root): # Make sure root path is right
     print("Output directory does not exist! Exiting.")
-    sys.exit()
-output_dir_path = output_dir_root + "angle_calc_" + output_time + '/'
+    raise OSError(f"Directory not found: {output_dir_root}")
+output_dir_path = output_dir_root + "angle_calc_" + output_tag + '/'
 if not os.path.exists(output_dir_path): # Make new folder for this run - should be unique
     os.makedirs(output_dir_path)
 
-# Setting up logger
+# Setting up logger - making a separate one for each process in output_dir/log/
 logger = logging.getLogger(__name__)
+os.makedirs(output_dir_path + 'log/')
+log_filename = output_dir_path+'log/process{:02d}_run.log'.format(rank)
 logging.basicConfig(level=logging.INFO, datefmt='%Y-%m-%d %H:%M:%S', style='{',
                     format='{asctime} {levelname} {filename}:{lineno}: {message}',
-                    handlers=[logging.FileHandler(filename=output_dir_path+'run.log'),
-                              logging.StreamHandler(sys.stdout)]
+                    handlers=[logging.FileHandler(filename=log_filename)]
                     )
 logger.info("Using config file: " + str(yaml_name))
 
@@ -69,38 +81,38 @@ obs_list_path = config['obs_path_stem']
 obs_list = config['obs_list']
 if not os.path.exists(camb_file): 
     logger.error("Cannot find CAMB file! Check config. Exiting.")
-    sys.exit()
+    raise FileNotFoundError(f"File not found: {camb_file}")
 if not os.path.exists(ref_path): 
     logger.error("Cannot find reference map file! Check config. Exiting.")
-    sys.exit()
+    raise FileNotFoundError(f"File not found: {ref_path}")
 #if not os.path.exists(ref_beam_path): 
 #    logger.error("Cannot find beam file! Check config. Exiting.")
-#    sys.exit()
+#    raise FileNotFoundError(f"File not found: {ref_beam_path}")
 if not os.path.exists(ref_ivar_path): 
     logger.error("Cannot find ref map ivar file! Check config. Exiting.")
-    sys.exit()
+    raise FileNotFoundError(f"File not found: {ref_ivar_path}")
 if freq=='f150' or freq=='f220':
     if not os.path.exists(pa4_beam_path): 
         logger.error("Cannot find pa4 beam file! Check config. Exiting.")
-        sys.exit()
+        raise FileNotFoundError(f"File not found: {pa4_beam_path}")
 if freq=='f090' or freq=='f150':
     if not os.path.exists(pa5_beam_path): 
         logger.error("Cannot find pa5 beam file! Check config. Exiting.")
-        sys.exit()
+        raise FileNotFoundError(f"File not found: {pa5_beam_path}")
     if not os.path.exists(pa6_beam_path): 
         logger.error("Cannot find pa6 beam file! Check config. Exiting.")
-        sys.exit()
+        raise FileNotFoundError(f"File not found: {pa6_beam_path}")
 if not os.path.exists(galaxy_mask_path):
     logger.error("Cannot find galaxy mask file! Check config. Exiting.")
-    sys.exit()
+    raise FileNotFoundError(f"File not found: {galaxy_mask_path}")
 if not os.path.exists(obs_list): 
     logger.error("Cannot find observation list! Check config. Exiting.")
-    sys.exit()
+    raise FileNotFoundError(f"File not found: {obs_list}")
 if obs_list[-3:] == 'txt':
     logger.info("Using list of observations at: " + str(obs_list))
 else:
     logger.error("Please enter a valid text file in the obs_list field in the YAML file. Exiting.")
-    sys.exit()
+    raise ValueError("Please enter a valid text file in the obs_list field in the YAML file.")
 if cross_calibrate:
     y_min = config['y_min']
     y_max = config['y_max']
@@ -115,16 +127,16 @@ if cross_calibrate:
     cal_ivar2_path = config['cal_ivar2_path']
     if not os.path.exists(cal_map1_path): 
         logger.error("Cannot find calibration map 1 file! Check config. Exiting.")
-        sys.exit()
+        raise FileNotFoundError(f"File not found: {cal_map1_path}")
     if not os.path.exists(cal_ivar1_path): 
         logger.error("Cannot find calibration ivar 1 file! Check config. Exiting.")
-        sys.exit()
+        raise FileNotFoundError(f"File not found: {cal_ivar1_path}")
     if not os.path.exists(cal_map2_path): 
         logger.error("Cannot find calibration map 2 file! Check config. Exiting.")
-        sys.exit()
+        raise FileNotFoundError(f"File not found: {cal_map2_path}")
     if not os.path.exists(cal_ivar2_path): 
         logger.error("Cannot find calibration ivar 2 file! Check config. Exiting.")
-        sys.exit()
+        raise FileNotFoundError(f"File not found: {cal_ivar2_path}")
     # Setting up bins for calibration
     cal_bins = np.arange(cal_lmin, cal_lmax, cal_bin_size)
 
@@ -141,22 +153,19 @@ elif config['bin_settings'] == "DR4":
     stop_index = config['stop_index']
     act_dr4_spectra_root = os.path.dirname(os.path.realpath(os.path.dirname(__file__)))
     full_bins, full_centers = np.loadtxt(act_dr4_spectra_root+'/resources/BIN_ACTPOL_50_4_SC_low_ell',
-                                         usecols=(0,2), unpack=True)
+                                        usecols=(0,2), unpack=True)
     bins = full_bins[start_index:stop_index]
     centers = full_centers[start_index:stop_index-1]
 else:
     logger.error("Please use valid bin_settings! Options are 'regular' and 'DR4'. Exiting.")
-    sys.exit()
+    raise ValueError("Please use valid bin_settings! Options are 'regular' and 'DR4'.")
 logger.info("Finished loading bins")
 
 # Setting plotting settings
 plot_maps = config['plot_maps']
-plot_all_spectra = config['plot_all_spectra']
-plot_summary_spectra = config['plot_summary_spectra']
 plot_likelihood = config['plot_likelihood']
 plot_beam = config['plot_beam']
 plot_tfunc = config['plot_tfunc'] 
-plot_angle_hist = config['plot_angle_hist']
 
 # Load CAMB EE and BB spectrum (BB just for plotting)
 logger.info("Starting to load CAMB spectra")
@@ -174,11 +183,6 @@ digitized = np.digitize(ell, bins, right=True)
 CAMB_ClEE_binned = np.bincount(digitized, ClEE.reshape(-1))[1:-1]/np.bincount(digitized)[1:-1]
 CAMB_ClBB_binned = np.bincount(digitized, ClBB.reshape(-1))[1:-1]/np.bincount(digitized)[1:-1]
 logger.info("Finished loading CAMB spectra")
-
-# Loading in reference maps
-logger.info("Starting to load ref map")
-ref_maps, ref_ivar = aoa.load_ref_map(ref_path,ref_ivar_path)
-logger.info("Finished loading ref map")
 
 # Loading all beams
 logger.info("Starting to load beams")
@@ -230,6 +234,16 @@ elif freq=='f220':
         aoa.plot_beam(output_dir_path, ref_beam_name, centers, ref_beam)
 logger.info("Finished loading beams")
 
+# Calculate filtering transfer function once since filtering is same for all maps
+tfunc = aoa.get_tfunc(kx_cut, ky_cut, bins)
+if plot_tfunc:
+    aoa.plot_tfunc(output_dir_path, kx_cut, ky_cut, centers, tfunc)
+
+# Loading in reference maps
+logger.info("Starting to load ref map")
+ref_maps, ref_ivar = aoa.load_ref_map(ref_path,ref_ivar_path)
+logger.info("Finished loading ref map")
+
 # Loading in galaxy mask
 logger.info("Starting to load galaxy mask")
 galaxy_mask = enmap.read_map(galaxy_mask_path)
@@ -245,24 +259,23 @@ if cross_calibrate:
     cal_T_ivar2_act_footprint = enmap.read_map(cal_ivar2_path, geometry=(galaxy_mask.shape,galaxy_mask.wcs))
     logger.info("Finished loading calibration maps for cross-correlation")
 
-maps = []
-angle_estimates = []
-results_output = {}
-
-# Calculate filtering transfer function once since filtering is same for all maps
-tfunc = aoa.get_tfunc(kx_cut, ky_cut, bins)
-if plot_tfunc:
-    aoa.plot_tfunc(output_dir_path, kx_cut, ky_cut, centers, tfunc)
-
-with open(obs_list) as f:
-    lines = f.read().splitlines()
-
-for line in tqdm(lines):
-    logger.info(line)
-    map_path = obs_list_path + line
+#######################################################################################################
+# Defining single process function for main loop
+def process(map_name, obs_list_path, logger, 
+            ref_maps, ref_ivar, galaxy_mask,
+            kx_cut, ky_cut, unpixwin, filter_radius, use_ivar_weight,
+            plot_maps, plot_likelihood, output_dir_path, 
+            bins, centers, CAMB_ClEE_binned, CAMB_ClBB_binned, 
+            pa4_beam, pa5_beam, pa6_beam, ref_beam, tfunc, 
+            num_pts, angle_min_deg, angle_max_deg, use_curvefit, 
+            cross_calibrate, cal_T_map1_act_footprint, cal_T_map2_act_footprint, 
+            cal_T_ivar1_act_footprint, cal_T_ivar2_act_footprint,
+            cal_bins, y_min, y_max, cal_num_pts, cal_use_curvefit):
+    """Function to call inside each process"""
+    map_path = obs_list_path + map_name
     # outputs will be 1 if the map is cut, a bunch of things needed
     # for time estimation and TT calibration if not
-    output_dict, outputs = aoa.estimate_pol_angle(map_path, line, logger, ref_maps, ref_ivar, galaxy_mask,
+    output_dict, outputs = aoa.estimate_pol_angle(map_path, map_name, logger, ref_maps, ref_ivar, galaxy_mask,
                                                   kx_cut, ky_cut, unpixwin, filter_radius, use_ivar_weight,
                                                   plot_maps, plot_likelihood, output_dir_path, 
                                                   bins, centers, CAMB_ClEE_binned, CAMB_ClBB_binned, 
@@ -280,7 +293,6 @@ for line in tqdm(lines):
         w2_depth1 = output_dict['w2_depth1']
         bincount = output_dict['bincount']
         logger.info("Fit values: "+str(fit_values))
-        logger.info("Calculating median timestamp from time.fits and info.hdf files")
         # depth1_mask will be the doubly tapered one if ivar weighting is on, the first filtering one if not
         initial_timestamp, median_timestamp = aoa.calc_median_timestamp(map_path, depth1_mask)
         logger.info("Initial timestamp: "+str(initial_timestamp))
@@ -315,39 +327,48 @@ for line in tqdm(lines):
                                  'w2_cal1xcal2': -9999, 'w2_cal1xcal1': -9999, 'w2_cal2xcal2': -9999,
                                  'w2w4_all_three': -9999, 'w2w4_depth1xcal1': -9999, 'w2w4_cal1xcal2': -9999}})
 
-    # At the end, assign the output_dict to the line in results_output
+    # At the end, save the output_dict to a npy file - there will be one per map
+    # Can be loaded with np.load(results_output_fname, allow_pickle=True).item()
     # If the mask cuts the whole map, this will be the dict with -9999 everywhere
-    results_output[line] = output_dict
-    maps.append(line)
-    angle_estimates.append(fit_values)              
+    map_name_no_ending = map_name[:-8] # Removing 'map.fits'
+    results_output_fname = output_dir_path + map_name_no_ending + output_tag + '_results.npy'
+    np.save(results_output_fname, output_dict)
 
-# Plot summary plots if desired
-if plot_all_spectra:
-    logger.info("Beginning to save plots for all spectra. This could take a while.")
-    aoa.plot_spectra_individually(output_dir_path, results_output)
-    logger.info("Finished saving plots for all spectra.")
-if plot_summary_spectra:
-    logger.info("Beginning to save summary spectra plots.")
-    aoa.plot_spectra_summary(output_dir_path, results_output)
-    logger.info("Finished saving summary spectra plots.")
-if plot_angle_hist:
-    logger.info("Plotting histogram of angles")
-    aoa.plot_angle_hist(output_dir_path, np.array(angle_estimates)[:,0], maps)
+#######################################################################################################
+# Run main sequence
 
-# Saving results to a numpy file
-# Can be loaded with np.load(results_output_fname, allow_pickle=True).item()
-results_output_fname = output_dir_path + 'angle_calc_' + output_time + '_results.npy'
-np.save(results_output_fname, results_output)
+with open(obs_list, 'r') as f:
+    lines = f.read().splitlines()
 
-# Dump all config info to YAML
-output_dict = config
-output_dict['list_of_maps'] = maps
-output_dict['results_output_fname'] = results_output_fname
+if rank==0:
+    # Dump all config info to YAML only once
+    # All results are in separate npy files generated in process()
+    maps = []
+    for line in lines:
+        maps.append(line)
+    config_output_dict = config
+    config_output_dict['list_of_maps'] = maps
+    config_output_name = output_dir_path + 'angle_calc_config_' + output_tag + ".yaml"
+    with open(config_output_name, 'w') as file:
+        yaml.dump(config_output_dict, file)
 
-output_name = output_dir_path + 'angle_calc_config_' + output_time + ".yaml"
-with open(output_name, 'w') as file:
-    yaml.dump(output_dict, file)
-logger.info("Finished running get_angle_from_depth1_ps.py. Output is in: " + str(output_name))
+# This loop distributes some of the maps to each process
+for i in range(rank, len(lines), size):
+    map_name = lines[i]
+    maps.append(map_name)
+    logger.info("Processing " + map_name + " on process " + str(rank))
+    process(map_name, obs_list_path, logger, 
+            ref_maps, ref_ivar, galaxy_mask,
+            kx_cut, ky_cut, unpixwin, filter_radius, use_ivar_weight,
+            plot_maps, plot_likelihood, output_dir_path, 
+            bins, centers, CAMB_ClEE_binned, CAMB_ClBB_binned, 
+            pa4_beam, pa5_beam, pa6_beam, ref_beam, tfunc, 
+            num_pts, angle_min_deg, angle_max_deg, use_curvefit, 
+            cross_calibrate, cal_T_map1_act_footprint, cal_T_map2_act_footprint, 
+            cal_T_ivar1_act_footprint, cal_T_ivar2_act_footprint,
+            cal_bins, y_min, y_max, cal_num_pts, cal_use_curvefit)
+
+logger.info("Finished running get_angle_from_depth1_ps.py. Output is in: " + str(output_dir_path))
 stop_time = time.time()
 duration = stop_time-start_time
 logger.info("Script took {:1.3f} seconds".format(duration))
