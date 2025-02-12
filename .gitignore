@@ -3,3 +3,10 @@ notebooks/.ipynb_checkpoints/
 __pycache__
 *.png
 *.fits
+notebooks/array_diff_cov_debugging_20250131.ipynb
+notebooks/get_angle_from_depth1_ps_Update_Sandbox_20240916.ipynb
+notebooks/get_angle_from_depth1_ps_Update_Sandbox_20241028.ipynb
+notebooks/get_angle_from_depth1_ps_Update_Sandbox_20241210.ipynb
+notebooks/get_angle_from_depth1_ps_Update_Sandbox_20250118.ipynb
+notebooks/time_and_info_files_sandbox_20241213.ipynb
+
