@@ -6,23 +6,23 @@ requires = [
 build-backend = "hatchling.build"
 
 [project]
-name = 'act_axion_analysis'
+name = "act_axion_analysis"
 dynamic = ["version"]
 description = "Code to calculate axion-induced polarization rotations in ACT depth-1 maps"
-readme = 'README.rst'
-requires-python = '>=3.11'
-license = {file = 'LICENSE.txt'}
+readme = "README.rst"
+requires-python = ">=3.11"
+license = {file = "LICENSE.txt"}
 authors = [
     {name = "Zachary Huber"},
 ]
 dependencies = [
-    'pixell',
-    'numpy>=1.20.0',
-    'scipy>=1.0',
-    'matplotlib>=2.0',
-    'pyyaml>=5.0',
-    'tqdm',
-    'mpi4py,
+    "pixell",
+    "numpy>=1.20.0",
+    "scipy>=1.0",
+    "matplotlib>=2.0",
+    "pyyaml>=5.0",
+    "tqdm",
+    "mpi4py,
 ]
 
 [project.urls]
