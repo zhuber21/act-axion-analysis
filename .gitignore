@@ -1,5 +1,5 @@
- act_axion_analysis/_version.py
- *.sl
+act_axion_analysis/_version.py
+*.sl
 
 results/
 notebooks/.ipynb_checkpoints/
