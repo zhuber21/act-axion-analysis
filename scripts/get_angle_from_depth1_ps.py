@@ -42,12 +42,21 @@ if not os.path.exists(output_dir_root): # Make sure root path is right
     raise OSError(f"Directory not found: {output_dir_root}")
 output_dir_path = output_dir_root + "angle_calc_" + output_tag + '/'
 if not os.path.exists(output_dir_path): # Make new folder for this run - should be unique
-    os.makedirs(output_dir_path)
+    # Ignoring race condition where one process makes the directory before a handful of others
+    # As long as one of them makes it at basically the same synchonicity as the others, all should be well
+    try:
+        os.makedirs(output_dir_path)
+    except FileExistsError:
+        pass
 
 # Setting up logger - making a separate one for each process in output_dir/log/
 logger = logging.getLogger(__name__)
 if not os.path.exists(output_dir_path + 'log/'):
-    os.makedirs(output_dir_path + 'log/')
+    # Ignoring race condition where one process makes the directory before a handful of others
+    try:
+        os.makedirs(output_dir_path + 'log/')
+    except FileExistsError:
+        pass
 log_filename = output_dir_path+'log/process{:02d}_run.log'.format(rank)
 logging.basicConfig(level=logging.INFO, datefmt='%Y-%m-%d %H:%M:%S', style='{',
                     format='{asctime} {levelname} {filename}:{lineno}: {message}',
@@ -320,13 +329,13 @@ def process(map_name, obs_list_path, logger,
         if cross_calibrate:
             # To ensure all keys are present whether map is cut or not
             ell_len = len(output_dict['ell'])
-            output_dict.update({{'T1xcal1T': np.zeros(ell_len), 'cal1Txcal2T': np.zeros(ell_len),
+            output_dict.update({'T1xcal1T': np.zeros(ell_len), 'cal1Txcal2T': np.zeros(ell_len),
                                  'cal1Txcal1T': np.zeros(ell_len), 'cal2Txcal2T': np.zeros(ell_len), 
                                  'T1xT1': np.zeros(ell_len), 'T1xcal2T': np.zeros(ell_len),
                                  'cal_factor': -9999, 'cal_factor_errbar': -9999,
                                  'w2_depth1xcal1': -9999, 'w2_depth1xcal2': -9999,
                                  'w2_cal1xcal2': -9999, 'w2_cal1xcal1': -9999, 'w2_cal2xcal2': -9999,
-                                 'w2w4_all_three': -9999, 'w2w4_depth1xcal1': -9999, 'w2w4_cal1xcal2': -9999}})
+                                 'w2w4_all_three': -9999, 'w2w4_depth1xcal1': -9999, 'w2w4_cal1xcal2': -9999})
 
     # At the end, save the output_dict to a npy file - there will be one per map
     # Can be loaded with np.load(results_output_fname, allow_pickle=True).item()
