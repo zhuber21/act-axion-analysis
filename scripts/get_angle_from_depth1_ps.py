@@ -46,7 +46,8 @@ if not os.path.exists(output_dir_path): # Make new folder for this run - should 
 
 # Setting up logger - making a separate one for each process in output_dir/log/
 logger = logging.getLogger(__name__)
-os.makedirs(output_dir_path + 'log/')
+if not os.path.exists(output_dir_path + 'log/'):
+    os.makedirs(output_dir_path + 'log/')
 log_filename = output_dir_path+'log/process{:02d}_run.log'.format(rank)
 logging.basicConfig(level=logging.INFO, datefmt='%Y-%m-%d %H:%M:%S', style='{',
                     format='{asctime} {levelname} {filename}:{lineno}: {message}',
@@ -355,7 +356,6 @@ if rank==0:
 # This loop distributes some of the maps to each process
 for i in range(rank, len(lines), size):
     map_name = lines[i]
-    maps.append(map_name)
     logger.info("Processing " + map_name + " on process " + str(rank))
     process(map_name, obs_list_path, logger, 
             ref_maps, ref_ivar, galaxy_mask,
