@@ -7,7 +7,7 @@
 import numpy as np
 import os
 import sys
-import axion_osc_analysis_depth1_ps as aoa
+from act_axion_analysis import axion_osc_analysis_depth1_ps as aoa
 
 # Deciding which plots to make
 # This script does not reload maps, so there is no plot_maps option
