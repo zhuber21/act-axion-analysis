@@ -1,0 +1,48 @@
+[build-system]
+requires = [
+    "hatch-vcs",
+    "hatchling",
+]
+build-backend = "hatchling.build"
+
+[project]
+name = 'act_axion_analysis'
+dynamic = ["version"]
+description = "Code to calculate axion-induced polarization rotations in ACT depth-1 maps"
+readme = 'README.rst'
+requires-python = '>=3.11'
+license = {file = 'LICENSE.txt'}
+authors = [
+    {name = "Zachary Huber"},
+]
+dependencies = [
+    'pixell',
+    'numpy>=1.20.0',
+    'scipy>=1.0',
+    'matplotlib>=2.0',
+    'pyyaml>=5.0',
+    'tqdm',
+    'mpi4py,
+]
+
+[project.urls]
+Homepage = "https://github.com/zhuber21/act-axion-analysis"
+
+[tool.hatch.version]
+source = "vcs"
+
+# closest scheme to versioneer behavior, avoids auto-incremented version number
+# https://setuptools-scm.readthedocs.io/en/latest/usage/#default-versioning-scheme
+[tool.hatch.version.raw-options]
+version_scheme = "no-guess-dev"
+
+[tool.hatch.build.hooks.vcs]
+version-file = "act_axion_analysis/_version.py"
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "/act_axion_analysis",
+]
+
+[tool.isort]
+skip = ["versioneer.py", "pcs/_version.py"]

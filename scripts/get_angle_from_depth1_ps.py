@@ -6,7 +6,7 @@ import logging
 import os
 from pixell import enmap
 from tqdm import tqdm
-import axion_osc_analysis_depth1_ps as aoa
+import act_axion_analysis as aaa
 from mpi4py import MPI
 
 # Setting up MPI comm
@@ -191,57 +191,57 @@ if freq=='f090':
     logger.info("Using pa5 beam " + str(pa5_beam_path))
     logger.info("Using pa6 beam " + str(pa6_beam_path))
     pa4_beam = []
-    pa5_beam = aoa.load_and_bin_beam(pa5_beam_path,bins)
-    pa6_beam = aoa.load_and_bin_beam(pa6_beam_path,bins)
+    pa5_beam = aaa.load_and_bin_beam(pa5_beam_path,bins)
+    pa6_beam = aaa.load_and_bin_beam(pa6_beam_path,bins)
     # For now, average these beams to get coadd/ref beam
     ref_beam = (pa5_beam+pa6_beam)/2.0
     if plot_beam:
         pa5_beam_name = os.path.split(pa5_beam_path)[1][:-4] # Extracting file name from path and dropping '.txt'
-        aoa.plot_beam(output_dir_path, pa5_beam_name, centers, pa5_beam)
+        aaa.plot_beam(output_dir_path, pa5_beam_name, centers, pa5_beam)
         pa6_beam_name = os.path.split(pa6_beam_path)[1][:-4] # Extracting file name from path and dropping '.txt'
-        aoa.plot_beam(output_dir_path, pa6_beam_name, centers, pa6_beam)
+        aaa.plot_beam(output_dir_path, pa6_beam_name, centers, pa6_beam)
         ref_beam_name = "f090_coadd_avg_beam"
-        aoa.plot_beam(output_dir_path, ref_beam_name, centers, ref_beam)
+        aaa.plot_beam(output_dir_path, ref_beam_name, centers, ref_beam)
 elif freq=='f150':
     logger.info("Using pa4 beam " + str(pa4_beam_path))
     logger.info("Using pa5 beam " + str(pa5_beam_path))
     logger.info("Using pa6 beam " + str(pa6_beam_path))
-    pa4_beam = aoa.load_and_bin_beam(pa4_beam_path,bins)
-    pa5_beam = aoa.load_and_bin_beam(pa5_beam_path,bins)
-    pa6_beam = aoa.load_and_bin_beam(pa6_beam_path,bins)
+    pa4_beam = aaa.load_and_bin_beam(pa4_beam_path,bins)
+    pa5_beam = aaa.load_and_bin_beam(pa5_beam_path,bins)
+    pa6_beam = aaa.load_and_bin_beam(pa6_beam_path,bins)
     # For now, average these beams to get coadd/ref beam
     ref_beam = (pa4_beam+pa5_beam+pa6_beam)/3.0
     if plot_beam:
         pa4_beam_name = os.path.split(pa4_beam_path)[1][:-4] # Extracting file name from path and dropping '.txt'
-        aoa.plot_beam(output_dir_path, pa4_beam_name, centers, pa4_beam)
+        aaa.plot_beam(output_dir_path, pa4_beam_name, centers, pa4_beam)
         pa5_beam_name = os.path.split(pa5_beam_path)[1][:-4] # Extracting file name from path and dropping '.txt'
-        aoa.plot_beam(output_dir_path, pa5_beam_name, centers, pa5_beam)
+        aaa.plot_beam(output_dir_path, pa5_beam_name, centers, pa5_beam)
         pa6_beam_name = os.path.split(pa6_beam_path)[1][:-4] # Extracting file name from path and dropping '.txt'
-        aoa.plot_beam(output_dir_path, pa6_beam_name, centers, pa6_beam)
+        aaa.plot_beam(output_dir_path, pa6_beam_name, centers, pa6_beam)
         ref_beam_name = "f150_coadd_avg_beam"
-        aoa.plot_beam(output_dir_path, ref_beam_name, centers, ref_beam)
+        aaa.plot_beam(output_dir_path, ref_beam_name, centers, ref_beam)
 elif freq=='f220':
     logger.info("Using pa4 beam " + str(pa4_beam_path))
-    pa4_beam = aoa.load_and_bin_beam(pa4_beam_path,bins)
+    pa4_beam = aaa.load_and_bin_beam(pa4_beam_path,bins)
     pa5_beam = []
     pa6_beam = []
     # only pa4 at f220
     ref_beam = pa4_beam
     if plot_beam:
         pa4_beam_name = os.path.split(pa4_beam_path)[1][:-4] # Extracting file name from path and dropping '.txt'
-        aoa.plot_beam(output_dir_path, pa4_beam_name, centers, pa4_beam)
+        aaa.plot_beam(output_dir_path, pa4_beam_name, centers, pa4_beam)
         ref_beam_name = "f220_coadd_avg_beam"
-        aoa.plot_beam(output_dir_path, ref_beam_name, centers, ref_beam)
+        aaa.plot_beam(output_dir_path, ref_beam_name, centers, ref_beam)
 logger.info("Finished loading beams")
 
 # Calculate filtering transfer function once since filtering is same for all maps
-tfunc = aoa.get_tfunc(kx_cut, ky_cut, bins)
+tfunc = aaa.get_tfunc(kx_cut, ky_cut, bins)
 if plot_tfunc:
-    aoa.plot_tfunc(output_dir_path, kx_cut, ky_cut, centers, tfunc)
+    aaa.plot_tfunc(output_dir_path, kx_cut, ky_cut, centers, tfunc)
 
 # Loading in reference maps
 logger.info("Starting to load ref map")
-ref_maps, ref_ivar = aoa.load_ref_map(ref_path,ref_ivar_path)
+ref_maps, ref_ivar = aaa.load_ref_map(ref_path,ref_ivar_path)
 logger.info("Finished loading ref map")
 
 # Loading in galaxy mask
@@ -275,7 +275,7 @@ def process(map_name, obs_list_path, logger,
     map_path = obs_list_path + map_name
     # outputs will be 1 if the map is cut, a bunch of things needed
     # for time estimation and TT calibration if not
-    output_dict, outputs = aoa.estimate_pol_angle(map_path, map_name, logger, ref_maps, ref_ivar, galaxy_mask,
+    output_dict, outputs = aaa.estimate_pol_angle(map_path, map_name, logger, ref_maps, ref_ivar, galaxy_mask,
                                                   kx_cut, ky_cut, unpixwin, filter_radius, use_ivar_weight,
                                                   plot_maps, plot_likelihood, output_dir_path, 
                                                   bins, centers, CAMB_ClEE_binned, CAMB_ClBB_binned, 
@@ -294,7 +294,7 @@ def process(map_name, obs_list_path, logger,
         bincount = output_dict['bincount']
         logger.info("Fit values: "+str(fit_values))
         # depth1_mask will be the doubly tapered one if ivar weighting is on, the first filtering one if not
-        initial_timestamp, median_timestamp = aoa.calc_median_timestamp(map_path, depth1_mask)
+        initial_timestamp, median_timestamp = aaa.calc_median_timestamp(map_path, depth1_mask)
         logger.info("Initial timestamp: "+str(initial_timestamp))
         logger.info("Median timestamp: "+str(median_timestamp))
         output_dict.update({'initial_timestamp': initial_timestamp, 'median_timestamp': median_timestamp})
@@ -303,7 +303,7 @@ def process(map_name, obs_list_path, logger,
             # Calling a single function to do all the TT cross-calibration
             # This makes the code a bit harder to read but improves memory usage by allowing
             # intermediate maps to be cleaned up when function call ends.
-            cal_output_dict = aoa.cross_calibrate(cal_T_map1_act_footprint, cal_T_map2_act_footprint, 
+            cal_output_dict = aaa.cross_calibrate(cal_T_map1_act_footprint, cal_T_map2_act_footprint, 
                                                   cal_T_ivar1_act_footprint, cal_T_ivar2_act_footprint,
                                                   depth1_ivar, depth1_mask, depth1_mask_indices,
                                                   galaxy_mask, depth1_T, w_depth1, w2_depth1, bincount,
