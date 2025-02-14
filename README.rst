@@ -142,8 +142,7 @@ but they could be placed with appropriately similar maps, beams, etc. for future
   * use_ivar_weight - boolean setting whether or not to use inverse variance weighting for calculating spectra (default True)
   * cross_calibrate - boolean setting whether or not to do TT calibration (usually True, but will not affect angle estimation and will speed things up to set to False)
 
-* Output options - all the plotting booleans are generally False on NERSC, but were very helpful for debugging during local testing. 
-There are additional options for the serial branch: plot_all_spectra, plot_summary_spectra, and plot_angle_hist.
+* Output options - all the plotting booleans are generally False on NERSC, but were very helpful for debugging during local testing. There are additional options for the serial branch: plot_all_spectra, plot_summary_spectra, and plot_angle_hist.
 
   * output_dir_root - path to the directory to which output files are saved (npy files with results, config YAML, any plots)
   * plot_maps - boolean for whether to save plots of trimmed maps and masks in analysis

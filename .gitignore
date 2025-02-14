@@ -2,6 +2,7 @@ act_axion_analysis/_version.py
 *.sl
 
 results/
+notebooks/
 notebooks/.ipynb_checkpoints/
 __pycache__
 *.png
