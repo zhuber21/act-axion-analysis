@@ -37,6 +37,8 @@ cat << EOF > prepare-env.sl
 
 srun -n 80 -c 32 --cpu_bind=cores python3 get_angle_from_depth1_ps.py dr6_depth1_ps_config.yaml $RUN_TAG
 
+# Call collect_npy_files.py to group all output npy files into a single npy file
+python3 collect_npy_files.py /pscratch/sd/z/zbh5/results/angle_calc_$RUN_TAG/
 # Amend path for output result copying location to match job name
 cp -r /pscratch/sd/z/zbh5/results/angle_calc_$RUN_TAG/ /global/homes/z/zbh5/alp_outputs/angle_calc_$RUN_TAG/
 cp /pscratch/sd/z/zbh5/results/$RUN_TAG.out /global/homes/z/zbh5/alp_outputs/angle_calc_$RUN_TAG/
