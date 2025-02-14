@@ -62,11 +62,11 @@ logging.basicConfig(level=logging.INFO, datefmt='%Y-%m-%d %H:%M:%S', style='{',
                     format='{asctime} {levelname} {filename}:{lineno}: {message}',
                     handlers=[logging.FileHandler(filename=log_filename)]
                     )
-logger.info("Using config file: " + str(yaml_name))
+logger.info(f"Using config file: {yaml_name}")
 
 # Setting common variables set in the config file
 freq = config['freq'] # The frequency being tested this run
-logger.info("Analyzing frequency " + freq)
+logger.info(f"Analyzing frequency {freq}")
 kx_cut = config['kx_cut']
 ky_cut = config['ky_cut']
 unpixwin = config['unpixwin']
@@ -119,7 +119,7 @@ if not os.path.exists(obs_list):
     logger.error("Cannot find observation list! Check config. Exiting.")
     raise FileNotFoundError(f"File not found: {obs_list}")
 if obs_list[-3:] == 'txt':
-    logger.info("Using list of observations at: " + str(obs_list))
+    logger.info(f"Using list of observations at: {obs_list}")
 else:
     logger.error("Please enter a valid text file in the obs_list field in the YAML file. Exiting.")
     raise ValueError("Please enter a valid text file in the obs_list field in the YAML file.")
@@ -198,8 +198,8 @@ logger.info("Finished loading CAMB spectra")
 logger.info("Starting to load beams")
 if freq=='f090':
     # Only pa5 and pa6 at f090
-    logger.info("Using pa5 beam " + str(pa5_beam_path))
-    logger.info("Using pa6 beam " + str(pa6_beam_path))
+    logger.info(f"Using pa5 beam {pa5_beam_path}")
+    logger.info(f"Using pa6 beam {pa6_beam_path}")
     pa4_beam = []
     pa5_beam = aoa.load_and_bin_beam(pa5_beam_path,bins)
     pa6_beam = aoa.load_and_bin_beam(pa6_beam_path,bins)
@@ -213,9 +213,9 @@ if freq=='f090':
         ref_beam_name = "f090_coadd_avg_beam"
         aoa.plot_beam(output_dir_path, ref_beam_name, centers, ref_beam)
 elif freq=='f150':
-    logger.info("Using pa4 beam " + str(pa4_beam_path))
-    logger.info("Using pa5 beam " + str(pa5_beam_path))
-    logger.info("Using pa6 beam " + str(pa6_beam_path))
+    logger.info(f"Using pa4 beam {pa4_beam_path}")
+    logger.info(f"Using pa5 beam {pa5_beam_path}")
+    logger.info(f"Using pa6 beam {pa6_beam_path}")
     pa4_beam = aoa.load_and_bin_beam(pa4_beam_path,bins)
     pa5_beam = aoa.load_and_bin_beam(pa5_beam_path,bins)
     pa6_beam = aoa.load_and_bin_beam(pa6_beam_path,bins)
@@ -231,7 +231,7 @@ elif freq=='f150':
         ref_beam_name = "f150_coadd_avg_beam"
         aoa.plot_beam(output_dir_path, ref_beam_name, centers, ref_beam)
 elif freq=='f220':
-    logger.info("Using pa4 beam " + str(pa4_beam_path))
+    logger.info(f"Using pa4 beam {pa4_beam_path}")
     pa4_beam = aoa.load_and_bin_beam(pa4_beam_path,bins)
     pa5_beam = []
     pa6_beam = []
@@ -302,11 +302,11 @@ def process(map_name, obs_list_path, logger,
         depth1_beam = outputs[5]
         w2_depth1 = output_dict['w2_depth1']
         bincount = output_dict['bincount']
-        logger.info("Fit values: "+str(fit_values))
+        logger.info(f"Fit values: {fit_values}")
         # depth1_mask will be the doubly tapered one if ivar weighting is on, the first filtering one if not
         initial_timestamp, median_timestamp = aoa.calc_median_timestamp(map_path, depth1_mask)
-        logger.info("Initial timestamp: "+str(initial_timestamp))
-        logger.info("Median timestamp: "+str(median_timestamp))
+        logger.info(f"Initial timestamp: {initial_timestamp}")
+        logger.info(f"Median timestamp: {median_timestamp}")
         output_dict.update({'initial_timestamp': initial_timestamp, 'median_timestamp': median_timestamp})
 
         if cross_calibrate:
@@ -322,7 +322,7 @@ def process(map_name, obs_list_path, logger,
                                                   y_max, cal_num_pts, cal_use_curvefit)
             # Printing out calibration factor and errorbar
             cal_fit_values = (cal_output_dict['cal_factor'], cal_output_dict['cal_factor_errbar'])
-            logger.info("TT calibration fit values: "+str(cal_fit_values))
+            logger.info(f"TT calibration fit values: {cal_fit_values}")
             # Adding calibration keys to final dictionary
             output_dict.update(cal_output_dict)
     else:
@@ -365,19 +365,22 @@ if rank==0:
 # This loop distributes some of the maps to each process
 for i in range(rank, len(lines), size):
     map_name = lines[i]
-    logger.info("Processing " + map_name + " on process " + str(rank))
-    process(map_name, obs_list_path, logger, 
-            ref_maps, ref_ivar, galaxy_mask,
-            kx_cut, ky_cut, unpixwin, filter_radius, use_ivar_weight,
-            plot_maps, plot_likelihood, output_dir_path, 
-            bins, centers, CAMB_ClEE_binned, CAMB_ClBB_binned, 
-            pa4_beam, pa5_beam, pa6_beam, ref_beam, tfunc, 
-            num_pts, angle_min_deg, angle_max_deg, use_curvefit, 
-            cross_calibrate, cal_T_map1_act_footprint, cal_T_map2_act_footprint, 
-            cal_T_ivar1_act_footprint, cal_T_ivar2_act_footprint,
-            cal_bins, y_min, y_max, cal_num_pts, cal_use_curvefit)
+    logger.info(f"Processing {map_name} on process {rank}")
+    try:
+        process(map_name, obs_list_path, logger, 
+                ref_maps, ref_ivar, galaxy_mask,
+                kx_cut, ky_cut, unpixwin, filter_radius, use_ivar_weight,
+                plot_maps, plot_likelihood, output_dir_path, 
+                bins, centers, CAMB_ClEE_binned, CAMB_ClBB_binned, 
+                pa4_beam, pa5_beam, pa6_beam, ref_beam, tfunc, 
+                num_pts, angle_min_deg, angle_max_deg, use_curvefit, 
+                cross_calibrate, cal_T_map1_act_footprint, cal_T_map2_act_footprint, 
+                cal_T_ivar1_act_footprint, cal_T_ivar2_act_footprint,
+                cal_bins, y_min, y_max, cal_num_pts, cal_use_curvefit)
+    except Exception as e:
+        logger.error(f"Map {map_name} failed on process {rank} with error {e}")
 
-logger.info("Finished running get_angle_from_depth1_ps.py. Output is in: " + str(output_dir_path))
+logger.info(f"Finished running get_angle_from_depth1_ps.py. Output is in: {output_dir_path}")
 stop_time = time.time()
 duration = stop_time-start_time
 logger.info("Script took {:1.3f} seconds".format(duration))

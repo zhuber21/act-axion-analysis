@@ -25,7 +25,7 @@ Standard procedure for running the script by itself is:
 
 .. code-block:: console
 		
-   $ python3 get_angle_drom_depth1_ps.py dr6_depth1_ps_config.yaml \<tag\>
+   $ python3 get_angle_from_depth1_ps.py dr6_depth1_ps_config.yaml \<tag\>
 
 where the tag is some identifying string that gets added to the output directory name and the output files
 to distinguish them as belonging to this run. In the MPI-enabled version, an output npy file will be saved 

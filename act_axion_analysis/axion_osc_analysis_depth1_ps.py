@@ -538,7 +538,7 @@ def sample_likelihood_and_fit(estimator,covariance,theory_ClEE,angle_min_deg=-20
 
 def estimate_pol_angle(map_path, line, logger, ref_maps, ref_ivar, galaxy_mask,
                        kx_cut, ky_cut, unpixwin, filter_radius, use_ivar_weight,
-                       plot_maps, plot_likelihood, output_dir_path, 
+                       plot_maps, plot_like, output_dir_path, 
                        bins, centers, CAMB_ClEE_binned, CAMB_ClBB_binned, 
                        pa4_beam, pa5_beam, pa6_beam, ref_beam, tfunc, 
                        num_pts, angle_min_deg, angle_max_deg, use_curvefit):
@@ -554,7 +554,7 @@ def estimate_pol_angle(map_path, line, logger, ref_maps, ref_ivar, galaxy_mask,
     # If the full map has been cut by the galaxy mask, it return error code 1 instead of the regular outputs
     if outputs == 1:
         # saves output flag so we can see it is cut
-        logger.info("Map " + line + " was completely cut by galaxy mask.")
+        logger.info(f"Map {line} was completely cut by galaxy mask.")
         ell_len = len(centers)
         output_dict = {'ell': centers, 'E1xB2': np.zeros(ell_len), 'E2xB1': np.zeros(ell_len), 
                        'E1xE1': np.zeros(ell_len), 'B2xB2': np.zeros(ell_len), 'E2xE2': np.zeros(ell_len),
@@ -568,7 +568,7 @@ def estimate_pol_angle(map_path, line, logger, ref_maps, ref_ivar, galaxy_mask,
                        'initial_timestamp': -9999, 'median_timestamp': -9999, 
                        'ivar_sum': -9999, 'residual_mean': -9999, 
                        'residual_sum': -9999, 'map_cut': 1}
-        if plot_likelihood:
+        if plot_like:
             # Make empty likelihood plot for web viewer
             angles_deg = np.linspace(angle_min_deg,angle_max_deg,num=num_pts)
             map_name = os.path.split(line)[1][:-9] # removing "_map.fits"
@@ -619,7 +619,7 @@ def estimate_pol_angle(map_path, line, logger, ref_maps, ref_ivar, galaxy_mask,
         elif map_array == 'pa6':
             depth1_beam = pa6_beam
         else:
-            logger.info("Map " + line + " not in standard format for array beam selection! Choosing averaged beam.")
+            logger.info(f"Map {line} not in standard format for array beam selection! Choosing averaged beam.")
             depth1_beam = ref_beam
 
         # Calculate spectra
@@ -661,7 +661,7 @@ def estimate_pol_angle(map_path, line, logger, ref_maps, ref_ivar, galaxy_mask,
 
         fit_values, residual_mean, residual_sum = sample_likelihood_and_fit(estimator,covariance,CAMB_ClEE_binned,num_pts=num_pts,
                                                                             angle_min_deg=angle_min_deg, angle_max_deg=angle_max_deg,
-                                                                            use_curvefit=use_curvefit,plot_like=plot_likelihood,
+                                                                            use_curvefit=use_curvefit,plot_like=plot_like,
                                                                             output_dir=output_dir_path,map_fname=line)
 
         output_dict = {'ell': centers, 'E1xB2': binned_E1xB2, 'E2xB1': binned_E2xB1, 
@@ -1248,7 +1248,7 @@ def plot_beam(output_dir, beam_name, ell, beam):
     plt.ylabel("Beam transfer function")
     plt.xlabel(r"$\ell$")
     plt.grid()
-    plt.title("Beam Profile: " + beam_name)
+    plt.title(f"Beam Profile: {beam_name}")
     plt.savefig(save_dir+save_fname_beam, dpi=300)
     plt.close()
 
@@ -1264,7 +1264,7 @@ def plot_tfunc(output_dir, kx, ky, ell, tfunc):
     plt.ylabel("Filtering transfer function")
     plt.xlabel(r"$\ell$")
     plt.grid()
-    plt.title("Filtering tfunc for kx,ky: " + str(kx) + ',' + str(ky))
+    plt.title(f"Filtering tfunc for kx,ky: {kx},{ky}")
     plt.savefig(save_dir+save_fname_tfunc, dpi=300)
     plt.close()
 
@@ -1280,7 +1280,7 @@ def plot_angle_hist(output_dir,angles, maps):
     num_cut_maps = len(angles[angles == -9999])
     fig = plt.figure(figsize=(6.4,4.8), layout='constrained')
     plt.hist(angles[angles != -9999], bins=30,
-             label=str(num_maps) + " total maps \n" + str(num_cut_maps) + " cut maps")
+             label=f"{num_maps} total maps \n {num_cut_maps} cut maps")
     plt.title("Histogram of measured angles")
     plt.xlabel("Angle (deg)")
     plt.ylabel("Counts")
@@ -1298,8 +1298,8 @@ def plot_angle_hist(output_dir,angles, maps):
         num_maps = len(angles_subset)
         num_cut_maps = len(angles_subset[angles_subset == -9999])
         plt.hist(angles_subset[angles_subset != -9999], bins=30, range=range_arrays, 
-                 label=str(num_maps) + " total maps, array " + array + "\n" + str(num_cut_maps) + " cut maps")
-        plt.title("Histogram of measured angles, array " + array)
+                 label=f"{num_maps} total maps, array {array} \n {num_cut_maps} cut maps")
+        plt.title(f"Histogram of measured angles, array {array}")
         plt.xlabel("Angle (deg)")
         plt.ylabel("Counts")
         plt.legend()
