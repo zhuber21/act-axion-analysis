@@ -1,0 +1,88 @@
+# dr6_depth1_ps_serial_config.yaml
+# All the parameters for running get_depth1_angle_serial.py
+# Basically the same as the regular config file, but with non-NERSC
+# paths for my convenience and a few more plotting options.
+
+# The frequency being analyzed for this run
+freq: 'f150'
+
+# Filtering parameters
+kx_cut: 90
+ky_cut: 50
+unpixwin: True
+
+# Apodization parameter
+filter_radius: 0.5 # nawrapper.apod_C2() - radius in degrees, applied twice if using ivar weighting
+
+# Likelihood fitting settings
+angle_min_deg: -50.0
+angle_max_deg: 50.0
+num_pts: 200000
+use_curvefit: True
+
+# Calibration factor likelihood fitting settings
+y_min: -1.0
+y_max: 2.0
+cal_num_pts: 50000
+cal_use_curvefit: False
+
+# Calibration factor binning settings
+cal_bin_size: 200
+cal_lmin: 1000
+cal_lmax: 2001
+
+# Angle estimator binning settings
+bin_settings: "regular" # Options are "regular" and "DR4" to use even bins of "bin_size" or to use the ACT DR4 bins
+bin_size: 400    # Used with "regular"
+lmin: 1000        # Used with "regular"
+lmax: 3001       # Used with "regular" - set to 2501 to ensure we get the bin that ranges from 2450-2500
+start_index: 11  # Used with "DR4"
+stop_index: 47   # Used with "DR4"
+
+# Power spectra analysis settings
+use_ivar_weight: True  # Whether or not to use inverse variance weighting for calculating spectra - slower
+cross_calibrate: True     # Whether or not to do a TT calibration with maps listed below 
+
+# Whether to save various plots
+output_dir_root: "/home/zbh5/act_analysis/act_axion_analysis/results/"
+plot_maps: False
+plot_likelihood: False
+plot_beam: False
+plot_tfunc: False
+# These three are unique to the serial version of the code
+plot_all_spectra: False
+plot_summary_spectra: False
+plot_angle_hist: False
+
+theory_curves_path: "/home/zbh5/act_analysis/act_axion_analysis/resources/camb_19413797_lensedtotcls.dat"
+
+#ref_path: "/home/zbh5/act_analysis/scripts/dr4_tests/cmb_night_pa6_f150_3pass_4way_coadd_map_srcfree.fits"
+ref_path: "/home/zbh5/act_analysis/dr6_analysis/act_daynight_f150_map_srcfree.fits"
+ref_ivar_path: "/home/zbh5/act_analysis/dr6_analysis/act_daynight_f150_ivar.fits"
+#ref_path: "/home/zbh5/act_analysis/dr6_analysis/act_daynight_f150_map.fits"
+
+# Will add back in if there is a separate beam for the reference map instead of averaging other beams
+#ref_beam_path: "/home/zbh5/act_analysis/old_scripts/dr4_tests/coadd_pa6_f150_night_beam_tform_jitter_cmb_norm.txt"
+
+pa4_beam_path: "/home/zbh5/act_analysis/dr6_analysis/dr6v3_beams_20230129/coadd_pa4_f150_night_beam_tform_jitter_cmb.txt"
+pa5_beam_path: "/home/zbh5/act_analysis/dr6_analysis/dr6v3_beams_20230129/coadd_pa5_f150_night_beam_tform_jitter_cmb.txt"
+pa6_beam_path: "/home/zbh5/act_analysis/dr6_analysis/dr6v3_beams_20230129/coadd_pa6_f150_night_beam_tform_jitter_cmb.txt"
+
+galaxy_mask_path: "/home/zbh5/act_analysis/dr6_analysis/act_mask_20220316_GAL070_rms_70.00_downgrade_None.fits"
+
+# Map 1's beam is currently hardcoded in get_angle_from_depth1_ps.py to use pa5_beam_path
+cal_map1_path: "/home/zbh5/act_analysis/dr6_analysis/cmb_night_pa5_f150_8way_coadd_map_srcfree.fits"
+cal_ivar1_path: "/home/zbh5/act_analysis/dr6_analysis/cmb_night_pa5_f150_8way_coadd_ivar.fits"
+# Map 2's beam is currently hardcoded in get_angle_from_depth1_ps.py to use pa6_beam_path
+cal_map2_path: "/home/zbh5/act_analysis/dr6_analysis/cmb_night_pa6_f150_8way_coadd_map_srcfree.fits"
+cal_ivar2_path: "/home/zbh5/act_analysis/dr6_analysis/cmb_night_pa6_f150_8way_coadd_ivar.fits"
+
+#obs_list: '/home/zbh5/act_analysis/dr6_analysis/dr6_depth1_maps/dr6_depth1_test_map_w_second_batch_list.txt'
+#obs_list: '/home/zbh5/act_analysis/dr6_analysis/dr6_depth1_maps/dr6_depth1_test_map_list.txt'
+obs_list: '/home/zbh5/act_analysis/dr6_analysis/dr6_depth1_maps/dr6_depth1_test_map_list_first_49.txt'
+#obs_list: '/home/zbh5/act_analysis/dr6_analysis/dr6_depth1_maps/dr6_depth1_test_6maps_list.txt'
+#obs_list: '/home/zbh5/act_analysis/dr6_analysis/dr6_depth1_maps/dr6_depth1_test_9goodmaps_list.txt'
+#obs_list: '/home/zbh5/act_analysis/dr6_analysis/dr6_depth1_maps/dr6_depth1_test_15goodmaps_list.txt'
+#obs_list: '/home/zbh5/act_analysis/dr6_analysis/dr6_depth1_maps/dr6_depth1_test_f090_maps_list.txt'
+#obs_list: '/home/zbh5/act_analysis/dr6_analysis/dr6_depth1_maps/dr6_depth1_test_f220_maps_list.txt'
+obs_path_stem: "/home/zbh5/act_analysis/dr6_analysis/dr6_depth1_maps/"

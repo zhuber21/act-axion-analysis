@@ -35,7 +35,7 @@ cat << EOF > prepare-env.sl
 #SBATCH --ntasks-per-node=8
 #SBATCH --output=/pscratch/sd/z/zbh5/results/$RUN_TAG.out
 
-srun -n 80 -c 32 --cpu_bind=cores python3 get_angle_from_depth1_ps.py dr6_depth1_ps_config.yaml $RUN_TAG
+srun -n 80 -c 32 --cpu_bind=cores python3 get_depth1_angle_parallel.py dr6_depth1_ps_config.yaml $RUN_TAG
 
 # Call collect_npy_files.py to group all output npy files into a single npy file
 python3 collect_npy_files.py /pscratch/sd/z/zbh5/results/angle_calc_$RUN_TAG/
