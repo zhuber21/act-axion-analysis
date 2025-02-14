@@ -238,7 +238,7 @@ def plot_spectra_individually(output_dir, spectra):
             plt.close()
 
             fig = plt.figure(figsize=(6.4,4.8), layout='constrained')
-            plt.plot(ell_b, spectra[maps[i]]['binned_nu'], marker='.', alpha=1.0) # Not a spectra, so no conversion to D_ell
+            plt.plot(ell_b, spectra[maps[i]]['bincount'], marker='.', alpha=1.0) # Not a spectra, so no conversion to D_ell
             plt.ylabel("Effective modes per bin")
             plt.xlabel(r"$\ell$")
             plt.title("$\\nu_b$ " + maps[i][:-9])
@@ -351,7 +351,7 @@ def plot_spectra_individually(output_dir, spectra):
             plt.close()
 
             fig = plt.figure(figsize=(6.4,4.8), layout='constrained')
-            plt.plot(ell_b, spectra[maps[i]]['binned_nu'], marker='.', alpha=1.0) # Not a spectra, so no conversion to D_ell
+            plt.plot(ell_b, spectra[maps[i]]['bincount'], marker='.', alpha=1.0) # Not a spectra, so no conversion to D_ell
             plt.ylabel("Effective modes per bin")
             plt.xlabel(r"$\ell$")
             plt.title("$\\nu_b$ " + maps[i][:-9])
