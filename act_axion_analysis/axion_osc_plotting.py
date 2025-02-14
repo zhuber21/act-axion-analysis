@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 from pixell import enmap, enplot
 from tqdm import tqdm
 import os
-from act_axion_analysis.axion_osc_analysis_depth1_ps import gaussian
+from act_axion_analysis.utils import gaussian
 
 # Functions for viewing maps if needed
 keys_eshow = {"downgrade": 4, "ticks": 5, "colorbar": True, "font_size": 40, "mask": 0}
