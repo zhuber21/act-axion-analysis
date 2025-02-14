@@ -7,6 +7,7 @@ import os
 from pixell import enmap
 from tqdm import tqdm
 from act_axion_analysis import axion_osc_analysis_depth1_ps as aoa
+from act_axion_analysis import axion_osc_plotting as aop
 from mpi4py import MPI
 
 # Setting up MPI comm
@@ -78,6 +79,20 @@ use_curvefit = config['use_curvefit']
 use_ivar_weight = config['use_ivar_weight']
 cross_calibrate = config['cross_calibrate']
 
+# Setting parameters for TT calibration, even if cross_calibrate=False
+# so that the process() function call does not crash.
+y_min = config['y_min']
+y_max = config['y_max']
+cal_num_pts = config['cal_num_pts']
+cal_use_curvefit = config['cal_use_curvefit']
+cal_bin_size = config['cal_bin_size']
+cal_lmin = config['cal_lmin']
+cal_lmax = config['cal_lmax']
+cal_map1_path = config['cal_map1_path']
+cal_ivar1_path = config['cal_ivar1_path']
+cal_map2_path = config['cal_map2_path']
+cal_ivar2_path = config['cal_ivar2_path']
+
 # Check that paths exist to needed files
 camb_file = config['theory_curves_path']
 ref_path = config['ref_path']
@@ -124,17 +139,6 @@ else:
     logger.error("Please enter a valid text file in the obs_list field in the YAML file. Exiting.")
     raise ValueError("Please enter a valid text file in the obs_list field in the YAML file.")
 if cross_calibrate:
-    y_min = config['y_min']
-    y_max = config['y_max']
-    cal_num_pts = config['cal_num_pts']
-    cal_use_curvefit = config['cal_use_curvefit']
-    cal_bin_size = config['cal_bin_size']
-    cal_lmin = config['cal_lmin']
-    cal_lmax = config['cal_lmax']
-    cal_map1_path = config['cal_map1_path']
-    cal_ivar1_path = config['cal_ivar1_path']
-    cal_map2_path = config['cal_map2_path']
-    cal_ivar2_path = config['cal_ivar2_path']
     if not os.path.exists(cal_map1_path): 
         logger.error("Cannot find calibration map 1 file! Check config. Exiting.")
         raise FileNotFoundError(f"File not found: {cal_map1_path}")
@@ -147,8 +151,8 @@ if cross_calibrate:
     if not os.path.exists(cal_ivar2_path): 
         logger.error("Cannot find calibration ivar 2 file! Check config. Exiting.")
         raise FileNotFoundError(f"File not found: {cal_ivar2_path}")
-    # Setting up bins for calibration
-    cal_bins = np.arange(cal_lmin, cal_lmax, cal_bin_size)
+# Setting up bins for calibration
+cal_bins = np.arange(cal_lmin, cal_lmax, cal_bin_size)
 
 # Setting bins
 if config['bin_settings'] == "regular":
@@ -207,11 +211,11 @@ if freq=='f090':
     ref_beam = (pa5_beam+pa6_beam)/2.0
     if plot_beam:
         pa5_beam_name = os.path.split(pa5_beam_path)[1][:-4] # Extracting file name from path and dropping '.txt'
-        aoa.plot_beam(output_dir_path, pa5_beam_name, centers, pa5_beam)
+        aop.plot_beam(output_dir_path, pa5_beam_name, centers, pa5_beam)
         pa6_beam_name = os.path.split(pa6_beam_path)[1][:-4] # Extracting file name from path and dropping '.txt'
-        aoa.plot_beam(output_dir_path, pa6_beam_name, centers, pa6_beam)
+        aop.plot_beam(output_dir_path, pa6_beam_name, centers, pa6_beam)
         ref_beam_name = "f090_coadd_avg_beam"
-        aoa.plot_beam(output_dir_path, ref_beam_name, centers, ref_beam)
+        aop.plot_beam(output_dir_path, ref_beam_name, centers, ref_beam)
 elif freq=='f150':
     logger.info(f"Using pa4 beam {pa4_beam_path}")
     logger.info(f"Using pa5 beam {pa5_beam_path}")
@@ -223,13 +227,13 @@ elif freq=='f150':
     ref_beam = (pa4_beam+pa5_beam+pa6_beam)/3.0
     if plot_beam:
         pa4_beam_name = os.path.split(pa4_beam_path)[1][:-4] # Extracting file name from path and dropping '.txt'
-        aoa.plot_beam(output_dir_path, pa4_beam_name, centers, pa4_beam)
+        aop.plot_beam(output_dir_path, pa4_beam_name, centers, pa4_beam)
         pa5_beam_name = os.path.split(pa5_beam_path)[1][:-4] # Extracting file name from path and dropping '.txt'
-        aoa.plot_beam(output_dir_path, pa5_beam_name, centers, pa5_beam)
+        aop.plot_beam(output_dir_path, pa5_beam_name, centers, pa5_beam)
         pa6_beam_name = os.path.split(pa6_beam_path)[1][:-4] # Extracting file name from path and dropping '.txt'
-        aoa.plot_beam(output_dir_path, pa6_beam_name, centers, pa6_beam)
+        aop.plot_beam(output_dir_path, pa6_beam_name, centers, pa6_beam)
         ref_beam_name = "f150_coadd_avg_beam"
-        aoa.plot_beam(output_dir_path, ref_beam_name, centers, ref_beam)
+        aop.plot_beam(output_dir_path, ref_beam_name, centers, ref_beam)
 elif freq=='f220':
     logger.info(f"Using pa4 beam {pa4_beam_path}")
     pa4_beam = aoa.load_and_bin_beam(pa4_beam_path,bins)
@@ -239,15 +243,15 @@ elif freq=='f220':
     ref_beam = pa4_beam
     if plot_beam:
         pa4_beam_name = os.path.split(pa4_beam_path)[1][:-4] # Extracting file name from path and dropping '.txt'
-        aoa.plot_beam(output_dir_path, pa4_beam_name, centers, pa4_beam)
+        aop.plot_beam(output_dir_path, pa4_beam_name, centers, pa4_beam)
         ref_beam_name = "f220_coadd_avg_beam"
-        aoa.plot_beam(output_dir_path, ref_beam_name, centers, ref_beam)
+        aop.plot_beam(output_dir_path, ref_beam_name, centers, ref_beam)
 logger.info("Finished loading beams")
 
 # Calculate filtering transfer function once since filtering is same for all maps
 tfunc = aoa.get_tfunc(kx_cut, ky_cut, bins)
 if plot_tfunc:
-    aoa.plot_tfunc(output_dir_path, kx_cut, ky_cut, centers, tfunc)
+    aop.plot_tfunc(output_dir_path, kx_cut, ky_cut, centers, tfunc)
 
 # Loading in reference maps
 logger.info("Starting to load ref map")
@@ -268,6 +272,11 @@ if cross_calibrate:
     cal_T_map2_act_footprint = enmap.read_map(cal_map2_path, geometry=(galaxy_mask.shape,galaxy_mask.wcs))[0]
     cal_T_ivar2_act_footprint = enmap.read_map(cal_ivar2_path, geometry=(galaxy_mask.shape,galaxy_mask.wcs))
     logger.info("Finished loading calibration maps for cross-correlation")
+else:
+    cal_T_map1_act_footprint = None
+    cal_T_ivar1_act_footprint = None
+    cal_T_map2_act_footprint = None
+    cal_T_ivar2_act_footprint = None
 
 #######################################################################################################
 # Defining single process function for main loop
