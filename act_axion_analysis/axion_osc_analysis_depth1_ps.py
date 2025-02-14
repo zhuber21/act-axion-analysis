@@ -1,10 +1,9 @@
 import numpy as np
-from pixell import enmap, enplot, bunch
-import matplotlib.pyplot as plt
+from pixell import enmap, bunch
 import os
-from tqdm import tqdm
 import scipy
 from scipy import optimize as op
+from act_axion_analysis import axion_osc_plotting as aop
 
 ##########################################################
 # Functions for loading and manipulating maps and other data products
@@ -75,10 +74,10 @@ def load_depth1_with_T(depth1_path,plot=False):
     depth1_ivar = 0.5*enmap.read_map(ivar_path) # 0.5 for polarization noise
     
     if plot:
-        eshow(depth1_maps[0], **keys_eshow)
-        eshow(depth1_maps[1], **keys_eshow)
-        eshow(depth1_maps[2], **keys_eshow)
-        eshow(depth1_ivar, **keys_eshow)
+        aop.eshow(depth1_maps[0], **aop.keys_eshow)
+        aop.eshow(depth1_maps[1], **aop.keys_eshow)
+        aop.eshow(depth1_maps[2], **aop.keys_eshow)
+        aop.eshow(depth1_ivar, **aop.keys_eshow)
     
     return depth1_maps, depth1_ivar, depth1_shape, depth1_wcs
 
@@ -90,9 +89,9 @@ def trim_ref_with_T(ref_maps,shape,wcs,plot=False):
     ref_maps_cut = enmap.extract(ref_maps,shape,wcs)
 
     if plot:
-        eshow(ref_maps_cut[0], **keys_eshow)
-        eshow(ref_maps_cut[1], **keys_eshow)
-        eshow(ref_maps_cut[2], **keys_eshow)
+        aop.eshow(ref_maps_cut[0], **aop.keys_eshow)
+        aop.eshow(ref_maps_cut[1], **aop.keys_eshow)
+        aop.eshow(ref_maps_cut[2], **aop.keys_eshow)
     
     return ref_maps_cut
 
@@ -177,7 +176,7 @@ def make_tapered_mask(map_to_mask,filter_radius=0.5,plot=False):
     indices = np.nonzero(mask != 1)
     
     if plot:
-        eshow(mask, **keys_eshow)
+        aop.eshow(mask, **aop.keys_eshow)
     
     return mask, indices
 
@@ -235,24 +234,24 @@ def load_and_filter_depth1(fname, ref_maps, galaxy_mask, kx_cut, ky_cut, unpixwi
             if plot_maps:
                 # Plotting using the doubly tapered mask for the ivar weighting
                 map_fname = os.path.split(fname)[1][:-9] # removing "_map.fits"
-                plot_T_maps(output_dir, map_fname, depth1_ivar_mask_tapered*depth1_maps[0], **keys_ewrite_T)
-                plot_QU_maps(output_dir, map_fname, [depth1_ivar_mask_tapered*depth1_maps[1], depth1_ivar_mask_tapered*depth1_maps[2]], **keys_ewrite_QU)
-                plot_T_ref_maps(output_dir, map_fname, depth1_ivar_mask_tapered*ref_cut[0], **keys_ewrite_ref_T)
-                plot_QU_ref_maps(output_dir, map_fname, [depth1_ivar_mask_tapered*ref_cut[1], depth1_ivar_mask_tapered*ref_cut[2]],**keys_ewrite_ref_QU)
-                plot_mask(output_dir, map_fname, depth1_ivar_mask_tapered, **keys_ewrite_mask)
-                plot_EB_filtered_maps(output_dir, map_fname, filtered_depth1_TEB, depth1_ivar_mask_tapered, **keys_ewrite_EB)
+                aop.plot_T_maps(output_dir, map_fname, depth1_ivar_mask_tapered*depth1_maps[0], **aop.keys_ewrite_T)
+                aop.plot_QU_maps(output_dir, map_fname, [depth1_ivar_mask_tapered*depth1_maps[1], depth1_ivar_mask_tapered*depth1_maps[2]], **aop.keys_ewrite_QU)
+                aop.plot_T_ref_maps(output_dir, map_fname, depth1_ivar_mask_tapered*ref_cut[0], **aop.keys_ewrite_ref_T)
+                aop.plot_QU_ref_maps(output_dir, map_fname, [depth1_ivar_mask_tapered*ref_cut[1], depth1_ivar_mask_tapered*ref_cut[2]],**aop.keys_ewrite_ref_QU)
+                aop.plot_mask(output_dir, map_fname, depth1_ivar_mask_tapered, **aop.keys_ewrite_mask)
+                aop.plot_EB_filtered_maps(output_dir, map_fname, filtered_depth1_TEB, depth1_ivar_mask_tapered, **aop.keys_ewrite_EB)
             return filtered_depth1_TEB, depth1_ivar, depth1_ivar_mask_tapered, depth1_ivar_indices, ref_cut_TEB, ivar_sum
         else:
             ivar_sum = calc_ivar_sum(depth1_filtering_mask, depth1_ivar_indices, depth1_ivar)
             if plot_maps:
                 # Plotting using the first (filtering) mask
                 map_fname = os.path.split(fname)[1][:-9] # removing "_map.fits"
-                plot_T_maps(output_dir, map_fname, depth1_filtering_mask*depth1_maps[0], **keys_ewrite_T)
-                plot_QU_maps(output_dir, map_fname, [depth1_filtering_mask*depth1_maps[1], depth1_filtering_mask*depth1_maps[2]], **keys_ewrite_QU)
-                plot_T_ref_maps(output_dir, map_fname, depth1_filtering_mask*ref_cut[0], **keys_ewrite_ref_T)
-                plot_QU_ref_maps(output_dir, map_fname, [depth1_filtering_mask*ref_cut[1], depth1_filtering_mask*ref_cut[2]],**keys_ewrite_ref_QU)
-                plot_mask(output_dir, map_fname, depth1_filtering_mask, **keys_ewrite_mask)
-                plot_EB_filtered_maps(output_dir, map_fname, filtered_depth1_TEB, depth1_filtering_mask, **keys_ewrite_EB)                
+                aop.plot_T_maps(output_dir, map_fname, depth1_filtering_mask*depth1_maps[0], **aop.keys_ewrite_T)
+                aop.plot_QU_maps(output_dir, map_fname, [depth1_filtering_mask*depth1_maps[1], depth1_filtering_mask*depth1_maps[2]], **aop.keys_ewrite_QU)
+                aop.plot_T_ref_maps(output_dir, map_fname, depth1_filtering_mask*ref_cut[0], **aop.keys_ewrite_ref_T)
+                aop.plot_QU_ref_maps(output_dir, map_fname, [depth1_filtering_mask*ref_cut[1], depth1_filtering_mask*ref_cut[2]],**aop.keys_ewrite_ref_QU)
+                aop.plot_mask(output_dir, map_fname, depth1_filtering_mask, **aop.keys_ewrite_mask)
+                aop.plot_EB_filtered_maps(output_dir, map_fname, filtered_depth1_TEB, depth1_filtering_mask, **aop.keys_ewrite_EB)                
             return filtered_depth1_TEB, depth1_ivar, depth1_filtering_mask, depth1_indices, ref_cut_TEB, ivar_sum
     else:
         if plot_maps:
@@ -260,12 +259,12 @@ def load_and_filter_depth1(fname, ref_maps, galaxy_mask, kx_cut, ky_cut, unpixwi
             map_fname = os.path.split(fname)[1][:-9] # removing "_map.fits"
             # Deliberately plotting depth-1 maps without mask so I can see what they originally looked like,
             # but plotting everything else with mask to show it was completely cut
-            plot_T_maps(output_dir, map_fname, depth1_maps[0], **keys_ewrite_T)
-            plot_QU_maps(output_dir, map_fname, [depth1_maps[1], depth1_maps[2]], **keys_ewrite_QU)
-            plot_T_ref_maps(output_dir, map_fname, test_mask*ref_cut[0], **keys_ewrite_ref_T)
-            plot_QU_ref_maps(output_dir, map_fname, [test_mask*ref_cut[1], test_mask*ref_cut[2]],**keys_ewrite_ref_QU)
-            plot_mask(output_dir, map_fname, test_mask, **keys_ewrite_mask)
-            plot_EB_filtered_maps(output_dir, map_fname, depth1_maps, test_mask, cut_map=True, **keys_ewrite_EB)
+            aop.plot_T_maps(output_dir, map_fname, depth1_maps[0], **aop.keys_ewrite_T)
+            aop.plot_QU_maps(output_dir, map_fname, [depth1_maps[1], depth1_maps[2]], **aop.keys_ewrite_QU)
+            aop.plot_T_ref_maps(output_dir, map_fname, test_mask*ref_cut[0], **aop.keys_ewrite_ref_T)
+            aop.plot_QU_ref_maps(output_dir, map_fname, [test_mask*ref_cut[1], test_mask*ref_cut[2]],**aop.keys_ewrite_ref_QU)
+            aop.plot_mask(output_dir, map_fname, test_mask, **aop.keys_ewrite_mask)
+            aop.plot_EB_filtered_maps(output_dir, map_fname, depth1_maps, test_mask, cut_map=True, **aop.keys_ewrite_EB)
         return 1 # returning an error code if there is nothing left in the map
 
 def normalize_ivar_mask(input_ivar, mask_indices):
@@ -532,7 +531,7 @@ def sample_likelihood_and_fit(estimator,covariance,theory_ClEE,angle_min_deg=-20
 
     if plot_like:
         map_name = os.path.split(map_fname)[1][:-9] # removing "_map.fits"
-        plot_likelihood(output_dir, map_name, angles_deg, norm_sampled_likelihood,fit_values_deg,residual)
+        aop.plot_likelihood(output_dir, map_name, angles_deg, norm_sampled_likelihood,fit_values_deg,residual)
 
     return fit_values_deg, residual_mean, residual_sum
 
@@ -572,7 +571,7 @@ def estimate_pol_angle(map_path, line, logger, ref_maps, ref_ivar, galaxy_mask,
             # Make empty likelihood plot for web viewer
             angles_deg = np.linspace(angle_min_deg,angle_max_deg,num=num_pts)
             map_name = os.path.split(line)[1][:-9] # removing "_map.fits"
-            plot_likelihood(output_dir_path, map_name, angles_deg, np.zeros(num_pts), (-9999,-9999), np.zeros(num_pts))
+            aop.plot_likelihood(output_dir_path, map_name, angles_deg, np.zeros(num_pts), (-9999,-9999), np.zeros(num_pts))
         return output_dict, 1
     else: 
         # Otherwise do everything you would normally do
@@ -784,539 +783,3 @@ def cross_calibrate(cal_T_map1_act_footprint, cal_T_map2_act_footprint,
                        'w2w4_all_three': w2w4_all_three, 'w2w4_depth1xcal1': w2w4_depth1xcal1, 'w2w4_cal1xcal2': w2w4_cal1xcal2}
 
     return cal_output_dict
-
-#########################################################
-#########################################################
-#########################################################
-# Functions for viewing maps if needed
-keys_eshow = {"downgrade": 4, "ticks": 5, "colorbar": True, "font_size": 40, "mask": 0}
-
-def eshow(x,**kwargs): 
-    ''' Function to plot the maps for debugging '''
-    plots = enplot.get_plots(x, **kwargs)
-    enplot.show(plots, method = "auto")
-
-##########################################################
-# Functions for saving output plots
-
-keys_ewrite_QU = {"downgrade": 4, "ticks": 5, "colorbar": True, "font_size": 40, "range": 2000, "mask": 0}
-keys_ewrite_ref_QU = {"downgrade": 4, "ticks": 5, "colorbar": True, "font_size": 40, "range": 500, "mask": 0}
-keys_ewrite_T = {"downgrade": 4, "ticks": 5, "colorbar": True, "font_size": 40, "range": 2500, "mask": 0}
-keys_ewrite_ref_T = {"downgrade": 4, "ticks": 5, "colorbar": True, "font_size": 40, "range": 1000, "mask": 0}
-keys_ewrite_EB = {"downgrade": 4, "ticks": 5, "colorbar": True, "font_size": 40, "range": 1000, "mask": 0}
-keys_ewrite_mask = {"downgrade": 1, "ticks": 5, "colorbar": True, "font_size": 40, "mask": 0}
-
-def plot_T_maps(output_dir, map_name, maps, **kwargs):
-    """Plotting just the T depth-1 map to use different range than Q/U."""
-    save_dir = output_dir + "/plots/"
-    if not os.path.exists(save_dir): # Make new folder for this run - should be unique
-        os.makedirs(save_dir)
-    save_fname_T = map_name + "_mapT"
-    try: # Trying to catch issues with font_size being too big for very small maps
-        plots = enplot.get_plots(maps, **kwargs)
-    except ValueError:
-        # Could add a logging statement about trying a smaller font size
-        kwargs['font_size'] = int(kwargs['font_size']/2)
-        plots = enplot.get_plots(maps, **kwargs)
-    enplot.write(save_dir+save_fname_T, plots)
-
-def plot_QU_maps(output_dir, map_name, maps, **kwargs):
-    """Plotting Q/U depth-1 maps. Assumes Q, then U in an array."""
-    save_dir = output_dir + "/plots/"
-    if not os.path.exists(save_dir): # Make new folder for this run - should be unique
-        os.makedirs(save_dir)
-    save_fname_Q = map_name + "_mapQ"
-    save_fname_U = map_name + "_mapU"
-    try: # Trying to catch issues with font_size being too big for very small maps
-        map_Q = enplot.get_plots(maps[0], **kwargs)
-        map_U = enplot.get_plots(maps[1], **kwargs)
-    except ValueError:
-        # Could add a logging statement about trying a smaller font size
-        kwargs['font_size'] = int(kwargs['font_size']/2)
-        map_Q = enplot.get_plots(maps[0], **kwargs)
-        map_U = enplot.get_plots(maps[1], **kwargs)
-    enplot.write(save_dir+save_fname_Q, map_Q)
-    enplot.write(save_dir+save_fname_U, map_U)
-
-def plot_T_ref_maps(output_dir, map_name, maps, **kwargs):
-    """Plotting just the T refernce map in the depth-1 shape. 
-       Assumes multiplying by footprint first."""
-    save_dir = output_dir + "/plots/"
-    if not os.path.exists(save_dir): # Make new folder for this run - should be unique
-        os.makedirs(save_dir)
-    save_fname_T = map_name + "_refmapT_wmask"
-    try: # Trying to catch issues with font_size being too big for very small maps
-        plots = enplot.get_plots(maps, **kwargs)
-    except ValueError:
-        # Could add a logging statement about trying a smaller font size
-        kwargs['font_size'] = int(kwargs['font_size']/2)
-        plots = enplot.get_plots(maps, **kwargs)
-    enplot.write(save_dir+save_fname_T, plots)
-
-def plot_QU_ref_maps(output_dir, map_name, maps, **kwargs):
-    """Plotting Q/U reference maps in the depth-1 shape.
-       Assumes Q, then U in an array. Also assumes multiplying by footprint first."""
-    save_dir = output_dir + "/plots/"
-    if not os.path.exists(save_dir): # Make new folder for this run - should be unique
-        os.makedirs(save_dir)
-    save_fname_Q = map_name + "_refmapQ_wmask"
-    save_fname_U = map_name + "_refmapU_wmask"
-    try: # Trying to catch issues with font_size being too big for very small maps
-        map_Q = enplot.get_plots(maps[0], **kwargs)
-        map_U = enplot.get_plots(maps[1], **kwargs)
-    except ValueError:
-        # Could add a logging statement about trying a smaller font size
-        kwargs['font_size'] = int(kwargs['font_size']/2)
-        map_Q = enplot.get_plots(maps[0], **kwargs)
-        map_U = enplot.get_plots(maps[1], **kwargs)
-    enplot.write(save_dir+save_fname_Q, map_Q)
-    enplot.write(save_dir+save_fname_U, map_U)
-
-def plot_EB_filtered_maps(output_dir, map_name, depth1_TEB, map_mask, cut_map=False, **kwargs):
-    """Converts the filtered Fourier space E and B maps back to real space and plots them.
-       Assumes you pass in TEB, but only saves EB. Also multiplies by mask again to ignore
-       any leakage from Fourier transforming."""
-    save_dir = output_dir + "/plots/"
-    if not os.path.exists(save_dir): # Make new folder for this run - should be unique
-        os.makedirs(save_dir)
-    save_fname_E = map_name + "_filtered_E"
-    save_fname_B = map_name + "_filtered_B"
-    if cut_map:
-        maps_realspace = depth1_TEB # if the map is cut, don't inverse FT since there's nothing there
-    else:
-        maps_realspace = enmap.harm2map(depth1_TEB, normalize = "phys") # Does this actually leave them as EB?
-    try: # Trying to catch issues with font_size being too big for very small maps
-        map_E = enplot.get_plots(map_mask*maps_realspace[1], **kwargs)
-        map_B = enplot.get_plots(map_mask*maps_realspace[2], **kwargs)
-    except ValueError:
-        # Could add a logging statement about trying a smaller font size
-        kwargs['font_size'] = int(kwargs['font_size']/2)
-        map_E = enplot.get_plots(map_mask*maps_realspace[1], **kwargs)
-        map_B = enplot.get_plots(map_mask*maps_realspace[2], **kwargs)
-    enplot.write(save_dir+save_fname_E, map_E)
-    enplot.write(save_dir+save_fname_B, map_B)
-
-def plot_mask(output_dir, map_name, map_mask, **kwargs):
-    save_dir = output_dir + "/plots/"
-    if not os.path.exists(save_dir): # Make new folder for this run - should be unique
-        os.makedirs(save_dir)
-    save_fname_mask = map_name + "_mask"
-    try: # Trying to catch issues with font_size being too big for very small maps
-        plots = enplot.get_plots(map_mask, **kwargs)
-    except ValueError:
-        # Could add a logging statement about trying a smaller font size
-        kwargs['font_size'] = int(kwargs['font_size']/2)
-        plots = enplot.get_plots(map_mask, **kwargs)
-    enplot.write(save_dir+save_fname_mask, plots)
-
-def cl_to_dl(cl, ell):
-    """Helper function to convert C_ell to D_ell"""
-    return cl*ell*(ell+1.0) / (2.0 * np.pi)
-
-def dl_to_cl(dl, ell):
-    """Helper function to convert D_ell to C_ell"""
-    return dl*2.0*np.pi / (ell*(ell+1.0))
-
-def plot_spectra_individually(output_dir, spectra):
-    save_dir = output_dir + "/plots/"
-    if not os.path.exists(save_dir): # Make new folder for this run - should be unique
-        os.makedirs(save_dir)
-    maps = list(spectra.keys())
-    ell_b = spectra[maps[0]]['ell']
-    CAMB_ClEE_binned = spectra[maps[0]]['CAMB_EE']
-    CAMB_ClBB_binned = spectra[maps[0]]['CAMB_BB']
-
-    for i in tqdm(range(len(maps))):
-        if spectra[maps[i]]['map_cut'] == 1: 
-            # Making adjustments for any maps that were completely cut by galaxy mask
-            # Just make empty linear scale plots so the web viewer layout is correct
-            fig = plt.figure(figsize=(6.4,4.8), layout='constrained')
-            plt.plot(ell_b, cl_to_dl(spectra[maps[i]]['E1xE1'],ell_b), marker='.', alpha=1.0)
-            plt.ylabel(r"$D_{\ell}^{E1xE1}$")
-            plt.xlabel(r"$\ell$")
-            plt.title("E1xE1 " + maps[i][:-9])
-            plt.grid()
-            output_fname = save_dir + maps[i][:-9] + "_e1xe1_spectrum_withCAMBee.png"
-            plt.savefig(output_fname, dpi=300)
-            plt.close()
-            
-            fig = plt.figure(figsize=(6.4,4.8), layout='constrained')
-            plt.plot(ell_b, cl_to_dl(spectra[maps[i]]['E2xE2'],ell_b), marker='.', alpha=1.0)
-            plt.ylabel(r"$D_{\ell}^{E2xE2}$")
-            plt.xlabel(r"$\ell$") 
-            plt.title("E2xE2 " + maps[i][:-9])
-            plt.grid()
-            output_fname = save_dir + maps[i][:-9] + "_e2xe2_spectrum_withCAMBee.png"
-            plt.savefig(output_fname, dpi=300)
-            plt.close()
-
-            fig = plt.figure(figsize=(6.4,4.8), layout='constrained')
-            plt.plot(ell_b, cl_to_dl(spectra[maps[i]]['B1xB1'],ell_b), marker='.', alpha=1.0)
-            plt.ylabel(r"$D_{\ell}^{B1xB1}$")
-            plt.xlabel(r"$\ell$")
-            plt.title("B1xB1 " + maps[i][:-9])
-            plt.grid()
-            output_fname = save_dir + maps[i][:-9] + "_b1xb1_spectrum_withCAMBbb.png"
-            plt.savefig(output_fname, dpi=300)
-            plt.close()
-            
-            fig = plt.figure(figsize=(6.4,4.8), layout='constrained')
-            plt.plot(ell_b, cl_to_dl(spectra[maps[i]]['B2xB2'],ell_b), marker='.', alpha=1.0)
-            plt.ylabel(r"$D_{\ell}^{B2xB2}$")
-            plt.xlabel(r"$\ell$") 
-            plt.title("B2xB2 " + maps[i][:-9])
-            plt.grid()
-            output_fname = save_dir + maps[i][:-9] + "_b2xb2_spectrum_withCAMBbb.png"
-            plt.savefig(output_fname, dpi=300)
-            plt.close()
-
-            fig = plt.figure(figsize=(6.4,4.8), layout='constrained')
-            plt.plot(ell_b, cl_to_dl(spectra[maps[i]]['E1xB2'],ell_b), marker='.', alpha=1.0)
-            plt.ylabel(r"$D_{\ell}^{E1xB2}$")
-            plt.xlabel(r"$\ell$")
-            plt.title("E1xB2 " + maps[i][:-9])
-            plt.grid()
-            plt.axhline(y=0,color='gray',linewidth=2)
-            output_fname = save_dir + maps[i][:-9] + "_e1xb2_spectrum.png"
-            plt.savefig(output_fname, dpi=300)
-            plt.close()
-            
-            fig = plt.figure(figsize=(6.4,4.8), layout='constrained')
-            plt.plot(ell_b, cl_to_dl(spectra[maps[i]]['E2xB1'],ell_b), marker='.', alpha=1.0)
-            plt.ylabel(r"$D_{\ell}^{E2xB1}$")
-            plt.xlabel(r"$\ell$") 
-            plt.title("E2xB1 " + maps[i][:-9])
-            plt.grid()
-            plt.axhline(y=0,color='gray',linewidth=2)
-            output_fname = save_dir + maps[i][:-9] + "_e2xb1_spectrum.png"
-            plt.savefig(output_fname, dpi=300)
-            plt.close()
-
-            fig = plt.figure(figsize=(6.4,4.8), layout='constrained')
-            d_ell_covariance = cl_to_dl(cl_to_dl(spectra[maps[i]]['covariance'],ell_b),ell_b)
-            plt.plot(ell_b, d_ell_covariance, marker='.', alpha=1.0) # Two factors of C_ell to D_ell because made of squares of spectra
-            plt.ylabel("Covariance")
-            plt.xlabel(r"$\ell$")
-            plt.title("Covariance " + maps[i][:-9])
-            plt.grid()
-            plt.axhline(y=0,color='gray',linewidth=2)
-            output_fname = save_dir + maps[i][:-9] + "_covariance.png"
-            plt.savefig(output_fname, dpi=300)
-            plt.close()
-
-            fig = plt.figure(figsize=(6.4,4.8), layout='constrained')
-            plt.plot(ell_b, cl_to_dl(spectra[maps[i]]['estimator'],ell_b), marker='.', alpha=1.0, label='Estimator')
-            plt.ylabel(r"$D_{\ell}^{E1xB2} - D_{\ell}^{E2xB1}$")
-            plt.xlabel(r"$\ell$")
-            plt.title("Estimator " + maps[i][:-9])
-            plt.legend()
-            plt.grid()
-            plt.axhline(y=0,color='gray',linewidth=2)
-            output_fname = save_dir + maps[i][:-9] + "_estimator.png"
-            plt.savefig(output_fname, dpi=300)
-            plt.close()
-
-            fig = plt.figure(figsize=(6.4,4.8), layout='constrained')
-            plt.plot(ell_b, spectra[maps[i]]['binned_nu'], marker='.', alpha=1.0) # Not a spectra, so no conversion to D_ell
-            plt.ylabel("Effective modes per bin")
-            plt.xlabel(r"$\ell$")
-            plt.title("$\\nu_b$ " + maps[i][:-9])
-            plt.grid()
-            plt.axhline(y=0,color='gray',linewidth=2)
-            output_fname = save_dir + maps[i][:-9] + "_modesperbin.png"
-            plt.savefig(output_fname, dpi=300)
-            plt.close()
-        else:
-            fig = plt.figure(figsize=(6.4,4.8), layout='constrained')
-            plt.semilogy(ell_b, cl_to_dl(spectra[maps[i]]['E1xE1'],ell_b), marker='.', alpha=1.0)
-            plt.semilogy(ell_b, cl_to_dl(CAMB_ClEE_binned,ell_b), 'r.--', label="CAMB EE")
-            plt.ylabel(r"$D_{\ell}^{E1xE1}$")
-            plt.xlabel(r"$\ell$")
-            plt.title("E1xE1 " + maps[i][:-9])
-            plt.grid()
-            plt.legend()
-            output_fname = save_dir + maps[i][:-9] + "_e1xe1_spectrum_withCAMBee.png"
-            plt.savefig(output_fname, dpi=300)
-            plt.close()
-            
-            fig = plt.figure(figsize=(6.4,4.8), layout='constrained')
-            plt.semilogy(ell_b, cl_to_dl(spectra[maps[i]]['E2xE2'],ell_b), marker='.', alpha=1.0)
-            plt.semilogy(ell_b, cl_to_dl(CAMB_ClEE_binned,ell_b), 'r.--', label="CAMB EE")
-            plt.ylabel(r"$D_{\ell}^{E2xE2}$")
-            plt.xlabel(r"$\ell$") 
-            plt.title("E2xE2 " + maps[i][:-9])
-            plt.grid()
-            plt.legend()
-            output_fname = save_dir + maps[i][:-9] + "_e2xe2_spectrum_withCAMBee.png"
-            plt.savefig(output_fname, dpi=300)
-            plt.close()
-
-            fig = plt.figure(figsize=(6.4,4.8), layout='constrained')
-            plt.semilogy(ell_b, cl_to_dl(spectra[maps[i]]['B1xB1'],ell_b), marker='.', alpha=1.0)
-            plt.semilogy(ell_b, cl_to_dl(CAMB_ClBB_binned,ell_b), 'r.--', label="CAMB BB")
-            plt.ylabel(r"$D_{\ell}^{B1xB1}$")
-            plt.xlabel(r"$\ell$")
-            plt.title("B1xB1 " + maps[i][:-9])
-            plt.grid()
-            plt.legend()
-            output_fname = save_dir + maps[i][:-9] + "_b1xb1_spectrum_withCAMBbb.png"
-            plt.savefig(output_fname, dpi=300)
-            plt.close()
-            
-            fig = plt.figure(figsize=(6.4,4.8), layout='constrained')
-            plt.semilogy(ell_b, cl_to_dl(spectra[maps[i]]['B2xB2'],ell_b), marker='.', alpha=1.0)
-            plt.semilogy(ell_b, cl_to_dl(CAMB_ClBB_binned,ell_b), 'r.--', label="CAMB BB")
-            plt.ylabel(r"$D_{\ell}^{B2xB2}$")
-            plt.xlabel(r"$\ell$") 
-            plt.title("B2xB2 " + maps[i][:-9])
-            plt.grid()
-            plt.legend()
-            output_fname = save_dir + maps[i][:-9] + "_b2xb2_spectrum_withCAMBbb.png"
-            plt.savefig(output_fname, dpi=300)
-            plt.close()
-
-            fig = plt.figure(figsize=(6.4,4.8), layout='constrained')
-            plt.plot(ell_b, cl_to_dl(spectra[maps[i]]['E1xB2'],ell_b), marker='.', alpha=1.0)
-            plt.ylabel(r"$D_{\ell}^{E1xB2}$")
-            plt.xlabel(r"$\ell$")
-            plt.title("E1xB2 " + maps[i][:-9])
-            plt.grid()
-            plt.axhline(y=0,color='gray',linewidth=2)
-            output_fname = save_dir + maps[i][:-9] + "_e1xb2_spectrum.png"
-            plt.savefig(output_fname, dpi=300)
-            plt.close()
-            
-            fig = plt.figure(figsize=(6.4,4.8), layout='constrained')
-            plt.plot(ell_b, cl_to_dl(spectra[maps[i]]['E2xB1'],ell_b), marker='.', alpha=1.0)
-            plt.ylabel(r"$D_{\ell}^{E2xB1}$")
-            plt.xlabel(r"$\ell$") 
-            plt.title("E2xB1 " + maps[i][:-9])
-            plt.grid()
-            plt.axhline(y=0,color='gray',linewidth=2)
-            output_fname = save_dir + maps[i][:-9] + "_e2xb1_spectrum.png"
-            plt.savefig(output_fname, dpi=300)
-            plt.close()
-
-            fig = plt.figure(figsize=(6.4,4.8), layout='constrained')
-            d_ell_covariance = cl_to_dl(cl_to_dl(spectra[maps[i]]['covariance'],ell_b),ell_b)
-            plt.plot(ell_b, d_ell_covariance, marker='.', alpha=1.0) # Two factors of C_ell to D_ell because made of squares of spectra
-            plt.ylabel("Covariance")
-            plt.xlabel(r"$\ell$")
-            plt.title("Covariance " + maps[i][:-9])
-            plt.grid()
-            plt.axhline(y=0,color='gray',linewidth=2)
-            output_fname = save_dir + maps[i][:-9] + "_covariance.png"
-            plt.savefig(output_fname, dpi=300)
-            plt.close()
-
-            fig = plt.figure(figsize=(6.4,4.8), layout='constrained')
-            est_err = np.sqrt(d_ell_covariance)
-            plt.errorbar(ell_b, cl_to_dl(spectra[maps[i]]['estimator'],ell_b), yerr=est_err, marker='.', alpha=1.0, label='Estimator')
-            # Plotting the best fit angle and the theory curve over measured estimator
-            angle_rad = np.deg2rad(spectra[maps[i]]['meas_angle'])
-            angle_errbar_rad = np.deg2rad(spectra[maps[i]]['meas_errbar'])
-            plt.plot(ell_b, 1.0*cl_to_dl(CAMB_ClEE_binned,ell_b)*np.sin(2*angle_rad), marker='.', color='red', label="Theory estimator for best fit angle")
-            # Plotting 1 sigma shadow above and below theory curve
-            plt.fill_between(ell_b, 1.0*cl_to_dl(CAMB_ClEE_binned,ell_b)*np.sin(2*(angle_rad+angle_errbar_rad)), 
-                            1.0*cl_to_dl(CAMB_ClEE_binned,ell_b)*np.sin(2*(angle_rad-angle_errbar_rad)), alpha=0.3, color='red')
-            plt.ylabel(r"$D_{\ell}^{E1xB2} - D_{\ell}^{E2xB1}$")
-            plt.xlabel(r"$\ell$")
-            plt.title("Estimator " + maps[i][:-9])
-            plt.legend()
-            plt.grid()
-            plt.axhline(y=0,color='gray',linewidth=2)
-            output_fname = save_dir + maps[i][:-9] + "_estimator.png"
-            plt.savefig(output_fname, dpi=300)
-            plt.close()
-
-            fig = plt.figure(figsize=(6.4,4.8), layout='constrained')
-            plt.plot(ell_b, spectra[maps[i]]['binned_nu'], marker='.', alpha=1.0) # Not a spectra, so no conversion to D_ell
-            plt.ylabel("Effective modes per bin")
-            plt.xlabel(r"$\ell$")
-            plt.title("$\\nu_b$ " + maps[i][:-9])
-            plt.grid()
-            plt.axhline(y=0,color='gray',linewidth=2)
-            output_fname = save_dir + maps[i][:-9] + "_modesperbin.png"
-            plt.savefig(output_fname, dpi=300)
-            plt.close()
-
-def plot_spectra_summary(output_dir, spectra):
-    """Plots some summary plots for the EE and BB autospectra for all maps in a run."""
-    save_dir = output_dir + "/plots/"
-    if not os.path.exists(save_dir): # Make new folder for this run - should be unique
-        os.makedirs(save_dir)
-    maps = list(spectra.keys())
-    ell_b = spectra[maps[0]]['ell']
-    # Plotting all the EE autospectra together
-    fig = plt.figure(figsize=(6.4,4.8), layout='constrained')
-    output_path_ee = save_dir + "ee_autospectra_all_test_maps.png"
-    plt.semilogy(ell_b, cl_to_dl(spectra[maps[0]]['CAMB_EE'],ell_b), 'r--', label="CAMB EE")
-    for i in range(len(maps)):
-        if spectra[maps[i]]['map_cut'] == 1:
-            continue
-        else:
-            plt.semilogy(ell_b, cl_to_dl(spectra[maps[i]]['E1xE1'],ell_b),alpha=0.3)
-    plt.ylabel(r"$D_{\ell}^{EE}$")
-    plt.xlabel(r"$\ell$")
-    plt.grid()
-    plt.legend()
-    plt.title("EE Autospectra for All Depth-1 Maps")
-    plt.savefig(output_path_ee, dpi=300)
-    plt.close()
-
-    # Plotting all the reference map EE autospectra together
-    fig = plt.figure(figsize=(6.4,4.8), layout='constrained')
-    output_path_ee_ref = save_dir + "ee_autospectra_all_ref_maps.png"
-    plt.semilogy(ell_b, cl_to_dl(spectra[maps[0]]['CAMB_EE'],ell_b), 'r--', label="CAMB EE")
-    for i in range(len(maps)):
-        if spectra[maps[i]]['map_cut'] == 1:
-            continue
-        else:
-            plt.semilogy(ell_b, cl_to_dl(spectra[maps[i]]['E2xE2'],ell_b),alpha=0.3)
-    plt.ylabel(r"$D_{\ell}^{EE}$")
-    plt.xlabel(r"$\ell$")
-    plt.grid()
-    plt.legend()
-    plt.title("EE Ref Map Autospectra in All Depth-1 Footprints")
-    plt.savefig(output_path_ee_ref, dpi=300)
-    plt.close()
-
-    # Plotting all the BB autospectra together
-    fig = plt.figure(figsize=(6.4,4.8), layout='constrained') 
-    output_path_bb = save_dir + "bb_autospectra_all_test_maps.png"
-    plt.semilogy(ell_b, cl_to_dl(spectra[maps[0]]['CAMB_BB'],ell_b), 'r--', label="CAMB BB")
-    for i in range(len(maps)):
-        if spectra[maps[i]]['map_cut'] == 1:
-            continue
-        else:
-            plt.semilogy(ell_b, cl_to_dl(spectra[maps[i]]['B1xB1'],ell_b),alpha=0.3)
-    plt.ylabel(r"$D_{\ell}^{BB}$")
-    plt.xlabel(r"$\ell$")
-    plt.grid()
-    plt.legend()
-    plt.title("BB Autospectra for All Depth-1 Maps")
-    plt.savefig(output_path_bb, dpi=300)
-    plt.close()
-
-    # Plotting all the reference map BB autospectra together
-    fig = plt.figure(figsize=(6.4,4.8), layout='constrained')
-    output_path_bb_ref = save_dir + "bb_autospectra_all_ref_maps.png"
-    plt.semilogy(ell_b, cl_to_dl(spectra[maps[0]]['CAMB_BB'],ell_b), 'r--', label="CAMB BB")
-    for i in range(len(maps)):
-        if spectra[maps[i]]['map_cut'] == 1:
-            continue
-        else:
-            plt.semilogy(ell_b, cl_to_dl(spectra[maps[i]]['B2xB2'],ell_b),alpha=0.3)
-    plt.ylabel(r"$D_{\ell}^{BB}$")
-    plt.xlabel(r"$\ell$")
-    plt.grid()
-    plt.legend()
-    plt.title("BB Ref Map Autospectra in All Depth-1 Footprints")
-    plt.savefig(output_path_bb_ref, dpi=300)
-    plt.close()
-
-def plot_likelihood(output_dir, map_name, angles, likelihood, gauss_fits, residual):
-    """Plotting likelihood for angles in degrees."""
-    save_dir = output_dir + "/plots/"
-    if not os.path.exists(save_dir): # Make new folder for this run - should be unique
-        os.makedirs(save_dir)
-    save_fname_likelihood = map_name + "_likelihood.png"
-    mean = gauss_fits[0]
-    stddev = gauss_fits[1]
-    fig = plt.figure(figsize=(6.4,4.8), layout='constrained')
-    plt.plot(angles, likelihood, 'b.', label='Mean={:1.3f}\n$\\sigma$={:1.3f}'.format(mean,stddev))
-    plt.axvline(mean,alpha=0.3,color='black')
-    # Could also move label to plt.figtext, but legend will auto adjust for me
-    plt.plot(angles, gaussian(angles,mean,stddev), 'r', label='Fit Gaussian')
-    plt.plot(angles, residual, 'gray', label="Residual")
-    plt.legend()
-    plt.ylabel("Likelihood")
-    plt.xlabel("Angles (deg)")
-    plt.grid()
-    plt.title("Likelihood " + map_name)
-    plt.savefig(save_dir+save_fname_likelihood, dpi=300)
-    plt.close()
-
-def plot_beam(output_dir, beam_name, ell, beam):
-    """Plots binned ACT beam profile for file beam_name."""
-    save_dir = output_dir + "/plots/"
-    if not os.path.exists(save_dir): # Make new folder for this run - should be unique
-        os.makedirs(save_dir)
-    save_fname_beam = beam_name + ".png"
-    fig = plt.figure(figsize=(6.4,4.8), layout='constrained')
-    plt.plot(ell, beam, 'b.')
-    plt.ylabel("Beam transfer function")
-    plt.xlabel(r"$\ell$")
-    plt.grid()
-    plt.title(f"Beam Profile: {beam_name}")
-    plt.savefig(save_dir+save_fname_beam, dpi=300)
-    plt.close()
-
-def plot_tfunc(output_dir, kx, ky, ell, tfunc):
-    """Plots the filtering binned transfer function for some kx_cut and ky_cut values."""
-    save_dir = output_dir + "/plots/"
-    if not os.path.exists(save_dir): # Make new folder for this run - should be unique
-        os.makedirs(save_dir)
-    str_k = 'kx'+ str(kx) + '_ky' + str(ky)
-    save_fname_tfunc = "tfunc_"+str_k+".png"
-    fig = plt.figure(figsize=(6.4,4.8), layout='constrained')
-    plt.plot(ell, tfunc, 'b.')
-    plt.ylabel("Filtering transfer function")
-    plt.xlabel(r"$\ell$")
-    plt.grid()
-    plt.title(f"Filtering tfunc for kx,ky: {kx},{ky}")
-    plt.savefig(save_dir+save_fname_tfunc, dpi=300)
-    plt.close()
-
-def plot_angle_hist(output_dir,angles, maps):
-    """Plots histogram of all angles for a given set of maps."""
-    save_dir = output_dir + "/plots/"
-    if not os.path.exists(save_dir): # Make new folder for this run - should be unique
-        os.makedirs(save_dir)
-    save_fname_hist = "angle_hist.png"
-    # Could make a more complicated histogram with statistics overplotted
-    # Plotting general histogram with all angles except the cut maps
-    num_maps = len(angles)
-    num_cut_maps = len(angles[angles == -9999])
-    fig = plt.figure(figsize=(6.4,4.8), layout='constrained')
-    plt.hist(angles[angles != -9999], bins=30,
-             label=f"{num_maps} total maps \n {num_cut_maps} cut maps")
-    plt.title("Histogram of measured angles")
-    plt.xlabel("Angle (deg)")
-    plt.ylabel("Counts")
-    plt.legend()
-    plt.savefig(save_dir+save_fname_hist, dpi=300)
-    plt.close()
-    # Also breaking it out by array
-    map_names_split = np.array([a.split('_') for a in maps])
-    maps_array = map_names_split[:,2] # Getting which array each map is from
-    range_arrays = (angles[angles != -9999].min(),angles[angles != -9999].max()) # Ensuring same bins as total histogram
-    for array in np.unique(maps_array):
-        fig = plt.figure(figsize=(6.4,4.8), layout='constrained')
-        save_fname_hist = "angle_hist_" + array + ".png"
-        angles_subset = angles[maps_array==array]
-        num_maps = len(angles_subset)
-        num_cut_maps = len(angles_subset[angles_subset == -9999])
-        plt.hist(angles_subset[angles_subset != -9999], bins=30, range=range_arrays, 
-                 label=f"{num_maps} total maps, array {array} \n {num_cut_maps} cut maps")
-        plt.title(f"Histogram of measured angles, array {array}")
-        plt.xlabel("Angle (deg)")
-        plt.ylabel("Counts")
-        plt.legend()
-        plt.savefig(save_dir+save_fname_hist, dpi=300)
-        plt.close()
-
-    # Combining them together
-    # Could consider changing to a multihist or step hist later
-    save_fname_hist = "angle_hist_all_combined.png"
-    fig = plt.figure(figsize=(6.4,4.8), layout='constrained')
-    plt.hist(angles[angles != -9999], bins=30,alpha=0.5,label='All arrays')
-    for array in np.unique(maps_array):
-        angles_subset = angles[maps_array==array]
-        plt.hist(angles_subset[angles_subset != -9999], bins=30, range=range_arrays, label=array, alpha=0.5)
-    plt.title("Histogram of measured angles by array")
-    plt.xlabel("Angle (deg)")
-    plt.ylabel("Counts")
-    plt.legend()
-    plt.savefig(save_dir+save_fname_hist, dpi=300)
-    plt.close()

@@ -7,7 +7,7 @@
 import numpy as np
 import os
 import sys
-from act_axion_analysis import axion_osc_analysis_depth1_ps as aoa
+from act_axion_analysis import axion_osc_plotting as aop
 
 # Deciding which plots to make
 # This script does not reload maps, so there is no plot_maps option
@@ -31,11 +31,11 @@ data_dict = np.load(data_path,allow_pickle=True).item()
 
 if plot_all_spectra:
     print("Saving plots for all spectra")
-    aoa.plot_spectra_individually(output_dir_path, data_dict)
+    aop.plot_spectra_individually(output_dir_path, data_dict)
 
 if plot_summary_spectra:
     print("Saving spectra summary plots")
-    aoa.plot_spectra_summary(output_dir_path, data_dict)
+    aop.plot_spectra_summary(output_dir_path, data_dict)
 
 #if plot_likelihood:
 #    pass # for future implementation if needed
@@ -47,4 +47,4 @@ if plot_angle_hist:
         angles[i] = data_dict[maps[i]]['meas_angle']
     # Extracting angles from 
     print("Plotting histogram of angles")
-    aoa.plot_angle_hist(output_dir_path, angles, maps)
+    aop.plot_angle_hist(output_dir_path, angles, maps)
