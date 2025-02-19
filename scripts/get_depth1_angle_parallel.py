@@ -121,38 +121,38 @@ if not os.path.exists(camb_file):
     raise FileNotFoundError(f"File not found: {camb_file}")
 if freq=='f150' or freq=='f220':
     if not os.path.exists(ref_pa4_path): 
-        logger.error("Cannot find reference map file! Check config. Exiting.")
+        logger.error("Cannot find pa4 reference map file! Check config. Exiting.")
         raise FileNotFoundError(f"File not found: {ref_pa4_path}")
     if not os.path.exists(ref_pa4_beam_path): 
-        logger.error("Cannot find beam file! Check config. Exiting.")
+        logger.error("Cannot find pa4 ref beam file! Check config. Exiting.")
         raise FileNotFoundError(f"File not found: {ref_pa4_beam_path}")
     if not os.path.exists(ref_pa4_ivar_path): 
-        logger.error("Cannot find ref map ivar file! Check config. Exiting.")
+        logger.error("Cannot find pa4 ref map ivar file! Check config. Exiting.")
         raise FileNotFoundError(f"File not found: {ref_pa4_ivar_path}")
     if not os.path.exists(pa4_beam_path): 
         logger.error("Cannot find pa4 depth-1 beam file! Check config. Exiting.")
         raise FileNotFoundError(f"File not found: {pa4_beam_path}")
 if freq=='f090' or freq=='f150':
     if not os.path.exists(ref_pa5_path): 
-        logger.error("Cannot find reference map file! Check config. Exiting.")
+        logger.error("Cannot find pa5 reference map file! Check config. Exiting.")
         raise FileNotFoundError(f"File not found: {ref_pa5_path}")
     if not os.path.exists(ref_pa5_beam_path): 
-        logger.error("Cannot find beam file! Check config. Exiting.")
+        logger.error("Cannot find pa5 ref beam file! Check config. Exiting.")
         raise FileNotFoundError(f"File not found: {ref_pa5_beam_path}")
     if not os.path.exists(ref_pa5_ivar_path): 
-        logger.error("Cannot find ref map ivar file! Check config. Exiting.")
+        logger.error("Cannot find pa5 ref map ivar file! Check config. Exiting.")
         raise FileNotFoundError(f"File not found: {ref_pa5_ivar_path}")
     if not os.path.exists(pa5_beam_path): 
         logger.error("Cannot find pa5 depth-1 beam file! Check config. Exiting.")
         raise FileNotFoundError(f"File not found: {pa5_beam_path}")
     if not os.path.exists(ref_pa6_path): 
-        logger.error("Cannot find reference map file! Check config. Exiting.")
+        logger.error("Cannot find pa6 reference map file! Check config. Exiting.")
         raise FileNotFoundError(f"File not found: {ref_pa6_path}")
     if not os.path.exists(ref_pa6_beam_path): 
-        logger.error("Cannot find beam file! Check config. Exiting.")
+        logger.error("Cannot find pa6 ref beam file! Check config. Exiting.")
         raise FileNotFoundError(f"File not found: {ref_pa6_beam_path}")
     if not os.path.exists(ref_pa6_ivar_path): 
-        logger.error("Cannot find ref map ivar file! Check config. Exiting.")
+        logger.error("Cannot find pa6 ref map ivar file! Check config. Exiting.")
         raise FileNotFoundError(f"File not found: {ref_pa6_ivar_path}")
     if not os.path.exists(pa6_beam_path): 
         logger.error("Cannot find pa6 depth-1 beam file! Check config. Exiting.")
