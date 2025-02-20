@@ -56,13 +56,22 @@ plot_angle_hist: False
 
 theory_curves_path: "/home/zbh5/act_analysis/act_axion_analysis/resources/camb_19413797_lensedtotcls.dat"
 
-#ref_path: "/home/zbh5/act_analysis/scripts/dr4_tests/cmb_night_pa6_f150_3pass_4way_coadd_map_srcfree.fits"
-ref_path: "/home/zbh5/act_analysis/dr6_analysis/act_daynight_f150_map_srcfree.fits"
-ref_ivar_path: "/home/zbh5/act_analysis/dr6_analysis/act_daynight_f150_ivar.fits"
-#ref_path: "/home/zbh5/act_analysis/dr6_analysis/act_daynight_f150_map.fits"
+# This boolean flag only exists in the serial script. Historically, we used
+# just one reference map, which uses much less RAM. When this flag is true,
+# only the pa5 reference maps/ivar will be loaded and used for all three arrays to save RAM 
+all_same: True
 
-# Will add back in if there is a separate beam for the reference map instead of averaging other beams
-#ref_beam_path: "/home/zbh5/act_analysis/old_scripts/dr4_tests/coadd_pa6_f150_night_beam_tform_jitter_cmb_norm.txt"
+# Reference maps, ivar, and beams for each array
+# Maps will only be loaded if that array has data at the freq listed above
+ref_pa4_path: "/home/zbh5/act_analysis/dr6_analysis/act_daynight_f150_map_srcfree.fits"
+ref_pa4_ivar_path: "/home/zbh5/act_analysis/dr6_analysis/act_daynight_f150_ivar.fits"
+ref_pa4_beam_path: "/home/zbh5/act_analysis/dr6_analysis/dr6v3_beams_20230129/coadd_pa4_f150_night_beam_tform_jitter_cmb_norm.txt"
+ref_pa5_path: "/home/zbh5/act_analysis/dr6_analysis/act_daynight_f150_map_srcfree.fits"
+ref_pa5_ivar_path: "/home/zbh5/act_analysis/dr6_analysis/act_daynight_f150_ivar.fits"
+ref_pa5_beam_path: "/home/zbh5/act_analysis/dr6_analysis/dr6v3_beams_20230129/coadd_pa5_f150_night_beam_tform_jitter_cmb_norm.txt"
+ref_pa6_path: "/home/zbh5/act_analysis/dr6_analysis/act_daynight_f150_map_srcfree.fits"
+ref_pa6_ivar_path: "/home/zbh5/act_analysis/dr6_analysis/act_daynight_f150_ivar.fits"
+ref_pa6_beam_path: "/home/zbh5/act_analysis/dr6_analysis/dr6v3_beams_20230129/coadd_pa6_f150_night_beam_tform_jitter_cmb_norm.txt"
 
 pa4_beam_path: "/home/zbh5/act_analysis/dr6_analysis/dr6v3_beams_20230129/coadd_pa4_f150_night_beam_tform_jitter_cmb.txt"
 pa5_beam_path: "/home/zbh5/act_analysis/dr6_analysis/dr6v3_beams_20230129/coadd_pa5_f150_night_beam_tform_jitter_cmb.txt"
@@ -70,12 +79,12 @@ pa6_beam_path: "/home/zbh5/act_analysis/dr6_analysis/dr6v3_beams_20230129/coadd_
 
 galaxy_mask_path: "/home/zbh5/act_analysis/dr6_analysis/act_mask_20220316_GAL070_rms_70.00_downgrade_None.fits"
 
-# Map 1's beam is currently hardcoded in get_angle_from_depth1_ps.py to use pa5_beam_path
 cal_map1_path: "/home/zbh5/act_analysis/dr6_analysis/cmb_night_pa5_f150_8way_coadd_map_srcfree.fits"
 cal_ivar1_path: "/home/zbh5/act_analysis/dr6_analysis/cmb_night_pa5_f150_8way_coadd_ivar.fits"
-# Map 2's beam is currently hardcoded in get_angle_from_depth1_ps.py to use pa6_beam_path
+cal_beam1_path: "/home/zbh5/act_analysis/dr6_analysis/dr6v3_beams_20230129/coadd_pa5_f150_night_beam_tform_jitter_cmb.txt"
 cal_map2_path: "/home/zbh5/act_analysis/dr6_analysis/cmb_night_pa6_f150_8way_coadd_map_srcfree.fits"
 cal_ivar2_path: "/home/zbh5/act_analysis/dr6_analysis/cmb_night_pa6_f150_8way_coadd_ivar.fits"
+cal_beam2_path: "/home/zbh5/act_analysis/dr6_analysis/dr6v3_beams_20230129/coadd_pa6_f150_night_beam_tform_jitter_cmb.txt"
 
 #obs_list: '/home/zbh5/act_analysis/dr6_analysis/dr6_depth1_maps/dr6_depth1_test_map_w_second_batch_list.txt'
 #obs_list: '/home/zbh5/act_analysis/dr6_analysis/dr6_depth1_maps/dr6_depth1_test_map_list.txt'

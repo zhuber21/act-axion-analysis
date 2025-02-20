@@ -50,13 +50,14 @@ To run the serial script, use:
 
 Note that there is no tag here - the default is to use the start time of the run to generate a unique output 
 file. As mentioned above, the serial config file is identical to the parallel one except for a handful of extra
-plotting options to generate summary plots after all of the maps have finished running. The serial version is older
-and was the main code used for local development. 
+plotting options to generate summary plots after all of the maps have finished running and one additional boolean
+The serial version has been made more like the parallel version, so it also saves an output npy file for each map 
+in addition to saving one large npy file containing results for all maps. 
 
 The resources folder contains a handful of files that can be used for the CAMB theory spectra and the ACT
 DR4 bins, if desired.
 
-There is also a branch called "serial" that contains only the serial version of the code and a notebooks folder with 
+There is also a branch called "serial" that contains only an old version of the serial code and a notebooks folder with 
 various Jupyter notebooks that were used for testing and
 debugging aspects of the code. The notebooks themselves contain some documentation, but these provide a sort of 
 history of this project including notebooks with simulations that test parts of the code for accuracy. Many of the
@@ -88,8 +89,16 @@ done more to get around these constraints.
 
 Installation
 ------------
-Currently must download from GitHub directly via ```git clone```.
-Once downloaded, it can be installed with 
+Currently must download from GitHub directly via ```git clone```. To avoid downloading the old 
+and rather large testing notebooks, I would recommend using:
+
+.. code-block:: console
+
+   $ git clone https://github.com/zhuber21/act-axion-analysis --single-branch --depth 5
+
+
+This pulls down only the main branch and just the last five commits.
+Once downloaded, it can be installed with:
 
 .. code-block:: console
 		
@@ -181,3 +190,6 @@ but they could be placed with appropriately similar maps, beams, etc. for future
   * obs_list - a .txt file containing the names of all of the maps to run
   * obs_path_stem - the path to the directory containing all of the depth-1 maps
 
+The serial config file also has the "all_same" boolean flag, which allows one to load only the pa5 ref maps 
+and ivar maps if you are using the same maps for pa4, pa5, and pa6. This enables one to save on RAM when 
+running in a legacy mode with the same reference map for all three arrays.
