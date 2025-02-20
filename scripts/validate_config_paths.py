@@ -24,11 +24,19 @@ with open(yaml_name, 'r') as file:
 
 # Check that paths exist to needed files
 freq = config['freq']
+if freq not in ['f090', 'f150', 'f220']:
+    print("freq does not match one of the three acceptable options!")
 cross_calibrate = config['cross_calibrate']
 camb_file = config['theory_curves_path']
-ref_path = config['ref_path']
-#ref_beam_path = config['ref_beam_path'] # Will add back in if there is a separate beam for the reference map instead of averaging other beams
-ref_ivar_path = config['ref_ivar_path']
+ref_pa4_path = config['ref_pa4_path']
+ref_pa4_ivar_path = config['ref_pa4_ivar_path']
+ref_pa4_beam_path = config['ref_pa4_beam_path']
+ref_pa5_path = config['ref_pa5_path']
+ref_pa5_ivar_path = config['ref_pa5_ivar_path']
+ref_pa5_beam_path = config['ref_pa5_beam_path']
+ref_pa6_path = config['ref_pa6_path']
+ref_pa6_ivar_path = config['ref_pa6_ivar_path']
+ref_pa6_beam_path = config['ref_pa6_beam_path']
 pa4_beam_path = config['pa4_beam_path']
 pa5_beam_path = config['pa5_beam_path']
 pa6_beam_path = config['pa6_beam_path']
@@ -40,18 +48,30 @@ if not os.path.exists(output_dir_root): # Make sure root path is right
     print("Output directory does not exist!")
 if not os.path.exists(camb_file): 
     print("Cannot find CAMB file! Check config.")
-if not os.path.exists(ref_path): 
-    print("Cannot find reference map file! Check config.")
-#if not os.path.exists(ref_beam_path): 
-#    print("Cannot find beam file! Check config. ")
-if not os.path.exists(ref_ivar_path): 
-    print("Cannot find ref map ivar file! Check config.")
 if freq=='f150' or freq=='f220':
+    if not os.path.exists(ref_pa4_path): 
+        print("Cannot find pa4 reference map file! Check config.")
+    if not os.path.exists(ref_pa4_beam_path): 
+        print("Cannot find pa4 ref beam file! Check config.")
+    if not os.path.exists(ref_pa4_ivar_path): 
+        print("Cannot find pa4 ref map ivar file! Check config.")
     if not os.path.exists(pa4_beam_path): 
         print("Cannot find pa4 beam file! Check config.")
 if freq=='f090' or freq=='f150':
+    if not os.path.exists(ref_pa5_path): 
+        print("Cannot find pa5 reference map file! Check config.")
+    if not os.path.exists(ref_pa5_beam_path): 
+        print("Cannot find pa5 ref beam file! Check config.")
+    if not os.path.exists(ref_pa5_ivar_path): 
+        print("Cannot find pa5 ref map ivar file! Check config.")
     if not os.path.exists(pa5_beam_path): 
         print("Cannot find pa5 beam file! Check config.")
+    if not os.path.exists(ref_pa6_path): 
+        print("Cannot find pa6 reference map file! Check config.")
+    if not os.path.exists(ref_pa6_beam_path): 
+        print("Cannot find pa6 ref beam file! Check config.")
+    if not os.path.exists(ref_pa6_ivar_path): 
+        print("Cannot find pa6 ref map ivar file! Check config.")
     if not os.path.exists(pa6_beam_path): 
         print("Cannot find pa6 beam file! Check config.")
 if not os.path.exists(galaxy_mask_path):
@@ -63,16 +83,22 @@ if obs_list[-3:] != 'txt':
 if cross_calibrate:
     cal_map1_path = config['cal_map1_path']
     cal_ivar1_path = config['cal_ivar1_path']
+    cal_beam1_path = config['cal_beam1_path']
     cal_map2_path = config['cal_map2_path']
     cal_ivar2_path = config['cal_ivar2_path']
+    cal_beam2_path = config['cal_beam2_path']
     if not os.path.exists(cal_map1_path): 
         print("Cannot find calibration map 1 file! Check config.")
     if not os.path.exists(cal_ivar1_path): 
         print("Cannot find calibration ivar 1 file! Check config.")
+    if not os.path.exists(cal_beam1_path): 
+        print("Cannot find calibration beam 1 file! Check config.")
     if not os.path.exists(cal_map2_path): 
         print("Cannot find calibration map 2 file! Check config.")
     if not os.path.exists(cal_ivar2_path): 
         print("Cannot find calibration ivar 2 file! Check config.")
+    if not os.path.exists(cal_beam2_path): 
+        print("Cannot find calibration beam 2 file! Check config.")
 
 
 # Checking observation list for all depth-1 map, ivar, time, and info files

@@ -4,6 +4,7 @@ import os
 import scipy
 from scipy import optimize as op
 from act_axion_analysis import axion_osc_plotting as aop
+from act_axion_analysis import utils
 
 ##########################################################
 # Functions for loading and manipulating maps and other data products
@@ -463,10 +464,6 @@ def cal_likelihood(y, cal1xcal2, cal1xdepth1, cal1xcal1, cal2xcal2, cal2xdepth1,
     likelihood = np.exp(-np.sum(numerator/denominator))
     return likelihood
 
-def gaussian(x,mean,sigma):
-    """Normalized Gaussian for curve_fit"""
-    amp = 1.0
-    return amp*np.exp(-(x-mean)**2/(2*sigma**2))
 
 def gaussian_fit_curvefit(angles,data,guess=[1.0*np.pi/180.0, 5.0*np.pi/180.0]):
     """
@@ -478,7 +475,7 @@ def gaussian_fit_curvefit(angles,data,guess=[1.0*np.pi/180.0, 5.0*np.pi/180.0]):
         The default guess (mean 1 deg, std dev 5 deg) here is for the angle likelihood. 
         When using this function to fit the TT calibration likelihood, pass in a different guess.
     """
-    popt, pcov = op.curve_fit(gaussian,angles,data,guess,maxfev=50000)
+    popt, pcov = op.curve_fit(utils.gaussian,angles,data,guess,maxfev=50000)
     mean = popt[0]
     std_dev = np.abs(popt[1])
     return mean, std_dev
@@ -523,7 +520,7 @@ def sample_likelihood_and_fit(estimator,covariance,theory_ClEE,angle_min_deg=-20
 
     # Calculating mean and sum of abs of residual between likelihood and best fit Gaussian
     # within 1 sigma of mean value - two possible ways of identifying and cutting poor S/N or bad fits
-    residual = norm_sampled_likelihood - gaussian(angles_rad,fit_values[0],fit_values[1])
+    residual = norm_sampled_likelihood - utils.gaussian(angles_rad,fit_values[0],fit_values[1])
     minus_sigma_idx = np.searchsorted(angles_rad, fit_values[0]-fit_values[1])
     plus_sigma_idx = np.searchsorted(angles_rad, fit_values[0]+fit_values[1])
     residual_mean = np.mean(residual[minus_sigma_idx:plus_sigma_idx])
@@ -539,7 +536,7 @@ def estimate_pol_angle(map_path, line, logger, ref_maps, ref_ivar, galaxy_mask,
                        kx_cut, ky_cut, unpixwin, filter_radius, use_ivar_weight,
                        plot_maps, plot_like, output_dir_path, 
                        bins, centers, CAMB_ClEE_binned, CAMB_ClBB_binned, 
-                       pa4_beam, pa5_beam, pa6_beam, ref_beam, tfunc, 
+                       depth1_beam, ref_beam, tfunc, 
                        num_pts, angle_min_deg, angle_max_deg, use_curvefit):
     """
         High-level function to do the polarization angle estimation for each depth-1 map. 
@@ -609,18 +606,6 @@ def estimate_pol_angle(map_path, line, logger, ref_maps, ref_ivar, galaxy_mask,
         w2w4_cross = np.mean(w_depth1*w_ref)**2 / np.mean(w_depth1**2 * w_ref**2)
         w2w4_ref = np.mean(w_ref**2)**2 / np.mean(w_ref**4)
 
-        # Selecting the correct beam
-        map_array = line.split('_')[2]
-        if map_array == 'pa4':
-            depth1_beam = pa4_beam
-        elif map_array == 'pa5':
-            depth1_beam = pa5_beam
-        elif map_array == 'pa6':
-            depth1_beam = pa6_beam
-        else:
-            logger.info(f"Map {line} not in standard format for array beam selection! Choosing averaged beam.")
-            depth1_beam = ref_beam
-
         # Calculate spectra
         # Spectra for estimator
         binned_E1xB2, bincount = spectrum_from_maps(depth1_TEB[1], ref_TEB[2], b_ell_bin_1=depth1_beam, b_ell_bin_2=ref_beam, w2=w2_cross, bins=bins)
@@ -674,7 +659,7 @@ def estimate_pol_angle(map_path, line, logger, ref_maps, ref_ivar, galaxy_mask,
                         'meas_angle': fit_values[0], 'meas_errbar': fit_values[1],
                         'ivar_sum': ivar_sum, 'residual_mean': residual_mean, 
                         'residual_sum': residual_sum, 'map_cut': 0}
-        return output_dict, (depth1_mask, depth1_mask_indices, depth1_ivar, depth1_TEB[0], w_depth1, depth1_beam)
+        return output_dict, (depth1_mask, depth1_mask_indices, depth1_ivar, depth1_TEB[0], w_depth1)
 
 
 def cal_sample_likelihood_and_fit(cal1xcal2, cal1xdepth1, cal1xcal1, cal2xcal2, cal2xdepth1, 
@@ -707,7 +692,7 @@ def cross_calibrate(cal_T_map1_act_footprint, cal_T_map2_act_footprint,
                     depth1_ivar, depth1_mask, depth1_mask_indices,
                     galaxy_mask, depth1_T, w_depth1, w2_depth1, bincount, bins, tfunc,
                     kx_cut, ky_cut, unpixwin, filter_radius, use_ivar_weight,
-                    depth1_beam, pa5_beam, pa6_beam, y_min, y_max, cal_num_pts, cal_use_curvefit):
+                    depth1_beam, cal_T_beam1, cal_T_beam2, y_min, y_max, cal_num_pts, cal_use_curvefit):
     """
         High-level function to do the TT cross-calibration. 
         Allows intermediate maps to be cleaned up when function closes for better RAM usage.
@@ -744,23 +729,23 @@ def cross_calibrate(cal_T_map1_act_footprint, cal_T_map2_act_footprint,
     w2w4_cal1xcal2 = w2_cal1xcal2**2 / np.mean(w_cal1**2 * w_cal2**2)
     w2w4_all_three = w2_cal1xcal2*w2_depth1xcal1 / np.mean(w_cal1*w_cal1*w_cal2*w_depth1)
     # Depth-1 T cross cal map 1 T (pa5 coadd)
-    binned_T1xcal1T, _ = spectrum_from_maps(depth1_T,cal_map1_fourier,b_ell_bin_1=depth1_beam,b_ell_bin_2=pa5_beam,w2=w2_depth1xcal1,bins=bins)
+    binned_T1xcal1T, _ = spectrum_from_maps(depth1_T,cal_map1_fourier,b_ell_bin_1=depth1_beam,b_ell_bin_2=cal_T_beam1,w2=w2_depth1xcal1,bins=bins)
     binned_T1xcal1T /= tfunc
     # cal map 1 T (pa5 coadd) cross cal map 2 T (pa6 coadd)
-    binned_cal1Txcal2T, _ = spectrum_from_maps(cal_map1_fourier,cal_map2_fourier,b_ell_bin_1=pa5_beam,b_ell_bin_2=pa6_beam,w2=w2_cal1xcal2,bins=bins)
+    binned_cal1Txcal2T, _ = spectrum_from_maps(cal_map1_fourier,cal_map2_fourier,b_ell_bin_1=cal_T_beam1,b_ell_bin_2=cal_T_beam2,w2=w2_cal1xcal2,bins=bins)
     binned_cal1Txcal2T /= tfunc
     # Getting spectra for the covariance
     # cal map 1 T (pa5 coadd) cross cal map 1 T (pa5 coadd)
-    binned_cal1Txcal1T, _ = spectrum_from_maps(cal_map1_fourier,cal_map1_fourier,b_ell_bin_1=pa5_beam,b_ell_bin_2=pa5_beam,w2=w2_cal1xcal1,bins=bins)
+    binned_cal1Txcal1T, _ = spectrum_from_maps(cal_map1_fourier,cal_map1_fourier,b_ell_bin_1=cal_T_beam1,b_ell_bin_2=cal_T_beam1,w2=w2_cal1xcal1,bins=bins)
     binned_cal1Txcal1T /= tfunc
     # cal map 2 T (pa6 coadd) cross cal map 2 T (pa6 coadd)
-    binned_cal2Txcal2T, _ = spectrum_from_maps(cal_map2_fourier,cal_map2_fourier,b_ell_bin_1=pa6_beam,b_ell_bin_2=pa6_beam,w2=w2_cal2xcal2,bins=bins)
+    binned_cal2Txcal2T, _ = spectrum_from_maps(cal_map2_fourier,cal_map2_fourier,b_ell_bin_1=cal_T_beam2,b_ell_bin_2=cal_T_beam2,w2=w2_cal2xcal2,bins=bins)
     binned_cal2Txcal2T /= tfunc
     # Depth-1 T cross depth-1 T
     binned_T1xT1, _ = spectrum_from_maps(depth1_T,depth1_T,b_ell_bin_1=depth1_beam,b_ell_bin_2=depth1_beam,w2=w2_depth1,bins=bins)
     binned_T1xT1 /= tfunc
     # Depth-1 T cross cal map 2 T (pa6 coadd)
-    binned_T1xcal2T, _ = spectrum_from_maps(depth1_T,cal_map2_fourier,b_ell_bin_1=depth1_beam,b_ell_bin_2=pa6_beam,w2=w2_depth1xcal2,bins=bins)
+    binned_T1xcal2T, _ = spectrum_from_maps(depth1_T,cal_map2_fourier,b_ell_bin_1=depth1_beam,b_ell_bin_2=cal_T_beam2,w2=w2_depth1xcal2,bins=bins)
     binned_T1xcal2T /= tfunc
 
     # Constructing covariance mode count factors

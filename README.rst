@@ -12,7 +12,7 @@ scripts for running the code - get_depth1_angle_parallel.py and get_depth1_angle
 suggests, these scripts obtain a rotation angle for an ACT depth-1 (read "depth one") map, 
 which is a map in which every pixel is visited
 only once in a given observational period (usually on the order of hours), relative to a reference map 
-(usually a season-long or longer coadd map) in either parallel (using mpi4py) or serial fashion using a power 
+(usually a season-long or longer coadd map for each array) in either parallel (using mpi4py) or serial fashion using a power 
 spectrum based estimator. They can also calculate 
 a calibration factor of the TT spectrum relative to two coadd maps. All of the various settings and paths to the 
 needed maps are set in the configuration files, dr6_depth1_ps_config.yaml or dr6_depth1_ps_serial_config.yaml.
@@ -28,7 +28,7 @@ Standard procedure for running the parallel script by itself is:
 
 .. code-block:: console
 		
-   $ python3 get_depth1_angle_parallel.py dr6_depth1_ps_config.yaml \<tag\>
+   $ python3 get_depth1_angle_parallel.py dr6_depth1_ps_config.yaml <tag>
 
 where the tag is some identifying string that gets added to the output directory name and the output files
 to distinguish them as belonging to this run. In the MPI-enabled version, an output npy file will be saved 
@@ -50,13 +50,14 @@ To run the serial script, use:
 
 Note that there is no tag here - the default is to use the start time of the run to generate a unique output 
 file. As mentioned above, the serial config file is identical to the parallel one except for a handful of extra
-plotting options to generate summary plots after all of the maps have finished running. The serial version is older
-and was the main code used for local development. 
+plotting options to generate summary plots after all of the maps have finished running and one additional boolean
+The serial version has been made more like the parallel version, so it also saves an output npy file for each map 
+in addition to saving one large npy file containing results for all maps. 
 
 The resources folder contains a handful of files that can be used for the CAMB theory spectra and the ACT
 DR4 bins, if desired.
 
-There is also a branch called "serial" that contains only the serial version of the code and a notebooks folder with 
+There is also a branch called "serial" that contains only an old version of the serial code and a notebooks folder with 
 various Jupyter notebooks that were used for testing and
 debugging aspects of the code. The notebooks themselves contain some documentation, but these provide a sort of 
 history of this project including notebooks with simulations that test parts of the code for accuracy. Many of the
@@ -88,8 +89,16 @@ done more to get around these constraints.
 
 Installation
 ------------
-Currently must download from GitHub directly via ```git clone```.
-Once downloaded, it can be installed with 
+Currently must download from GitHub directly via ```git clone```. To avoid downloading the old 
+and rather large testing notebooks, I would recommend using:
+
+.. code-block:: console
+
+   $ git clone https://github.com/zhuber21/act-axion-analysis --single-branch --depth 5
+
+
+This pulls down only the main branch and just the last five commits.
+Once downloaded, it can be installed with:
 
 .. code-block:: console
 		
@@ -118,7 +127,8 @@ but they could be placed with appropriately similar maps, beams, etc. for future
 
   * angle_min_deg - the minimum angle for the likelihood fitting (default -50.0)
   * angle_max_deg - the maximum angle for the likelihood fitting (default 50.0)
-  * num_pts - the number of points between angle_min_deg and angle_max_deg at which the likelihood is evaluated (default 200000) 
+  * num_pts - the number of points between angle_min_deg and angle_max_deg at which the likelihood is evaluated (default 50000) 
+    * If using curvefit, 50,000 points is almost certanily enough to guarantee results match many more points out to O(0.001) precision. If not using curve_fit, may want to use more points to guarantee good precision.
   * use_curvefit - whether to use scipy curvefit to fit cal likelihoods (default True - better to use the full fit here since low S/N maps deviate from Gaussianity)
 
 * Calibration factor likelihood fitting settings
@@ -159,22 +169,28 @@ but they could be placed with appropriately similar maps, beams, etc. for future
 * Paths
 
   * theory_curves_path - the path to a CAMB .dat file containing the best-fit LCDM cosmology spectra
-  * ref_path - path to the reference map for the angle estimation (usually a full ACT DR6 coadd)
-  * ref_ivar_path - path to the reference map inverse variance (ivar) map for the angle estimation
-  * pa4_beam_path - path to beam tform file for ACT DR6 pa6 (e.g. coadd_pa4_f150_night_beam_tform_jitter_cmb.txt")
-  * pa5_beam_path - path to beam tform file for ACT DR6 pa6 (e.g. coadd_pa5_f150_night_beam_tform_jitter_cmb.txt")
+  * ref_pa4_path - path to the pa4 reference map for the angle estimation (usually a night-time pa4 ACT DR6 coadd)
+  * ref_pa4_ivar_path - path to the pa4 reference map inverse variance (ivar) map for the angle estimation
+  * ref_pa4_beam_path - path to the beam for the pa4 reference map
+  * ref_pa5_path - path to the pa5 reference map for the angle estimation (usually a night-time pa5 ACT DR6 coadd)
+  * ref_pa5_ivar_path - path to the pa5 reference map inverse variance (ivar) map for the angle estimation
+  * ref_pa5_beam_path - path to the beam for the pa5 reference map
+  * ref_pa6_path - path to the pa6 reference map for the angle estimation (usually a night-time pa6 ACT DR6 coadd)
+  * ref_pa6_ivar_path - path to the pa6 reference map inverse variance (ivar) map for the angle estimation
+  * ref_pa6_beam_path  - path to the beam for the pa6 reference map
+  * pa4_beam_path - path to beam tform file for ACT DR6 pa4 (e.g. coadd_pa4_f150_night_beam_tform_jitter_cmb.txt")
+  * pa5_beam_path - path to beam tform file for ACT DR6 pa5 (e.g. coadd_pa5_f150_night_beam_tform_jitter_cmb.txt")
   * pa6_beam_path - path to beam tform file for ACT DR6 pa6 (e.g. coadd_pa6_f150_night_beam_tform_jitter_cmb.txt")
   * galaxy_mask_path - path to the galaxy mask (usually using the ACT 70% galaxy mask)
   * cal_map1_path - path to the map for the first calibration coadd
-
-    * It is assumed that this map is a pa5 coadd - the beam is hardcoded in get_angle_from_depth1_ps.py to use pa5_beam_path
-
   * cal_ivar1_path - path to the ivar map for the first calibration coadd
+  * cal_beam1_path - path to the beam for the first calibration coadd
   * cal_map2_path - path to the map for the second calibration coadd
-
-    * It is assumed that this map is a pa6 coadd - the beam is hardcoded in get_angle_from_depth1_ps.py to use pa6_beam_path
-
   * cal_ivar2_path - path to the ivar map for the second calibration coadd
+  * cal_beam2_path - path to the beam for the second calibration coadd
   * obs_list - a .txt file containing the names of all of the maps to run
   * obs_path_stem - the path to the directory containing all of the depth-1 maps
 
+The serial config file also has the "all_same" boolean flag, which allows one to load only the pa5 ref maps 
+and ivar maps if you are using the same maps for pa4, pa5, and pa6. This enables one to save on RAM when 
+running in a legacy mode with the same reference map for all three arrays.

@@ -67,7 +67,10 @@ logger.info(f"Using config file: {yaml_name}")
 
 # Setting common variables set in the config file
 freq = config['freq'] # The frequency being tested this run
-logger.info(f"Analyzing frequency {freq}")
+if freq not in ['f090', 'f150', 'f220']:
+    logger.error(f"freq {freq} does not match one of the three acceptable options!")
+else:
+    logger.info(f"Analyzing frequency {freq}")
 kx_cut = config['kx_cut']
 ky_cut = config['ky_cut']
 unpixwin = config['unpixwin']
@@ -90,14 +93,23 @@ cal_lmin = config['cal_lmin']
 cal_lmax = config['cal_lmax']
 cal_map1_path = config['cal_map1_path']
 cal_ivar1_path = config['cal_ivar1_path']
+cal_beam1_path = config['cal_beam1_path']
 cal_map2_path = config['cal_map2_path']
 cal_ivar2_path = config['cal_ivar2_path']
+cal_beam2_path = config['cal_beam2_path']
 
 # Check that paths exist to needed files
 camb_file = config['theory_curves_path']
-ref_path = config['ref_path']
-#ref_beam_path = config['ref_beam_path'] # Will add back in if there is a separate beam for the reference map instead of averaging other beams
-ref_ivar_path = config['ref_ivar_path']
+ref_pa4_path = config['ref_pa4_path']
+ref_pa4_ivar_path = config['ref_pa4_ivar_path']
+ref_pa4_beam_path = config['ref_pa4_beam_path']
+ref_pa5_path = config['ref_pa5_path']
+ref_pa5_ivar_path = config['ref_pa5_ivar_path']
+ref_pa5_beam_path = config['ref_pa5_beam_path']
+ref_pa6_path = config['ref_pa6_path']
+ref_pa6_ivar_path = config['ref_pa6_ivar_path']
+ref_pa6_beam_path = config['ref_pa6_beam_path']
+
 pa4_beam_path = config['pa4_beam_path']
 pa5_beam_path = config['pa5_beam_path']
 pa6_beam_path = config['pa6_beam_path']
@@ -107,25 +119,43 @@ obs_list = config['obs_list']
 if not os.path.exists(camb_file): 
     logger.error("Cannot find CAMB file! Check config. Exiting.")
     raise FileNotFoundError(f"File not found: {camb_file}")
-if not os.path.exists(ref_path): 
-    logger.error("Cannot find reference map file! Check config. Exiting.")
-    raise FileNotFoundError(f"File not found: {ref_path}")
-#if not os.path.exists(ref_beam_path): 
-#    logger.error("Cannot find beam file! Check config. Exiting.")
-#    raise FileNotFoundError(f"File not found: {ref_beam_path}")
-if not os.path.exists(ref_ivar_path): 
-    logger.error("Cannot find ref map ivar file! Check config. Exiting.")
-    raise FileNotFoundError(f"File not found: {ref_ivar_path}")
 if freq=='f150' or freq=='f220':
+    if not os.path.exists(ref_pa4_path): 
+        logger.error("Cannot find pa4 reference map file! Check config. Exiting.")
+        raise FileNotFoundError(f"File not found: {ref_pa4_path}")
+    if not os.path.exists(ref_pa4_beam_path): 
+        logger.error("Cannot find pa4 ref beam file! Check config. Exiting.")
+        raise FileNotFoundError(f"File not found: {ref_pa4_beam_path}")
+    if not os.path.exists(ref_pa4_ivar_path): 
+        logger.error("Cannot find pa4 ref map ivar file! Check config. Exiting.")
+        raise FileNotFoundError(f"File not found: {ref_pa4_ivar_path}")
     if not os.path.exists(pa4_beam_path): 
-        logger.error("Cannot find pa4 beam file! Check config. Exiting.")
+        logger.error("Cannot find pa4 depth-1 beam file! Check config. Exiting.")
         raise FileNotFoundError(f"File not found: {pa4_beam_path}")
 if freq=='f090' or freq=='f150':
+    if not os.path.exists(ref_pa5_path): 
+        logger.error("Cannot find pa5 reference map file! Check config. Exiting.")
+        raise FileNotFoundError(f"File not found: {ref_pa5_path}")
+    if not os.path.exists(ref_pa5_beam_path): 
+        logger.error("Cannot find pa5 ref beam file! Check config. Exiting.")
+        raise FileNotFoundError(f"File not found: {ref_pa5_beam_path}")
+    if not os.path.exists(ref_pa5_ivar_path): 
+        logger.error("Cannot find pa5 ref map ivar file! Check config. Exiting.")
+        raise FileNotFoundError(f"File not found: {ref_pa5_ivar_path}")
     if not os.path.exists(pa5_beam_path): 
-        logger.error("Cannot find pa5 beam file! Check config. Exiting.")
+        logger.error("Cannot find pa5 depth-1 beam file! Check config. Exiting.")
         raise FileNotFoundError(f"File not found: {pa5_beam_path}")
+    if not os.path.exists(ref_pa6_path): 
+        logger.error("Cannot find pa6 reference map file! Check config. Exiting.")
+        raise FileNotFoundError(f"File not found: {ref_pa6_path}")
+    if not os.path.exists(ref_pa6_beam_path): 
+        logger.error("Cannot find pa6 ref beam file! Check config. Exiting.")
+        raise FileNotFoundError(f"File not found: {ref_pa6_beam_path}")
+    if not os.path.exists(ref_pa6_ivar_path): 
+        logger.error("Cannot find pa6 ref map ivar file! Check config. Exiting.")
+        raise FileNotFoundError(f"File not found: {ref_pa6_ivar_path}")
     if not os.path.exists(pa6_beam_path): 
-        logger.error("Cannot find pa6 beam file! Check config. Exiting.")
+        logger.error("Cannot find pa6 depth-1 beam file! Check config. Exiting.")
         raise FileNotFoundError(f"File not found: {pa6_beam_path}")
 if not os.path.exists(galaxy_mask_path):
     logger.error("Cannot find galaxy mask file! Check config. Exiting.")
@@ -203,28 +233,37 @@ logger.info("Starting to load beams")
 if freq=='f090':
     # Only pa5 and pa6 at f090
     logger.info(f"Using pa5 beam {pa5_beam_path}")
+    logger.info(f"Using ref pa5 beam {ref_pa5_beam_path}")
     logger.info(f"Using pa6 beam {pa6_beam_path}")
+    logger.info(f"Using ref pa6 beam {ref_pa6_beam_path}")
     pa4_beam = []
     pa5_beam = aoa.load_and_bin_beam(pa5_beam_path,bins)
     pa6_beam = aoa.load_and_bin_beam(pa6_beam_path,bins)
-    # For now, average these beams to get coadd/ref beam
-    ref_beam = (pa5_beam+pa6_beam)/2.0
+    ref_pa4_beam = []
+    ref_pa5_beam = aoa.load_and_bin_beam(ref_pa5_beam_path,bins)
+    ref_pa6_beam = aoa.load_and_bin_beam(ref_pa6_beam_path,bins)
     if plot_beam:
         pa5_beam_name = os.path.split(pa5_beam_path)[1][:-4] # Extracting file name from path and dropping '.txt'
         aop.plot_beam(output_dir_path, pa5_beam_name, centers, pa5_beam)
         pa6_beam_name = os.path.split(pa6_beam_path)[1][:-4] # Extracting file name from path and dropping '.txt'
         aop.plot_beam(output_dir_path, pa6_beam_name, centers, pa6_beam)
-        ref_beam_name = "f090_coadd_avg_beam"
-        aop.plot_beam(output_dir_path, ref_beam_name, centers, ref_beam)
+        ref_pa5_beam_name = os.path.split(ref_pa5_beam_path)[1][:-4] # Extracting file name from path and dropping '.txt'
+        aop.plot_beam(output_dir_path, ref_pa5_beam_name, centers, ref_pa5_beam)
+        ref_pa6_beam_name = os.path.split(ref_pa6_beam_path)[1][:-4] # Extracting file name from path and dropping '.txt'
+        aop.plot_beam(output_dir_path, ref_pa6_beam_name, centers, ref_pa6_beam)
 elif freq=='f150':
     logger.info(f"Using pa4 beam {pa4_beam_path}")
+    logger.info(f"Using ref pa4 beam {ref_pa4_beam_path}")
     logger.info(f"Using pa5 beam {pa5_beam_path}")
+    logger.info(f"Using ref pa5 beam {ref_pa5_beam_path}")
     logger.info(f"Using pa6 beam {pa6_beam_path}")
+    logger.info(f"Using ref pa6 beam {ref_pa6_beam_path}")
     pa4_beam = aoa.load_and_bin_beam(pa4_beam_path,bins)
     pa5_beam = aoa.load_and_bin_beam(pa5_beam_path,bins)
     pa6_beam = aoa.load_and_bin_beam(pa6_beam_path,bins)
-    # For now, average these beams to get coadd/ref beam
-    ref_beam = (pa4_beam+pa5_beam+pa6_beam)/3.0
+    ref_pa4_beam = aoa.load_and_bin_beam(ref_pa4_beam_path,bins)
+    ref_pa5_beam = aoa.load_and_bin_beam(ref_pa5_beam_path,bins)
+    ref_pa6_beam = aoa.load_and_bin_beam(ref_pa6_beam_path,bins)
     if plot_beam:
         pa4_beam_name = os.path.split(pa4_beam_path)[1][:-4] # Extracting file name from path and dropping '.txt'
         aop.plot_beam(output_dir_path, pa4_beam_name, centers, pa4_beam)
@@ -232,20 +271,27 @@ elif freq=='f150':
         aop.plot_beam(output_dir_path, pa5_beam_name, centers, pa5_beam)
         pa6_beam_name = os.path.split(pa6_beam_path)[1][:-4] # Extracting file name from path and dropping '.txt'
         aop.plot_beam(output_dir_path, pa6_beam_name, centers, pa6_beam)
-        ref_beam_name = "f150_coadd_avg_beam"
-        aop.plot_beam(output_dir_path, ref_beam_name, centers, ref_beam)
+        ref_pa4_beam_name = os.path.split(ref_pa4_beam_path)[1][:-4] # Extracting file name from path and dropping '.txt'
+        aop.plot_beam(output_dir_path, ref_pa4_beam_name, centers, ref_pa4_beam)
+        ref_pa5_beam_name = os.path.split(ref_pa5_beam_path)[1][:-4] # Extracting file name from path and dropping '.txt'
+        aop.plot_beam(output_dir_path, ref_pa5_beam_name, centers, ref_pa5_beam)
+        ref_pa6_beam_name = os.path.split(ref_pa6_beam_path)[1][:-4] # Extracting file name from path and dropping '.txt'
+        aop.plot_beam(output_dir_path, ref_pa6_beam_name, centers, ref_pa6_beam)
 elif freq=='f220':
     logger.info(f"Using pa4 beam {pa4_beam_path}")
+    logger.info(f"Using ref pa4 beam {ref_pa4_beam_path}")
+    # Only pa4 at f220
     pa4_beam = aoa.load_and_bin_beam(pa4_beam_path,bins)
     pa5_beam = []
     pa6_beam = []
-    # only pa4 at f220
-    ref_beam = pa4_beam
+    ref_pa4_beam = aoa.load_and_bin_beam(ref_pa4_beam_path,bins)
+    ref_pa5_beam = []
+    ref_pa6_beam = []
     if plot_beam:
         pa4_beam_name = os.path.split(pa4_beam_path)[1][:-4] # Extracting file name from path and dropping '.txt'
         aop.plot_beam(output_dir_path, pa4_beam_name, centers, pa4_beam)
-        ref_beam_name = "f220_coadd_avg_beam"
-        aop.plot_beam(output_dir_path, ref_beam_name, centers, ref_beam)
+        ref_pa4_beam_name = os.path.split(ref_pa4_beam_path)[1][:-4] # Extracting file name from path and dropping '.txt'
+        aop.plot_beam(output_dir_path, ref_pa4_beam_name, centers, ref_pa4_beam)
 logger.info("Finished loading beams")
 
 # Calculate filtering transfer function once since filtering is same for all maps
@@ -253,10 +299,22 @@ tfunc = aoa.get_tfunc(kx_cut, ky_cut, bins)
 if plot_tfunc:
     aop.plot_tfunc(output_dir_path, kx_cut, ky_cut, centers, tfunc)
 
-# Loading in reference maps
-logger.info("Starting to load ref map")
-ref_maps, ref_ivar = aoa.load_ref_map(ref_path,ref_ivar_path)
-logger.info("Finished loading ref map")
+# Loading in reference maps for all arrays depending on frequency
+if freq=='f090':
+    logger.info(f"Using pa5 ref map {ref_pa5_path} and ivar {ref_pa5_ivar_path}")
+    ref_pa5_maps, ref_pa5_ivar = aoa.load_ref_map(ref_pa5_path,ref_pa5_ivar_path)
+    logger.info(f"Using pa6 ref map {ref_pa6_path} and ivar {ref_pa6_ivar_path}")
+    ref_pa6_maps, ref_pa6_ivar = aoa.load_ref_map(ref_pa6_path,ref_pa6_ivar_path)
+elif freq=='f150':
+    logger.info(f"Using pa4 ref map {ref_pa4_path} and ivar {ref_pa4_ivar_path}")
+    ref_pa4_maps, ref_pa4_ivar = aoa.load_ref_map(ref_pa4_path,ref_pa4_ivar_path)
+    logger.info(f"Using pa5 ref map {ref_pa5_path} and ivar {ref_pa5_ivar_path}")
+    ref_pa5_maps, ref_pa5_ivar = aoa.load_ref_map(ref_pa5_path,ref_pa5_ivar_path)
+    logger.info(f"Using pa6 ref map {ref_pa6_path} and ivar {ref_pa6_ivar_path}")
+    ref_pa6_maps, ref_pa6_ivar = aoa.load_ref_map(ref_pa6_path,ref_pa6_ivar_path)
+elif freq=='f220':
+    logger.info(f"Using pa4 ref map {ref_pa4_path} and ivar {ref_pa4_ivar_path}")
+    ref_pa4_maps, ref_pa4_ivar = aoa.load_ref_map(ref_pa4_path,ref_pa4_ivar_path)
 
 # Loading in galaxy mask
 logger.info("Starting to load galaxy mask")
@@ -265,18 +323,22 @@ logger.info("Finished loading galaxy mask")
 
 if cross_calibrate:
     # Loading in calibration ivar and maps for cross-correlation
-    logger.info("Starting to load calibration maps for cross-correlation")
+    logger.info("Starting to load calibration maps and beams for cross-correlation")
     # only loading in T maps and trimming immediately to galaxy mask's shape to save memory
     cal_T_map1_act_footprint = enmap.read_map(cal_map1_path, geometry=(galaxy_mask.shape,galaxy_mask.wcs))[0]
     cal_T_ivar1_act_footprint = enmap.read_map(cal_ivar1_path, geometry=(galaxy_mask.shape,galaxy_mask.wcs))
+    cal_T_beam1 = aoa.load_and_bin_beam(cal_beam1_path,cal_bins)
     cal_T_map2_act_footprint = enmap.read_map(cal_map2_path, geometry=(galaxy_mask.shape,galaxy_mask.wcs))[0]
     cal_T_ivar2_act_footprint = enmap.read_map(cal_ivar2_path, geometry=(galaxy_mask.shape,galaxy_mask.wcs))
-    logger.info("Finished loading calibration maps for cross-correlation")
+    cal_T_beam2 = aoa.load_and_bin_beam(cal_beam2_path,cal_bins)
+    logger.info("Finished loading calibration maps and beams for cross-correlation")
 else:
     cal_T_map1_act_footprint = None
     cal_T_ivar1_act_footprint = None
+    cal_T_beam1 = []
     cal_T_map2_act_footprint = None
     cal_T_ivar2_act_footprint = None
+    cal_T_beam2 = []
 
 #######################################################################################################
 # Defining single process function for main loop
@@ -285,12 +347,12 @@ def process(map_name, obs_list_path, logger,
             kx_cut, ky_cut, unpixwin, filter_radius, use_ivar_weight,
             plot_maps, plot_likelihood, output_dir_path, 
             bins, centers, CAMB_ClEE_binned, CAMB_ClBB_binned, 
-            pa4_beam, pa5_beam, pa6_beam, ref_beam, tfunc, 
+            depth1_beam, cal_T_beam1, cal_T_beam2, ref_beam, tfunc, 
             num_pts, angle_min_deg, angle_max_deg, use_curvefit, 
             cross_calibrate, cal_T_map1_act_footprint, cal_T_map2_act_footprint, 
             cal_T_ivar1_act_footprint, cal_T_ivar2_act_footprint,
             cal_bins, y_min, y_max, cal_num_pts, cal_use_curvefit):
-    """Function to call inside each process"""
+    """Function to call for each map inside each process"""
     map_path = obs_list_path + map_name
     # outputs will be 1 if the map is cut, a bunch of things needed
     # for time estimation and TT calibration if not
@@ -298,7 +360,7 @@ def process(map_name, obs_list_path, logger,
                                                   kx_cut, ky_cut, unpixwin, filter_radius, use_ivar_weight,
                                                   plot_maps, plot_likelihood, output_dir_path, 
                                                   bins, centers, CAMB_ClEE_binned, CAMB_ClBB_binned, 
-                                                  pa4_beam, pa5_beam, pa6_beam, ref_beam, tfunc, 
+                                                  depth1_beam, ref_beam, tfunc, 
                                                   num_pts, angle_min_deg, angle_max_deg, use_curvefit)
 
     fit_values = [output_dict['meas_angle'], output_dict['meas_errbar']]
@@ -308,7 +370,6 @@ def process(map_name, obs_list_path, logger,
         depth1_ivar = outputs[2]
         depth1_T = outputs[3]
         w_depth1 = outputs[4]
-        depth1_beam = outputs[5]
         w2_depth1 = output_dict['w2_depth1']
         bincount = output_dict['bincount']
         logger.info(f"Fit values: {fit_values}")
@@ -327,7 +388,7 @@ def process(map_name, obs_list_path, logger,
                                                   depth1_ivar, depth1_mask, depth1_mask_indices,
                                                   galaxy_mask, depth1_T, w_depth1, w2_depth1, bincount,
                                                   cal_bins, tfunc, kx_cut, ky_cut, unpixwin, filter_radius, 
-                                                  use_ivar_weight, depth1_beam, pa5_beam, pa6_beam, y_min, 
+                                                  use_ivar_weight, depth1_beam, cal_T_beam1, cal_T_beam2, y_min, 
                                                   y_max, cal_num_pts, cal_use_curvefit)
             # Printing out calibration factor and errorbar
             cal_fit_values = (cal_output_dict['cal_factor'], cal_output_dict['cal_factor_errbar'])
@@ -357,14 +418,11 @@ def process(map_name, obs_list_path, logger,
 # Run main sequence
 
 with open(obs_list, 'r') as f:
-    lines = f.read().splitlines()
+    maps = f.read().splitlines()
 
 if rank==0:
     # Dump all config info to YAML only once
     # All results are in separate npy files generated in process()
-    maps = []
-    for line in lines:
-        maps.append(line)
     config_output_dict = config
     config_output_dict['list_of_maps'] = maps
     config_output_name = output_dir_path + 'angle_calc_config_' + output_tag + ".yaml"
@@ -372,16 +430,61 @@ if rank==0:
         yaml.dump(config_output_dict, file)
 
 # This loop distributes some of the maps to each process
-for i in range(rank, len(lines), size):
-    map_name = lines[i]
+for i in range(rank, len(maps), size):
+    map_name = maps[i]
     logger.info(f"Processing {map_name} on process {rank}")
+
     try:
+        map_array = map_name.split('_')[2]
+        if freq=='f090':
+            if map_array == 'pa5':
+                depth1_beam = pa5_beam
+                ref_maps = ref_pa5_maps
+                ref_ivar = ref_pa5_ivar
+                ref_beam = ref_pa5_beam
+            elif map_array == 'pa6':
+                depth1_beam = pa6_beam
+                ref_maps = ref_pa6_maps
+                ref_ivar = ref_pa6_ivar
+                ref_beam = ref_pa6_beam
+            else:
+                logger.error(f"Map array {map_array} must be 'pa5' or 'pa6' at {freq}!")
+                raise ValueError(f"Map array {map_array} must be 'pa5' or 'pa6' at {freq}!")
+        elif freq=='f150':
+            if map_array == 'pa4':
+                depth1_beam = pa4_beam
+                ref_maps = ref_pa4_maps
+                ref_ivar = ref_pa4_ivar
+                ref_beam = ref_pa4_beam
+            elif map_array == 'pa5':
+                depth1_beam = pa5_beam
+                ref_maps = ref_pa5_maps
+                ref_ivar = ref_pa5_ivar
+                ref_beam = ref_pa5_beam
+            elif map_array == 'pa6':
+                depth1_beam = pa6_beam
+                ref_maps = ref_pa6_maps
+                ref_ivar = ref_pa6_ivar
+                ref_beam = ref_pa6_beam
+            else:
+                logger.error(f"Map array {map_array} must be 'pa4', 'pa5' or 'pa6' at {freq}!")
+                raise ValueError(f"Map array {map_array} must be 'pa4', 'pa5' or 'pa6' at {freq}!")
+        elif freq=='f220':
+            if map_array == 'pa4':
+                depth1_beam = pa4_beam
+                ref_maps = ref_pa4_maps
+                ref_ivar = ref_pa4_ivar
+                ref_beam = ref_pa4_beam
+            else:
+                logger.error(f"Map array {map_array} must be 'pa4' at {freq}!")
+                raise ValueError(f"Map array {map_array} must be 'pa4' at {freq}!")
+
         process(map_name, obs_list_path, logger, 
                 ref_maps, ref_ivar, galaxy_mask,
                 kx_cut, ky_cut, unpixwin, filter_radius, use_ivar_weight,
                 plot_maps, plot_likelihood, output_dir_path, 
                 bins, centers, CAMB_ClEE_binned, CAMB_ClBB_binned, 
-                pa4_beam, pa5_beam, pa6_beam, ref_beam, tfunc, 
+                depth1_beam, cal_T_beam1, cal_T_beam2, ref_beam, tfunc, 
                 num_pts, angle_min_deg, angle_max_deg, use_curvefit, 
                 cross_calibrate, cal_T_map1_act_footprint, cal_T_map2_act_footprint, 
                 cal_T_ivar1_act_footprint, cal_T_ivar2_act_footprint,

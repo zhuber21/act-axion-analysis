@@ -29,7 +29,7 @@ output_time = str(int(round(time.time())))
 output_dir_root = config['output_dir_root']
 if not os.path.exists(output_dir_root): # Make sure root path is right
     print("Output directory does not exist! Exiting.")
-    sys.exit()
+    raise OSError(f"Directory not found: {output_dir_root}")
 output_dir_path = output_dir_root + "angle_calc_" + output_time + '/'
 if not os.path.exists(output_dir_path): # Make new folder for this run - should be unique
     os.makedirs(output_dir_path)
@@ -45,7 +45,10 @@ logger.info("Using config file: " + str(yaml_name))
 
 # Setting common variables set in the config file
 freq = config['freq'] # The frequency being tested this run
-logger.info("Analyzing frequency " + freq)
+if freq not in ['f090', 'f150', 'f220']:
+    logger.error(f"freq {freq} does not match one of the three acceptable options!")
+else:
+    logger.info(f"Analyzing frequency {freq}")
 kx_cut = config['kx_cut']
 ky_cut = config['ky_cut']
 unpixwin = config['unpixwin']
@@ -57,11 +60,34 @@ use_curvefit = config['use_curvefit']
 use_ivar_weight = config['use_ivar_weight']
 cross_calibrate = config['cross_calibrate']
 
+# Setting parameters for TT calibration, even if cross_calibrate=False
+# so that the process() function call does not crash.
+y_min = config['y_min']
+y_max = config['y_max']
+cal_num_pts = config['cal_num_pts']
+cal_use_curvefit = config['cal_use_curvefit']
+cal_bin_size = config['cal_bin_size']
+cal_lmin = config['cal_lmin']
+cal_lmax = config['cal_lmax']
+cal_map1_path = config['cal_map1_path']
+cal_ivar1_path = config['cal_ivar1_path']
+cal_beam1_path = config['cal_beam1_path']
+cal_map2_path = config['cal_map2_path']
+cal_ivar2_path = config['cal_ivar2_path']
+cal_beam2_path = config['cal_beam2_path']
+
 # Check that paths exist to needed files
 camb_file = config['theory_curves_path']
-ref_path = config['ref_path']
-#ref_beam_path = config['ref_beam_path'] # Will add back in if there is a separate beam for the reference map instead of averaging other beams
-ref_ivar_path = config['ref_ivar_path']
+ref_pa4_path = config['ref_pa4_path']
+ref_pa4_ivar_path = config['ref_pa4_ivar_path']
+ref_pa4_beam_path = config['ref_pa4_beam_path']
+ref_pa5_path = config['ref_pa5_path']
+ref_pa5_ivar_path = config['ref_pa5_ivar_path']
+ref_pa5_beam_path = config['ref_pa5_beam_path']
+ref_pa6_path = config['ref_pa6_path']
+ref_pa6_ivar_path = config['ref_pa6_ivar_path']
+ref_pa6_beam_path = config['ref_pa6_beam_path']
+
 pa4_beam_path = config['pa4_beam_path']
 pa5_beam_path = config['pa5_beam_path']
 pa6_beam_path = config['pa6_beam_path']
@@ -70,64 +96,77 @@ obs_list_path = config['obs_path_stem']
 obs_list = config['obs_list']
 if not os.path.exists(camb_file): 
     logger.error("Cannot find CAMB file! Check config. Exiting.")
-    sys.exit()
-if not os.path.exists(ref_path): 
-    logger.error("Cannot find reference map file! Check config. Exiting.")
-    sys.exit()
-#if not os.path.exists(ref_beam_path): 
-#    logger.error("Cannot find beam file! Check config. Exiting.")
-#    sys.exit()
-if not os.path.exists(ref_ivar_path): 
-    logger.error("Cannot find ref map ivar file! Check config. Exiting.")
-    sys.exit()
+    raise FileNotFoundError(f"File not found: {camb_file}")
 if freq=='f150' or freq=='f220':
+    if not os.path.exists(ref_pa4_path): 
+        logger.error("Cannot find pa4 reference map file! Check config. Exiting.")
+        raise FileNotFoundError(f"File not found: {ref_pa4_path}")
+    if not os.path.exists(ref_pa4_beam_path): 
+        logger.error("Cannot find pa4 ref beam file! Check config. Exiting.")
+        raise FileNotFoundError(f"File not found: {ref_pa4_beam_path}")
+    if not os.path.exists(ref_pa4_ivar_path): 
+        logger.error("Cannot find pa4 ref map ivar file! Check config. Exiting.")
+        raise FileNotFoundError(f"File not found: {ref_pa4_ivar_path}")
     if not os.path.exists(pa4_beam_path): 
-        logger.error("Cannot find pa4 beam file! Check config. Exiting.")
-        sys.exit()
+        logger.error("Cannot find pa4 depth-1 beam file! Check config. Exiting.")
+        raise FileNotFoundError(f"File not found: {pa4_beam_path}")
 if freq=='f090' or freq=='f150':
+    if not os.path.exists(ref_pa5_path): 
+        logger.error("Cannot find pa5 reference map file! Check config. Exiting.")
+        raise FileNotFoundError(f"File not found: {ref_pa5_path}")
+    if not os.path.exists(ref_pa5_beam_path): 
+        logger.error("Cannot find pa5 ref beam file! Check config. Exiting.")
+        raise FileNotFoundError(f"File not found: {ref_pa5_beam_path}")
+    if not os.path.exists(ref_pa5_ivar_path): 
+        logger.error("Cannot find pa5 ref map ivar file! Check config. Exiting.")
+        raise FileNotFoundError(f"File not found: {ref_pa5_ivar_path}")
     if not os.path.exists(pa5_beam_path): 
-        logger.error("Cannot find pa5 beam file! Check config. Exiting.")
-        sys.exit()
+        logger.error("Cannot find pa5 depth-1 beam file! Check config. Exiting.")
+        raise FileNotFoundError(f"File not found: {pa5_beam_path}")
+    if not os.path.exists(ref_pa6_path): 
+        logger.error("Cannot find pa6 reference map file! Check config. Exiting.")
+        raise FileNotFoundError(f"File not found: {ref_pa6_path}")
+    if not os.path.exists(ref_pa6_beam_path): 
+        logger.error("Cannot find pa6 ref beam file! Check config. Exiting.")
+        raise FileNotFoundError(f"File not found: {ref_pa6_beam_path}")
+    if not os.path.exists(ref_pa6_ivar_path): 
+        logger.error("Cannot find pa6 ref map ivar file! Check config. Exiting.")
+        raise FileNotFoundError(f"File not found: {ref_pa6_ivar_path}")
     if not os.path.exists(pa6_beam_path): 
-        logger.error("Cannot find pa6 beam file! Check config. Exiting.")
-        sys.exit()
+        logger.error("Cannot find pa6 depth-1 beam file! Check config. Exiting.")
+        raise FileNotFoundError(f"File not found: {pa6_beam_path}")
 if not os.path.exists(galaxy_mask_path):
     logger.error("Cannot find galaxy mask file! Check config. Exiting.")
-    sys.exit()
+    raise FileNotFoundError(f"File not found: {galaxy_mask_path}")
 if not os.path.exists(obs_list): 
     logger.error("Cannot find observation list! Check config. Exiting.")
-    sys.exit()
+    raise FileNotFoundError(f"File not found: {obs_list}")
 if obs_list[-3:] == 'txt':
-    logger.info("Using list of observations at: " + str(obs_list))
+    logger.info(f"Using list of observations at: {obs_list}")
 else:
     logger.error("Please enter a valid text file in the obs_list field in the YAML file. Exiting.")
-    sys.exit()
+    raise ValueError("Please enter a valid text file in the obs_list field in the YAML file.")
 if cross_calibrate:
-    y_min = config['y_min']
-    y_max = config['y_max']
-    cal_num_pts = config['cal_num_pts']
-    cal_use_curvefit = config['cal_use_curvefit']
-    cal_bin_size = config['cal_bin_size']
-    cal_lmin = config['cal_lmin']
-    cal_lmax = config['cal_lmax']
-    cal_map1_path = config['cal_map1_path']
-    cal_ivar1_path = config['cal_ivar1_path']
-    cal_map2_path = config['cal_map2_path']
-    cal_ivar2_path = config['cal_ivar2_path']
     if not os.path.exists(cal_map1_path): 
         logger.error("Cannot find calibration map 1 file! Check config. Exiting.")
-        sys.exit()
+        raise FileNotFoundError(f"File not found: {cal_map1_path}")
     if not os.path.exists(cal_ivar1_path): 
         logger.error("Cannot find calibration ivar 1 file! Check config. Exiting.")
-        sys.exit()
+        raise FileNotFoundError(f"File not found: {cal_ivar1_path}")
+    if not os.path.exists(cal_beam1_path): 
+        logger.error("Cannot find calibration beam 1 file! Check config. Exiting.")
+        raise FileNotFoundError(f"File not found: {cal_beam1_path}")
     if not os.path.exists(cal_map2_path): 
         logger.error("Cannot find calibration map 2 file! Check config. Exiting.")
-        sys.exit()
+        raise FileNotFoundError(f"File not found: {cal_map2_path}")
     if not os.path.exists(cal_ivar2_path): 
         logger.error("Cannot find calibration ivar 2 file! Check config. Exiting.")
-        sys.exit()
-    # Setting up bins for calibration
-    cal_bins = np.arange(cal_lmin, cal_lmax, cal_bin_size)
+        raise FileNotFoundError(f"File not found: {cal_ivar2_path}")
+    if not os.path.exists(cal_beam2_path): 
+        logger.error("Cannot find calibration beam 2 file! Check config. Exiting.")
+        raise FileNotFoundError(f"File not found: {cal_beam2_path}")
+# Setting up bins for calibration
+cal_bins = np.arange(cal_lmin, cal_lmax, cal_bin_size)
 
 # Setting bins
 if config['bin_settings'] == "regular":
@@ -142,21 +181,23 @@ elif config['bin_settings'] == "DR4":
     stop_index = config['stop_index']
     act_dr4_spectra_root = os.path.dirname(os.path.realpath(os.path.dirname(__file__)))
     full_bins, full_centers = np.loadtxt(act_dr4_spectra_root+'/resources/BIN_ACTPOL_50_4_SC_low_ell',
-                                         usecols=(0,2), unpack=True)
+                                        usecols=(0,2), unpack=True)
     bins = full_bins[start_index:stop_index]
     centers = full_centers[start_index:stop_index-1]
 else:
     logger.error("Please use valid bin_settings! Options are 'regular' and 'DR4'. Exiting.")
-    sys.exit()
+    raise ValueError("Please use valid bin_settings! Options are 'regular' and 'DR4'.")
 logger.info("Finished loading bins")
 
 # Setting plotting settings
 plot_maps = config['plot_maps']
-plot_all_spectra = config['plot_all_spectra']
-plot_summary_spectra = config['plot_summary_spectra']
 plot_likelihood = config['plot_likelihood']
 plot_beam = config['plot_beam']
-plot_tfunc = config['plot_tfunc'] 
+plot_tfunc = config['plot_tfunc']
+# These three only exist in the serial code since they act on the
+# full dictionary at the end
+plot_all_spectra = config['plot_all_spectra']
+plot_summary_spectra = config['plot_summary_spectra'] 
 plot_angle_hist = config['plot_angle_hist']
 
 # Load CAMB EE and BB spectrum (BB just for plotting)
@@ -176,38 +217,42 @@ CAMB_ClEE_binned = np.bincount(digitized, ClEE.reshape(-1))[1:-1]/np.bincount(di
 CAMB_ClBB_binned = np.bincount(digitized, ClBB.reshape(-1))[1:-1]/np.bincount(digitized)[1:-1]
 logger.info("Finished loading CAMB spectra")
 
-# Loading in reference maps
-logger.info("Starting to load ref map")
-ref_maps, ref_ivar = aoa.load_ref_map(ref_path,ref_ivar_path)
-logger.info("Finished loading ref map")
-
 # Loading all beams
 logger.info("Starting to load beams")
 if freq=='f090':
     # Only pa5 and pa6 at f090
-    logger.info("Using pa5 beam " + str(pa5_beam_path))
-    logger.info("Using pa6 beam " + str(pa6_beam_path))
+    logger.info(f"Using pa5 beam {pa5_beam_path}")
+    logger.info(f"Using ref pa5 beam {ref_pa5_beam_path}")
+    logger.info(f"Using pa6 beam {pa6_beam_path}")
+    logger.info(f"Using ref pa6 beam {ref_pa6_beam_path}")
     pa4_beam = []
     pa5_beam = aoa.load_and_bin_beam(pa5_beam_path,bins)
     pa6_beam = aoa.load_and_bin_beam(pa6_beam_path,bins)
-    # For now, average these beams to get coadd/ref beam
-    ref_beam = (pa5_beam+pa6_beam)/2.0
+    ref_pa4_beam = []
+    ref_pa5_beam = aoa.load_and_bin_beam(ref_pa5_beam_path,bins)
+    ref_pa6_beam = aoa.load_and_bin_beam(ref_pa6_beam_path,bins)
     if plot_beam:
         pa5_beam_name = os.path.split(pa5_beam_path)[1][:-4] # Extracting file name from path and dropping '.txt'
         aop.plot_beam(output_dir_path, pa5_beam_name, centers, pa5_beam)
         pa6_beam_name = os.path.split(pa6_beam_path)[1][:-4] # Extracting file name from path and dropping '.txt'
         aop.plot_beam(output_dir_path, pa6_beam_name, centers, pa6_beam)
-        ref_beam_name = "f090_coadd_avg_beam"
-        aop.plot_beam(output_dir_path, ref_beam_name, centers, ref_beam)
+        ref_pa5_beam_name = os.path.split(ref_pa5_beam_path)[1][:-4] # Extracting file name from path and dropping '.txt'
+        aop.plot_beam(output_dir_path, ref_pa5_beam_name, centers, ref_pa5_beam)
+        ref_pa6_beam_name = os.path.split(ref_pa6_beam_path)[1][:-4] # Extracting file name from path and dropping '.txt'
+        aop.plot_beam(output_dir_path, ref_pa6_beam_name, centers, ref_pa6_beam)
 elif freq=='f150':
-    logger.info("Using pa4 beam " + str(pa4_beam_path))
-    logger.info("Using pa5 beam " + str(pa5_beam_path))
-    logger.info("Using pa6 beam " + str(pa6_beam_path))
+    logger.info(f"Using pa4 beam {pa4_beam_path}")
+    logger.info(f"Using ref pa4 beam {ref_pa4_beam_path}")
+    logger.info(f"Using pa5 beam {pa5_beam_path}")
+    logger.info(f"Using ref pa5 beam {ref_pa5_beam_path}")
+    logger.info(f"Using pa6 beam {pa6_beam_path}")
+    logger.info(f"Using ref pa6 beam {ref_pa6_beam_path}")
     pa4_beam = aoa.load_and_bin_beam(pa4_beam_path,bins)
     pa5_beam = aoa.load_and_bin_beam(pa5_beam_path,bins)
     pa6_beam = aoa.load_and_bin_beam(pa6_beam_path,bins)
-    # For now, average these beams to get coadd/ref beam
-    ref_beam = (pa4_beam+pa5_beam+pa6_beam)/3.0
+    ref_pa4_beam = aoa.load_and_bin_beam(ref_pa4_beam_path,bins)
+    ref_pa5_beam = aoa.load_and_bin_beam(ref_pa5_beam_path,bins)
+    ref_pa6_beam = aoa.load_and_bin_beam(ref_pa6_beam_path,bins)
     if plot_beam:
         pa4_beam_name = os.path.split(pa4_beam_path)[1][:-4] # Extracting file name from path and dropping '.txt'
         aop.plot_beam(output_dir_path, pa4_beam_name, centers, pa4_beam)
@@ -215,21 +260,59 @@ elif freq=='f150':
         aop.plot_beam(output_dir_path, pa5_beam_name, centers, pa5_beam)
         pa6_beam_name = os.path.split(pa6_beam_path)[1][:-4] # Extracting file name from path and dropping '.txt'
         aop.plot_beam(output_dir_path, pa6_beam_name, centers, pa6_beam)
-        ref_beam_name = "f150_coadd_avg_beam"
-        aop.plot_beam(output_dir_path, ref_beam_name, centers, ref_beam)
+        ref_pa4_beam_name = os.path.split(ref_pa4_beam_path)[1][:-4] # Extracting file name from path and dropping '.txt'
+        aop.plot_beam(output_dir_path, ref_pa4_beam_name, centers, ref_pa4_beam)
+        ref_pa5_beam_name = os.path.split(ref_pa5_beam_path)[1][:-4] # Extracting file name from path and dropping '.txt'
+        aop.plot_beam(output_dir_path, ref_pa5_beam_name, centers, ref_pa5_beam)
+        ref_pa6_beam_name = os.path.split(ref_pa6_beam_path)[1][:-4] # Extracting file name from path and dropping '.txt'
+        aop.plot_beam(output_dir_path, ref_pa6_beam_name, centers, ref_pa6_beam)
 elif freq=='f220':
-    logger.info("Using pa4 beam " + str(pa4_beam_path))
+    logger.info(f"Using pa4 beam {pa4_beam_path}")
+    logger.info(f"Using ref pa4 beam {ref_pa4_beam_path}")
+    # Only pa4 at f220
     pa4_beam = aoa.load_and_bin_beam(pa4_beam_path,bins)
     pa5_beam = []
     pa6_beam = []
-    # only pa4 at f220
-    ref_beam = pa4_beam
+    ref_pa4_beam = aoa.load_and_bin_beam(ref_pa4_beam_path,bins)
+    ref_pa5_beam = []
+    ref_pa6_beam = []
     if plot_beam:
         pa4_beam_name = os.path.split(pa4_beam_path)[1][:-4] # Extracting file name from path and dropping '.txt'
         aop.plot_beam(output_dir_path, pa4_beam_name, centers, pa4_beam)
-        ref_beam_name = "f220_coadd_avg_beam"
-        aop.plot_beam(output_dir_path, ref_beam_name, centers, ref_beam)
+        ref_pa4_beam_name = os.path.split(ref_pa4_beam_path)[1][:-4] # Extracting file name from path and dropping '.txt'
+        aop.plot_beam(output_dir_path, ref_pa4_beam_name, centers, ref_pa4_beam)
 logger.info("Finished loading beams")
+
+# Calculate filtering transfer function once since filtering is same for all maps
+tfunc = aoa.get_tfunc(kx_cut, ky_cut, bins)
+if plot_tfunc:
+    aop.plot_tfunc(output_dir_path, kx_cut, ky_cut, centers, tfunc)
+
+all_same = config['all_same']
+if not all_same:
+    # Loading in reference maps for all arrays depending on frequency
+    if freq=='f090':
+        logger.info(f"Using pa5 ref map {ref_pa5_path} and ivar {ref_pa5_ivar_path}")
+        ref_pa5_maps, ref_pa5_ivar = aoa.load_ref_map(ref_pa5_path,ref_pa5_ivar_path)
+        logger.info(f"Using pa6 ref map {ref_pa6_path} and ivar {ref_pa6_ivar_path}")
+        ref_pa6_maps, ref_pa6_ivar = aoa.load_ref_map(ref_pa6_path,ref_pa6_ivar_path)
+    elif freq=='f150':
+        logger.info(f"Using pa4 ref map {ref_pa4_path} and ivar {ref_pa4_ivar_path}")
+        ref_pa4_maps, ref_pa4_ivar = aoa.load_ref_map(ref_pa4_path,ref_pa4_ivar_path)
+        logger.info(f"Using pa5 ref map {ref_pa5_path} and ivar {ref_pa5_ivar_path}")
+        ref_pa5_maps, ref_pa5_ivar = aoa.load_ref_map(ref_pa5_path,ref_pa5_ivar_path)
+        logger.info(f"Using pa6 ref map {ref_pa6_path} and ivar {ref_pa6_ivar_path}")
+        ref_pa6_maps, ref_pa6_ivar = aoa.load_ref_map(ref_pa6_path,ref_pa6_ivar_path)
+    elif freq=='f220':
+        logger.info(f"Using pa4 ref map {ref_pa4_path} and ivar {ref_pa4_ivar_path}")
+        ref_pa4_maps, ref_pa4_ivar = aoa.load_ref_map(ref_pa4_path,ref_pa4_ivar_path)
+else:
+    logger.info(f"Using pa5 ref map {ref_pa5_path} and ivar {ref_pa5_ivar_path} for all ref maps/ivar")
+    ref_pa5_maps, ref_pa5_ivar = aoa.load_ref_map(ref_pa5_path,ref_pa5_ivar_path)
+    ref_pa4_maps, ref_pa4_ivar = ref_pa5_maps, ref_pa5_ivar
+    ref_pa4_beam = ref_pa5_beam
+    ref_pa6_maps, ref_pa6_ivar = ref_pa5_maps, ref_pa5_ivar
+    ref_pa6_beam = ref_pa5_beam
 
 # Loading in galaxy mask
 logger.info("Starting to load galaxy mask")
@@ -238,36 +321,44 @@ logger.info("Finished loading galaxy mask")
 
 if cross_calibrate:
     # Loading in calibration ivar and maps for cross-correlation
-    logger.info("Starting to load calibration maps for cross-correlation")
+    logger.info("Starting to load calibration maps and beams for cross-correlation")
     # only loading in T maps and trimming immediately to galaxy mask's shape to save memory
     cal_T_map1_act_footprint = enmap.read_map(cal_map1_path, geometry=(galaxy_mask.shape,galaxy_mask.wcs))[0]
     cal_T_ivar1_act_footprint = enmap.read_map(cal_ivar1_path, geometry=(galaxy_mask.shape,galaxy_mask.wcs))
+    cal_T_beam1 = aoa.load_and_bin_beam(cal_beam1_path,cal_bins)
     cal_T_map2_act_footprint = enmap.read_map(cal_map2_path, geometry=(galaxy_mask.shape,galaxy_mask.wcs))[0]
     cal_T_ivar2_act_footprint = enmap.read_map(cal_ivar2_path, geometry=(galaxy_mask.shape,galaxy_mask.wcs))
-    logger.info("Finished loading calibration maps for cross-correlation")
+    cal_T_beam2 = aoa.load_and_bin_beam(cal_beam2_path,cal_bins)
+    logger.info("Finished loading calibration maps and beams for cross-correlation")
+else:
+    cal_T_map1_act_footprint = None
+    cal_T_ivar1_act_footprint = None
+    cal_T_beam1 = []
+    cal_T_map2_act_footprint = None
+    cal_T_ivar2_act_footprint = None
+    cal_T_beam2 = []
 
-maps = []
-angle_estimates = []
-results_output = {}
-
-# Calculate filtering transfer function once since filtering is same for all maps
-tfunc = aoa.get_tfunc(kx_cut, ky_cut, bins)
-if plot_tfunc:
-    aop.plot_tfunc(output_dir_path, kx_cut, ky_cut, centers, tfunc)
-
-with open(obs_list) as f:
-    lines = f.read().splitlines()
-
-for line in tqdm(lines):
-    logger.info(line)
-    map_path = obs_list_path + line
+#######################################################################################################
+# Defining single process function for main loop
+def process(map_name, obs_list_path, logger, 
+            ref_maps, ref_ivar, galaxy_mask,
+            kx_cut, ky_cut, unpixwin, filter_radius, use_ivar_weight,
+            plot_maps, plot_likelihood, output_dir_path, 
+            bins, centers, CAMB_ClEE_binned, CAMB_ClBB_binned, 
+            depth1_beam, cal_T_beam1, cal_T_beam2, ref_beam, tfunc, 
+            num_pts, angle_min_deg, angle_max_deg, use_curvefit, 
+            cross_calibrate, cal_T_map1_act_footprint, cal_T_map2_act_footprint, 
+            cal_T_ivar1_act_footprint, cal_T_ivar2_act_footprint,
+            cal_bins, y_min, y_max, cal_num_pts, cal_use_curvefit):
+    """Function to call for each map inside each process"""
+    map_path = obs_list_path + map_name
     # outputs will be 1 if the map is cut, a bunch of things needed
     # for time estimation and TT calibration if not
-    output_dict, outputs = aoa.estimate_pol_angle(map_path, line, logger, ref_maps, ref_ivar, galaxy_mask,
+    output_dict, outputs = aoa.estimate_pol_angle(map_path, map_name, logger, ref_maps, ref_ivar, galaxy_mask,
                                                   kx_cut, ky_cut, unpixwin, filter_radius, use_ivar_weight,
                                                   plot_maps, plot_likelihood, output_dir_path, 
                                                   bins, centers, CAMB_ClEE_binned, CAMB_ClBB_binned, 
-                                                  pa4_beam, pa5_beam, pa6_beam, ref_beam, tfunc, 
+                                                  depth1_beam, ref_beam, tfunc, 
                                                   num_pts, angle_min_deg, angle_max_deg, use_curvefit)
 
     fit_values = [output_dict['meas_angle'], output_dict['meas_errbar']]
@@ -277,15 +368,13 @@ for line in tqdm(lines):
         depth1_ivar = outputs[2]
         depth1_T = outputs[3]
         w_depth1 = outputs[4]
-        depth1_beam = outputs[5]
         w2_depth1 = output_dict['w2_depth1']
         bincount = output_dict['bincount']
-        logger.info("Fit values: "+str(fit_values))
-        logger.info("Calculating median timestamp from time.fits and info.hdf files")
+        logger.info(f"Fit values: {fit_values}")
         # depth1_mask will be the doubly tapered one if ivar weighting is on, the first filtering one if not
         initial_timestamp, median_timestamp = aoa.calc_median_timestamp(map_path, depth1_mask)
-        logger.info("Initial timestamp: "+str(initial_timestamp))
-        logger.info("Median timestamp: "+str(median_timestamp))
+        logger.info(f"Initial timestamp: {initial_timestamp}")
+        logger.info(f"Median timestamp: {median_timestamp}")
         output_dict.update({'initial_timestamp': initial_timestamp, 'median_timestamp': median_timestamp})
 
         if cross_calibrate:
@@ -297,11 +386,11 @@ for line in tqdm(lines):
                                                   depth1_ivar, depth1_mask, depth1_mask_indices,
                                                   galaxy_mask, depth1_T, w_depth1, w2_depth1, bincount,
                                                   cal_bins, tfunc, kx_cut, ky_cut, unpixwin, filter_radius, 
-                                                  use_ivar_weight, depth1_beam, pa5_beam, pa6_beam, y_min, 
+                                                  use_ivar_weight, depth1_beam, cal_T_beam1, cal_T_beam2, y_min, 
                                                   y_max, cal_num_pts, cal_use_curvefit)
             # Printing out calibration factor and errorbar
             cal_fit_values = (cal_output_dict['cal_factor'], cal_output_dict['cal_factor_errbar'])
-            logger.info("TT calibration fit values: "+str(cal_fit_values))
+            logger.info(f"TT calibration fit values: {cal_fit_values}")
             # Adding calibration keys to final dictionary
             output_dict.update(cal_output_dict)
     else:
@@ -316,11 +405,118 @@ for line in tqdm(lines):
                                  'w2_cal1xcal2': -9999, 'w2_cal1xcal1': -9999, 'w2_cal2xcal2': -9999,
                                  'w2w4_all_three': -9999, 'w2w4_depth1xcal1': -9999, 'w2w4_cal1xcal2': -9999})
 
-    # At the end, assign the output_dict to the line in results_output
-    # If the mask cuts the whole map, this will be the dict with -9999 everywhere
-    results_output[line] = output_dict
-    maps.append(line)
-    angle_estimates.append(fit_values)              
+    return output_dict
+
+#######################################################################################################
+# Run main sequence
+
+with open(obs_list, 'r') as f:
+    maps = f.read().splitlines()
+
+angle_estimates = []
+results_output = {}
+
+for map_name in tqdm(maps):
+    logger.info(f"Processing {map_name}")
+
+    try:
+        map_array = map_name.split('_')[2]
+        if freq=='f090':
+            if map_array == 'pa5':
+                depth1_beam = pa5_beam
+                ref_maps = ref_pa5_maps
+                ref_ivar = ref_pa5_ivar
+                ref_beam = ref_pa5_beam
+            elif map_array == 'pa6':
+                depth1_beam = pa6_beam
+                ref_maps = ref_pa6_maps
+                ref_ivar = ref_pa6_ivar
+                ref_beam = ref_pa6_beam
+            else:
+                logger.error(f"Map array {map_array} must be 'pa5' or 'pa6' at {freq}!")
+                raise ValueError(f"Map array {map_array} must be 'pa5' or 'pa6' at {freq}!")
+        elif freq=='f150':
+            if map_array == 'pa4':
+                depth1_beam = pa4_beam
+                ref_maps = ref_pa4_maps
+                ref_ivar = ref_pa4_ivar
+                ref_beam = ref_pa4_beam
+            elif map_array == 'pa5':
+                depth1_beam = pa5_beam
+                ref_maps = ref_pa5_maps
+                ref_ivar = ref_pa5_ivar
+                ref_beam = ref_pa5_beam
+            elif map_array == 'pa6':
+                depth1_beam = pa6_beam
+                ref_maps = ref_pa6_maps
+                ref_ivar = ref_pa6_ivar
+                ref_beam = ref_pa6_beam
+            else:
+                logger.error(f"Map array {map_array} must be 'pa4', 'pa5' or 'pa6' at {freq}!")
+                raise ValueError(f"Map array {map_array} must be 'pa4', 'pa5' or 'pa6' at {freq}!")
+        elif freq=='f220':
+            if map_array == 'pa4':
+                depth1_beam = pa4_beam
+                ref_maps = ref_pa4_maps
+                ref_ivar = ref_pa4_ivar
+                ref_beam = ref_pa4_beam
+            else:
+                logger.error(f"Map array {map_array} must be 'pa4' at {freq}!")
+                raise ValueError(f"Map array {map_array} must be 'pa4' at {freq}!")
+
+        output_dict = process(map_name, obs_list_path, logger, 
+                            ref_maps, ref_ivar, galaxy_mask,
+                            kx_cut, ky_cut, unpixwin, filter_radius, use_ivar_weight,
+                            plot_maps, plot_likelihood, output_dir_path, 
+                            bins, centers, CAMB_ClEE_binned, CAMB_ClBB_binned, 
+                            depth1_beam, cal_T_beam1, cal_T_beam2, ref_beam, tfunc, 
+                            num_pts, angle_min_deg, angle_max_deg, use_curvefit, 
+                            cross_calibrate, cal_T_map1_act_footprint, cal_T_map2_act_footprint, 
+                            cal_T_ivar1_act_footprint, cal_T_ivar2_act_footprint,
+                            cal_bins, y_min, y_max, cal_num_pts, cal_use_curvefit)
+        # At the end, save the output_dict to a npy file - there will be one per map
+        # This ensures at least some of the results are saved if the script crashes
+        # with memory issues (historically, a scourge of this project...).
+        # Can be loaded with np.load(results_output_fname, allow_pickle=True).item()
+        # If the mask cuts the whole map, this will be the dict with -9999 everywhere
+        map_name_no_ending = map_name[:-8] # Removing 'map.fits'
+        results_output_fname = output_dir_path + map_name_no_ending + output_time + '_results.npy'
+        np.save(results_output_fname, output_dict)        
+
+        # Assign the output_dict to the line in results_output so that one npy file
+        # can be made as long as the script doesn't crash from memory usage
+        results_output[map_name] = output_dict
+        fit_values = [output_dict['meas_angle'], output_dict['meas_errbar']]
+        angle_estimates.append(fit_values) 
+    except Exception as e:
+        logger.error(f"Map {map_name} failed with error {e}")
+        # Ensuring that plotting code still works for all maps
+        ell_len = len(centers)
+        output_dict = {'ell': centers, 'E1xB2': np.zeros(ell_len), 'E2xB1': np.zeros(ell_len), 
+                       'E1xE1': np.zeros(ell_len), 'B2xB2': np.zeros(ell_len), 'E2xE2': np.zeros(ell_len),
+                       'B1xB1': np.zeros(ell_len), 'E1xE2': np.zeros(ell_len), 'B1xB2': np.zeros(ell_len),
+                       'E1xB1': np.zeros(ell_len), 'E2xB2': np.zeros(ell_len), 'bincount': np.zeros(ell_len),
+                       'estimator': np.zeros(ell_len), 'covariance': np.zeros(ell_len),
+                       'CAMB_EE': CAMB_ClEE_binned, 'CAMB_BB': CAMB_ClBB_binned,
+                       'w2_depth1': -9999, 'w2_cross': -9999, 'w2_ref': -9999, 'fsky': -9999,
+                       'w2w4_depth1': -9999, 'w2w4_cross': -9999, 'w2w4_ref': -9999,
+                       'meas_angle': -9999, 'meas_errbar': -9999,
+                       'initial_timestamp': -9999, 'median_timestamp': -9999, 
+                       'ivar_sum': -9999, 'residual_mean': -9999, 
+                       'residual_sum': -9999, 'map_cut': 1}
+        if cross_calibrate:
+            output_dict.update({'T1xcal1T': np.zeros(ell_len), 'cal1Txcal2T': np.zeros(ell_len),
+                                 'cal1Txcal1T': np.zeros(ell_len), 'cal2Txcal2T': np.zeros(ell_len), 
+                                 'T1xT1': np.zeros(ell_len), 'T1xcal2T': np.zeros(ell_len),
+                                 'cal_factor': -9999, 'cal_factor_errbar': -9999,
+                                 'w2_depth1xcal1': -9999, 'w2_depth1xcal2': -9999,
+                                 'w2_cal1xcal2': -9999, 'w2_cal1xcal1': -9999, 'w2_cal2xcal2': -9999,
+                                 'w2w4_all_three': -9999, 'w2w4_depth1xcal1': -9999, 'w2w4_cal1xcal2': -9999})
+        map_name_no_ending = map_name[:-8] # Removing 'map.fits'
+        results_output_fname = output_dir_path + map_name_no_ending + output_time + '_results.npy'
+        np.save(results_output_fname, output_dict) 
+        results_output[map_name] = output_dict
+        angle_estimates.append([-9999,-9999])        
 
 # Plot summary plots if desired
 if plot_all_spectra:
@@ -335,20 +531,19 @@ if plot_angle_hist:
     logger.info("Plotting histogram of angles")
     aop.plot_angle_hist(output_dir_path, np.array(angle_estimates)[:,0], maps)
 
-# Saving results to a numpy file
+# Saving full results to a numpy file
 # Can be loaded with np.load(results_output_fname, allow_pickle=True).item()
 results_output_fname = output_dir_path + 'angle_calc_' + output_time + '_results.npy'
 np.save(results_output_fname, results_output)
 
 # Dump all config info to YAML
-output_dict = config
-output_dict['list_of_maps'] = maps
+config_output_dict = config
+config_output_dict['list_of_maps'] = maps
 output_dict['results_output_fname'] = results_output_fname
-
-output_name = output_dir_path + 'angle_calc_config_' + output_time + ".yaml"
-with open(output_name, 'w') as file:
-    yaml.dump(output_dict, file)
-logger.info("Finished running get_angle_from_depth1_ps.py. Output is in: " + str(output_name))
+config_output_name = output_dir_path + 'angle_calc_config_' + output_time + ".yaml"
+with open(config_output_name, 'w') as file:
+    yaml.dump(config_output_dict, file)
+logger.info("Finished running get_angle_from_depth1_ps.py. Output is in: " + str(output_dir_path))
 stop_time = time.time()
 duration = stop_time-start_time
 logger.info("Script took {:1.3f} seconds".format(duration))
