@@ -127,7 +127,8 @@ but they could be placed with appropriately similar maps, beams, etc. for future
 
   * angle_min_deg - the minimum angle for the likelihood fitting (default -50.0)
   * angle_max_deg - the maximum angle for the likelihood fitting (default 50.0)
-  * num_pts - the number of points between angle_min_deg and angle_max_deg at which the likelihood is evaluated (default 200000) 
+  * num_pts - the number of points between angle_min_deg and angle_max_deg at which the likelihood is evaluated (default 50000) 
+    * If using curvefit, 50,000 points is almost certanily enough to guarantee results match many more points out to O(0.001) precision. If not using curve_fit, may want to use more points to guarantee good precision.
   * use_curvefit - whether to use scipy curvefit to fit cal likelihoods (default True - better to use the full fit here since low S/N maps deviate from Gaussianity)
 
 * Calibration factor likelihood fitting settings

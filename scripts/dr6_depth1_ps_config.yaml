@@ -15,7 +15,7 @@ filter_radius: 0.5 # nawrapper.apod_C2() - radius in degrees, applied twice if u
 # Likelihood fitting settings
 angle_min_deg: -50.0
 angle_max_deg: 50.0
-num_pts: 200000
+num_pts: 50000
 use_curvefit: True
 
 # Calibration factor likelihood fitting settings
