@@ -682,6 +682,10 @@ def cal_sample_likelihood_and_fit(cal1xcal2, cal1xdepth1, cal1xcal1, cal2xcal2, 
         # The default guess starting values are for the angle likelihood, so pass new ones here
         guess = [1.0, 0.2] # Guessing a center value of 1.0 with std dev 0.2
         fit_values = gaussian_fit_curvefit(y_values,norm_sampled_likelihood, guess=guess)
+        # Testing revealed this sometimes fails to fit good ones that are far from the guess
+        # Easiest thing to do is just refit them with moment method - usually still easy to separate out bad ones
+        if fit_values[1] < 0.005:
+            fit_values = gaussian_fit_moment(y_values,norm_sampled_likelihood)
     else:
         fit_values = gaussian_fit_moment(y_values,norm_sampled_likelihood)
     
