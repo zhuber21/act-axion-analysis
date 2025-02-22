@@ -19,7 +19,7 @@ num_pts: 50000
 use_curvefit: True
 
 # Calibration factor likelihood fitting settings
-y_min: -1.0
+y_min: 0.0
 y_max: 2.0
 cal_num_pts: 50000
 cal_use_curvefit: True
