@@ -322,12 +322,25 @@ logger.info("Finished loading galaxy mask")
 if cross_calibrate:
     # Loading in calibration ivar and maps for cross-correlation
     logger.info("Starting to load calibration maps and beams for cross-correlation")
-    # only loading in T maps and trimming immediately to galaxy mask's shape to save memory
-    cal_T_map1_act_footprint = enmap.read_map(cal_map1_path, geometry=(galaxy_mask.shape,galaxy_mask.wcs))[0]
-    cal_T_ivar1_act_footprint = enmap.read_map(cal_ivar1_path, geometry=(galaxy_mask.shape,galaxy_mask.wcs))
+
+    # Check if the calibration map path is the same as the relevant reference map
+    # Will just assign the variable to save time if they are the same
+    # Assuming cal1 is pa5 and cal2 is pa6 for now
+    if cal_map1_path == ref_pa5_path:
+        cal_T_map1_act_footprint = ref_pa5_maps[0]
+        cal_T_ivar1_act_footprint = ref_pa5_ivar*2.0 # To get back to T noise
+    else:
+        # only loading in T maps and trimming immediately to galaxy mask's shape to save memory (legacy from using Planck maps)
+        cal_T_map1_act_footprint = enmap.read_map(cal_map1_path, geometry=(galaxy_mask.shape,galaxy_mask.wcs))[0]
+        cal_T_ivar1_act_footprint = enmap.read_map(cal_ivar1_path, geometry=(galaxy_mask.shape,galaxy_mask.wcs))
+    # Still load beam again in case cal_bins is different from bins
     cal_T_beam1 = aoa.load_and_bin_beam(cal_beam1_path,cal_bins)
-    cal_T_map2_act_footprint = enmap.read_map(cal_map2_path, geometry=(galaxy_mask.shape,galaxy_mask.wcs))[0]
-    cal_T_ivar2_act_footprint = enmap.read_map(cal_ivar2_path, geometry=(galaxy_mask.shape,galaxy_mask.wcs))
+    if cal_map2_path == ref_pa6_path:
+        cal_T_map2_act_footprint = ref_pa6_maps[0]
+        cal_T_ivar2_act_footprint = ref_pa6_ivar*2.0 # To get back to T noise
+    else:    
+        cal_T_map2_act_footprint = enmap.read_map(cal_map2_path, geometry=(galaxy_mask.shape,galaxy_mask.wcs))[0]
+        cal_T_ivar2_act_footprint = enmap.read_map(cal_ivar2_path, geometry=(galaxy_mask.shape,galaxy_mask.wcs))
     cal_T_beam2 = aoa.load_and_bin_beam(cal_beam2_path,cal_bins)
     logger.info("Finished loading calibration maps and beams for cross-correlation")
 else:
