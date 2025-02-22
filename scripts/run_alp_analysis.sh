@@ -15,7 +15,7 @@ export OMP_NUM_THREADS=32
 export OMP_PLACES=threads
 export OMP_PROC_BIND=spread
 
-export RUN_TAG=test_f150_run_20250212   # CHANGE THIS FOR EACH RUN!!
+export RUN_TAG=run_1styear_f150_2900maps_20250222   # CHANGE THIS FOR EACH RUN!!
 
 # Generate the Slurm batch script below with the here document,
 # then when sbatch the script later, the user env set up above will run on the login node
@@ -30,12 +30,12 @@ cat << EOF > prepare-env.sl
 #SBATCH --mail-user=zbh5@cornell.edu
 #SBATCH --mail-type=ALL
 #SBATCH -J $RUN_TAG
-#SBATCH --time 00:15:00
-#SBATCH --nodes=13
+#SBATCH --time 00:30:00
+#SBATCH --nodes=50
 #SBATCH --ntasks-per-node=6
 #SBATCH --output=/pscratch/sd/z/zbh5/results/$RUN_TAG.out
 
-srun -n 78 -c 32 --cpu_bind=cores python3 get_depth1_angle_parallel.py dr6_depth1_ps_config.yaml $RUN_TAG
+srun -n 300 -c 32 --cpu_bind=cores python3 get_depth1_angle_parallel.py dr6_depth1_ps_config.yaml $RUN_TAG
 
 # Call collect_npy_files.py to group all output npy files into a single npy file
 python3 collect_npy_files.py /pscratch/sd/z/zbh5/results/angle_calc_$RUN_TAG/

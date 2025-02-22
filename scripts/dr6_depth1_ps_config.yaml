@@ -22,7 +22,7 @@ use_curvefit: True
 y_min: -1.0
 y_max: 2.0
 cal_num_pts: 50000
-cal_use_curvefit: False
+cal_use_curvefit: True
 
 # Calibration factor binning settings
 cal_bin_size: 200
@@ -52,30 +52,31 @@ theory_curves_path: "/pscratch/sd/z/zbh5/alp_ref_files/camb_19413797_lensedtotcl
 
 # Reference maps, ivar, and beams for each array
 # Maps will only be loaded if that array has data at the freq listed above
-ref_pa4_path: "/pscratch/sd/z/zbh5/alp_ref_files/act_daynight_f150_map_srcfree.fits"
-ref_pa4_ivar_path: "/pscratch/sd/z/zbh5/alp_ref_files/act_daynight_f150_ivar.fits"
-ref_pa4_beam_path: "/pscratch/sd/z/zbh5/alp_ref_files/coadd_pa4_f150_night_beam_tform_jitter_cmb_norm.txt"
-ref_pa5_path: "/pscratch/sd/z/zbh5/alp_ref_files/act_daynight_f150_map_srcfree.fits"
-ref_pa5_ivar_path: "/pscratch/sd/z/zbh5/alp_ref_files/act_daynight_f150_ivar.fits"
-ref_pa5_beam_path: "/pscratch/sd/z/zbh5/alp_ref_files/coadd_pa5_f150_night_beam_tform_jitter_cmb_norm.txt"
-ref_pa6_path: "/pscratch/sd/z/zbh5/alp_ref_files/act_daynight_f150_map_srcfree.fits"
-ref_pa6_ivar_path: "/pscratch/sd/z/zbh5/alp_ref_files/act_daynight_f150_ivar.fits"
-ref_pa6_beam_path: "/pscratch/sd/z/zbh5/alp_ref_files/coadd_pa6_f150_night_beam_tform_jitter_cmb_norm.txt"
+ref_pa4_path: "/pscratch/sd/z/zbh5/alp_ref_files/act_dr6.02_std_AA_night_pa4_f150_4way_coadd_map_srcfree_projected.fits"
+ref_pa4_ivar_path: "/pscratch/sd/z/zbh5/alp_ref_files/act_dr6.02_std_AA_night_pa4_f150_4way_coadd_ivar_projected.fits"
+ref_pa4_beam_path: "/pscratch/sd/z/zbh5/alp_ref_files/20240404_beams/coadd_pa4_f150_night_beam_tform_jitter_cmb.txt"
+ref_pa5_path: "/pscratch/sd/z/zbh5/alp_ref_files/act_dr6.02_std_AA_night_pa5_f150_4way_coadd_map_srcfree_projected.fits"
+ref_pa5_ivar_path: "/pscratch/sd/z/zbh5/alp_ref_files/act_dr6.02_std_AA_night_pa5_f150_4way_coadd_ivar_projected.fits"
+ref_pa5_beam_path: "/pscratch/sd/z/zbh5/alp_ref_files/20240404_beams/coadd_pa5_f150_night_beam_tform_jitter_cmb.txt"
+ref_pa6_path: "/pscratch/sd/z/zbh5/alp_ref_files/act_dr6.02_std_AA_night_pa6_f150_4way_coadd_map_srcfree_projected.fits"
+ref_pa6_ivar_path: "/pscratch/sd/z/zbh5/alp_ref_files/act_dr6.02_std_AA_night_pa6_f150_4way_coadd_ivar_projected.fits"
+ref_pa6_beam_path: "/pscratch/sd/z/zbh5/alp_ref_files/20240404_beams/coadd_pa6_f150_night_beam_tform_jitter_cmb.txt"
 
-pa4_beam_path: "/pscratch/sd/z/zbh5/alp_ref_files/coadd_pa4_f150_night_beam_tform_jitter_cmb.txt"
-pa5_beam_path: "/pscratch/sd/z/zbh5/alp_ref_files/coadd_pa5_f150_night_beam_tform_jitter_cmb.txt"
-pa6_beam_path: "/pscratch/sd/z/zbh5/alp_ref_files/coadd_pa6_f150_night_beam_tform_jitter_cmb.txt"
+pa4_beam_path: "/pscratch/sd/z/zbh5/alp_ref_files/20230129_beams/coadd_pa4_f150_night_beam_tform_jitter_cmb.txt"
+pa5_beam_path: "/pscratch/sd/z/zbh5/alp_ref_files/20230129_beams/coadd_pa5_f150_night_beam_tform_jitter_cmb.txt"
+pa6_beam_path: "/pscratch/sd/z/zbh5/alp_ref_files/20230129_beams/coadd_pa6_f150_night_beam_tform_jitter_cmb.txt"
 
 galaxy_mask_path: "/pscratch/sd/z/zbh5/alp_ref_files/act_mask_20220316_GAL070_rms_70.00_downgrade_None.fits"
 
-cal_map1_path: "/pscratch/sd/z/zbh5/alp_ref_files/cmb_night_pa5_f150_8way_coadd_map_srcfree.fits"
-cal_ivar1_path: "/pscratch/sd/z/zbh5/alp_ref_files/cmb_night_pa5_f150_8way_coadd_ivar.fits"
-cal_beam1_path: "/pscratch/sd/z/zbh5/alp_ref_files/coadd_pa5_f150_night_beam_tform_jitter_cmb.txt"
-cal_map2_path: "/pscratch/sd/z/zbh5/alp_ref_files/cmb_night_pa6_f150_8way_coadd_map_srcfree.fits"
-cal_ivar2_path: "/pscratch/sd/z/zbh5/alp_ref_files/cmb_night_pa6_f150_8way_coadd_ivar.fits"
-cal_beam2_path: "/pscratch/sd/z/zbh5/alp_ref_files/coadd_pa6_f150_night_beam_tform_jitter_cmb.txt"
+cal_map1_path: "/pscratch/sd/z/zbh5/alp_ref_files/act_dr6.02_std_AA_night_pa5_f150_4way_coadd_map_srcfree_projected.fits"
+cal_ivar1_path: "/pscratch/sd/z/zbh5/alp_ref_files/act_dr6.02_std_AA_night_pa5_f150_4way_coadd_ivar_projected.fits"
+cal_beam1_path: "/pscratch/sd/z/zbh5/alp_ref_files/20240404_beams/coadd_pa5_f150_night_beam_tform_jitter_cmb.txt"
+cal_map2_path: "/pscratch/sd/z/zbh5/alp_ref_files/act_dr6.02_std_AA_night_pa6_f150_4way_coadd_map_srcfree_projected.fits"
+cal_ivar2_path: "/pscratch/sd/z/zbh5/alp_ref_files/act_dr6.02_std_AA_night_pa6_f150_4way_coadd_ivar_projected.fits"
+cal_beam2_path: "/pscratch/sd/z/zbh5/alp_ref_files/20240404_beams/coadd_pa6_f150_night_beam_tform_jitter_cmb.txt"
 
-obs_list: '/pscratch/sd/z/zbh5/dr6_depth1_maps/dr6_depth1_test_f150_264maps_list.txt'
+obs_list: '/pscratch/sd/z/zbh5/dr6_depth1_maps/dr6_depth1_first_year_f150_2900maps_list.txt'
+#obs_list: '/pscratch/sd/z/zbh5/dr6_depth1_maps/dr6_depth1_test_f150_264maps_list.txt'
 #obs_list: '/pscratch/sd/z/zbh5/dr6_depth1_maps/dr6_depth1_test_f150_20maps_list.txt'
 #obs_list: '/pscratch/sd/z/zbh5/dr6_depth1_maps/dr6_depth1_test_f090_maps_list.txt'
 #obs_list: '/pscratch/sd/z/zbh5/dr6_depth1_maps/dr6_depth1_test_f220_maps_list.txt'
