@@ -458,8 +458,8 @@ def cal_likelihood(y, cal1xcal2, cal1xdepth1, cal1xcal1, cal2xcal2, cal2xdepth1,
     """
     numerator = (cal1xcal2 - y*cal1xdepth1)**2
     covariance = ((1/nu_cal1_cal2)*(cal1xcal1*cal2xcal2+cal1xcal2**2)
-                 +(1/nu_cal1_depth1)*(depth1xdepth1*cal1xcal1+y**2*cal1xdepth1**2)
-               -2*(1/nu_all_three)*(y*cal1xdepth1*cal1xcal2+cal1xcal1*cal2xdepth1))
+                 +y**2*(1/nu_cal1_depth1)*(depth1xdepth1*cal1xcal1+cal1xdepth1**2)
+               -2*y*(1/nu_all_three)*(cal1xdepth1*cal1xcal2+cal1xcal1*cal2xdepth1))
     denominator = 2*covariance
     likelihood = np.exp(-np.sum(numerator/denominator))
     return likelihood
