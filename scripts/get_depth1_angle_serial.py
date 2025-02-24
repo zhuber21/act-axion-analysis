@@ -167,6 +167,7 @@ if cross_calibrate:
         raise FileNotFoundError(f"File not found: {cal_beam2_path}")
 # Setting up bins for calibration
 cal_bins = np.arange(cal_lmin, cal_lmax, cal_bin_size)
+cal_centers = (cal_bins[1:] + cal_bins[:-1])/2.0
 
 # Setting bins
 if config['bin_settings'] == "regular":
@@ -362,7 +363,7 @@ def process(map_name, obs_list_path, logger,
             num_pts, angle_min_deg, angle_max_deg, use_curvefit, 
             cross_calibrate, cal_T_map1_act_footprint, cal_T_map2_act_footprint, 
             cal_T_ivar1_act_footprint, cal_T_ivar2_act_footprint,
-            cal_bins, y_min, y_max, cal_num_pts, cal_use_curvefit):
+            cal_bins, cal_centers, y_min, y_max, cal_num_pts, cal_use_curvefit):
     """Function to call for each map inside each process"""
     map_path = obs_list_path + map_name
     # outputs will be 1 if the map is cut, a bunch of things needed
@@ -382,7 +383,6 @@ def process(map_name, obs_list_path, logger,
         depth1_T = outputs[3]
         w_depth1 = outputs[4]
         w2_depth1 = output_dict['w2_depth1']
-        bincount = output_dict['bincount']
         logger.info(f"Fit values: {fit_values}")
         # depth1_mask will be the doubly tapered one if ivar weighting is on, the first filtering one if not
         initial_timestamp, median_timestamp = aoa.calc_median_timestamp(map_path, depth1_mask)
@@ -397,7 +397,7 @@ def process(map_name, obs_list_path, logger,
             cal_output_dict = aoa.cross_calibrate(cal_T_map1_act_footprint, cal_T_map2_act_footprint, 
                                                   cal_T_ivar1_act_footprint, cal_T_ivar2_act_footprint,
                                                   depth1_ivar, depth1_mask, depth1_mask_indices,
-                                                  galaxy_mask, depth1_T, w_depth1, w2_depth1, bincount,
+                                                  galaxy_mask, depth1_T, w_depth1, w2_depth1, cal_centers,
                                                   cal_bins, tfunc, kx_cut, ky_cut, unpixwin, filter_radius, 
                                                   use_ivar_weight, depth1_beam, cal_T_beam1, cal_T_beam2, y_min, 
                                                   y_max, cal_num_pts, cal_use_curvefit)
@@ -409,10 +409,10 @@ def process(map_name, obs_list_path, logger,
     else:
         if cross_calibrate:
             # To ensure all keys are present whether map is cut or not
-            ell_len = len(output_dict['ell'])
-            output_dict.update({'T1xcal1T': np.zeros(ell_len), 'cal1Txcal2T': np.zeros(ell_len),
-                                 'cal1Txcal1T': np.zeros(ell_len), 'cal2Txcal2T': np.zeros(ell_len), 
-                                 'T1xT1': np.zeros(ell_len), 'T1xcal2T': np.zeros(ell_len),
+            cal_ell_len = len(cal_centers)
+            output_dict.update({'cal_ell': cal_centers, 'T1xcal1T': np.zeros(cal_ell_len), 'cal1Txcal2T': np.zeros(cal_ell_len),
+                                 'cal1Txcal1T': np.zeros(cal_ell_len), 'cal2Txcal2T': np.zeros(cal_ell_len), 
+                                 'T1xT1': np.zeros(cal_ell_len), 'T1xcal2T': np.zeros(cal_ell_len), 'cal_bincount': np.zeros(cal_ell_len),
                                  'cal_factor': -9999, 'cal_factor_errbar': -9999,
                                  'w2_depth1xcal1': -9999, 'w2_depth1xcal2': -9999,
                                  'w2_cal1xcal2': -9999, 'w2_cal1xcal1': -9999, 'w2_cal2xcal2': -9999,
@@ -486,7 +486,7 @@ for map_name in tqdm(maps):
                             num_pts, angle_min_deg, angle_max_deg, use_curvefit, 
                             cross_calibrate, cal_T_map1_act_footprint, cal_T_map2_act_footprint, 
                             cal_T_ivar1_act_footprint, cal_T_ivar2_act_footprint,
-                            cal_bins, y_min, y_max, cal_num_pts, cal_use_curvefit)
+                            cal_bins, cal_centers, y_min, y_max, cal_num_pts, cal_use_curvefit)
         # At the end, save the output_dict to a npy file - there will be one per map
         # This ensures at least some of the results are saved if the script crashes
         # with memory issues (historically, a scourge of this project...).
@@ -518,9 +518,11 @@ for map_name in tqdm(maps):
                        'ivar_sum': -9999, 'residual_mean': -9999, 
                        'residual_sum': -9999, 'map_cut': 1}
         if cross_calibrate:
-            output_dict.update({'T1xcal1T': np.zeros(ell_len), 'cal1Txcal2T': np.zeros(ell_len),
-                                 'cal1Txcal1T': np.zeros(ell_len), 'cal2Txcal2T': np.zeros(ell_len), 
-                                 'T1xT1': np.zeros(ell_len), 'T1xcal2T': np.zeros(ell_len),
+            # To ensure all keys are present whether map is cut or not
+            cal_ell_len = len(cal_centers)
+            output_dict.update({'cal_ell': cal_centers, 'T1xcal1T': np.zeros(cal_ell_len), 'cal1Txcal2T': np.zeros(cal_ell_len),
+                                 'cal1Txcal1T': np.zeros(cal_ell_len), 'cal2Txcal2T': np.zeros(cal_ell_len), 
+                                 'T1xT1': np.zeros(cal_ell_len), 'T1xcal2T': np.zeros(cal_ell_len), 'cal_bincount': np.zeros(cal_ell_len),
                                  'cal_factor': -9999, 'cal_factor_errbar': -9999,
                                  'w2_depth1xcal1': -9999, 'w2_depth1xcal2': -9999,
                                  'w2_cal1xcal2': -9999, 'w2_cal1xcal1': -9999, 'w2_cal2xcal2': -9999,
