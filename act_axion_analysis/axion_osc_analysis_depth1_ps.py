@@ -450,9 +450,14 @@ def cal_likelihood(y, cal1xcal2, cal1xdepth1, cal1xcal1, cal2xcal2, cal2xdepth1,
 
         estimator = TT_cal1xcal2 - y*TT_cal1xdepth1
 
+        Cal1 and Cal2 here may refer to either the pa5 coadd or the pa6 coadd, depending on
+        which array the depth-1 map is. We want TT_cal1xdepth1 to be unbiased, so we make
+        Cal1 the opposite array to depth1 (e.g. cal1 is the pa6 coadd if the depth-1 map is
+        from pa5 - for pa4 it doesn't matter)
+
         The covariance has different mode count factors for each of the
         three covariance terms that are summed to get the full covariance.
-        The y factor also multiplies the TT spectrum for cal1xdepth1 
+        The y factor also multiplies the covariance for cal1xdepth1 
         wherever it appears in the covariance to account for how the
         changing calibration factor affects the covariance.
     """
@@ -668,6 +673,9 @@ def cal_sample_likelihood_and_fit(cal1xcal2, cal1xdepth1, cal1xcal1, cal2xcal2, 
     """
         Samples the likelihood for the TT calibration at num_pts values of the calibration
         factor, y, between the values y_min and y_max.
+
+        Cal1 and Cal2 here may refer to either the pa5 coadd or the pa6 coadd, depending on
+        which array the depth-1 map is.
     """
     if(y_min >= y_max): 
         raise ValueError("The min y value must be smaller than the max!")
@@ -691,7 +699,7 @@ def cal_sample_likelihood_and_fit(cal1xcal2, cal1xdepth1, cal1xcal1, cal2xcal2, 
     
     return fit_values
 
-def cross_calibrate(cal_T_map1_act_footprint, cal_T_map2_act_footprint,
+def cross_calibrate(map_array, cal_T_map1_act_footprint, cal_T_map2_act_footprint,
                     cal_T_ivar1_act_footprint, cal_T_ivar2_act_footprint,
                     depth1_ivar, depth1_mask, depth1_mask_indices,
                     galaxy_mask, depth1_T, w_depth1, w2_depth1, cal_centers, cal_bins, tfunc,
@@ -700,6 +708,10 @@ def cross_calibrate(cal_T_map1_act_footprint, cal_T_map2_act_footprint,
     """
         High-level function to do the TT cross-calibration. 
         Allows intermediate maps to be cleaned up when function closes for better RAM usage.
+
+        cal_T_map1_act_footprint must be a pa5 coadd and cal_T_map2_act_footprint must be a pa6 coadd
+        to avoid biasing the results from elevated noise in the depth1xcoadd when they belong to the
+        same array.
 
         Takes in all the variables needed for the subfunctions cal_trim_and_fourier_transform(),
         cal_apply_ivar_weighting(), spectrum_from_maps(), and cal_sample_likelihood_and_fit().
@@ -724,51 +736,70 @@ def cross_calibrate(cal_T_map1_act_footprint, cal_T_map2_act_footprint,
                                                             shape, wcs, depth1_mask, depth1_mask_indices)
 
     # Calculate calibration spectra and factor from likelihood
-    w2_depth1xcal1 = np.mean(w_depth1*w_cal1)
-    w2_depth1xcal2 = np.mean(w_depth1*w_cal2)
-    w2_cal1xcal2 = np.mean(w_cal1*w_cal2)
-    w2_cal1xcal1 = np.mean(w_cal1*w_cal1)
-    w2_cal2xcal2 = np.mean(w_cal2*w_cal2)
-    w2w4_depth1xcal1 = w2_depth1xcal1**2 / np.mean(w_depth1**2 * w_cal1**2)
-    w2w4_cal1xcal2 = w2_cal1xcal2**2 / np.mean(w_cal1**2 * w_cal2**2)
-    w2w4_all_three = w2_cal1xcal2*w2_depth1xcal1 / np.mean(w_cal1*w_cal1*w_cal2*w_depth1)
+    w2_depth1xpa5 = np.mean(w_depth1*w_cal1)
+    w2_depth1xpa6 = np.mean(w_depth1*w_cal2)
+    w2_pa5xpa6 = np.mean(w_cal1*w_cal2)
+    w2_pa5xpa5 = np.mean(w_cal1*w_cal1)
+    w2_pa6xpa6 = np.mean(w_cal2*w_cal2)
+    w2w4_depth1xpa5 = w2_depth1xpa5**2 / np.mean(w_depth1**2 * w_cal1**2)
+    w2w4_depth1xpa6 = w2_depth1xpa6**2 / np.mean(w_depth1**2 * w_cal2**2)
+    w2w4_pa5xpa6 = w2_pa5xpa6**2 / np.mean(w_cal1**2 * w_cal2**2)
+    w2w4_556d = w2_pa5xpa6*w2_depth1xpa5 / np.mean(w_cal1*w_cal1*w_cal2*w_depth1)
+    w2w4_665d = w2_pa5xpa6*w2_depth1xpa6 / np.mean(w_cal1*w_cal2*w_cal2*w_depth1)
     # Depth-1 T cross cal map 1 T (pa5 coadd)
-    binned_T1xcal1T, cal_bincount = spectrum_from_maps(depth1_T,cal_map1_fourier,b_ell_bin_1=depth1_beam,b_ell_bin_2=cal_T_beam1,w2=w2_depth1xcal1,bins=cal_bins)
-    binned_T1xcal1T /= tfunc
+    binned_T1xpa5T, cal_bincount = spectrum_from_maps(depth1_T,cal_map1_fourier,b_ell_bin_1=depth1_beam,b_ell_bin_2=cal_T_beam1,w2=w2_depth1xpa5,bins=cal_bins)
+    binned_T1xpa5T /= tfunc
     # cal map 1 T (pa5 coadd) cross cal map 2 T (pa6 coadd)
-    binned_cal1Txcal2T, _ = spectrum_from_maps(cal_map1_fourier,cal_map2_fourier,b_ell_bin_1=cal_T_beam1,b_ell_bin_2=cal_T_beam2,w2=w2_cal1xcal2,bins=cal_bins)
-    binned_cal1Txcal2T /= tfunc
+    binned_pa5Txpa6T, _ = spectrum_from_maps(cal_map1_fourier,cal_map2_fourier,b_ell_bin_1=cal_T_beam1,b_ell_bin_2=cal_T_beam2,w2=w2_pa5xpa6,bins=cal_bins)
+    binned_pa5Txpa6T /= tfunc
     # Getting spectra for the covariance
     # cal map 1 T (pa5 coadd) cross cal map 1 T (pa5 coadd)
-    binned_cal1Txcal1T, _ = spectrum_from_maps(cal_map1_fourier,cal_map1_fourier,b_ell_bin_1=cal_T_beam1,b_ell_bin_2=cal_T_beam1,w2=w2_cal1xcal1,bins=cal_bins)
-    binned_cal1Txcal1T /= tfunc
+    binned_pa5Txpa5T, _ = spectrum_from_maps(cal_map1_fourier,cal_map1_fourier,b_ell_bin_1=cal_T_beam1,b_ell_bin_2=cal_T_beam1,w2=w2_pa5xpa5,bins=cal_bins)
+    binned_pa5Txpa5T /= tfunc
     # cal map 2 T (pa6 coadd) cross cal map 2 T (pa6 coadd)
-    binned_cal2Txcal2T, _ = spectrum_from_maps(cal_map2_fourier,cal_map2_fourier,b_ell_bin_1=cal_T_beam2,b_ell_bin_2=cal_T_beam2,w2=w2_cal2xcal2,bins=cal_bins)
-    binned_cal2Txcal2T /= tfunc
+    binned_pa6Txpa6T, _ = spectrum_from_maps(cal_map2_fourier,cal_map2_fourier,b_ell_bin_1=cal_T_beam2,b_ell_bin_2=cal_T_beam2,w2=w2_pa6xpa6,bins=cal_bins)
+    binned_pa6Txpa6T /= tfunc
     # Depth-1 T cross depth-1 T
     binned_T1xT1, _ = spectrum_from_maps(depth1_T,depth1_T,b_ell_bin_1=depth1_beam,b_ell_bin_2=depth1_beam,w2=w2_depth1,bins=cal_bins)
     binned_T1xT1 /= tfunc
     # Depth-1 T cross cal map 2 T (pa6 coadd)
-    binned_T1xcal2T, _ = spectrum_from_maps(depth1_T,cal_map2_fourier,b_ell_bin_1=depth1_beam,b_ell_bin_2=cal_T_beam2,w2=w2_depth1xcal2,bins=cal_bins)
-    binned_T1xcal2T /= tfunc
+    binned_T1xpa6T, _ = spectrum_from_maps(depth1_T,cal_map2_fourier,b_ell_bin_1=depth1_beam,b_ell_bin_2=cal_T_beam2,w2=w2_depth1xpa6,bins=cal_bins)
+    binned_T1xpa6T /= tfunc
 
-    # Constructing covariance mode count factors
-    cal_binned_nu_cal1_cal2 = cal_bincount*w2w4_cal1xcal2*np.sqrt(tfunc)
-    cal_binned_nu_cal1_depth1 = cal_bincount*w2w4_depth1xcal1*np.sqrt(tfunc)
-    cal_binned_nu_all_three = cal_bincount*w2w4_all_three*np.sqrt(tfunc)
+    if map_array=='pa4' or map_array=='pa6':
+        # Calibrating the pa4 and pa6 maps to the pa6 ref maps to avoid depth1xpa6 bias
+        # The estimator is then pa5xpa6-y*depth1xpa5 for the pa6 (and pa4) depth-1 maps
+        # Constructing covariance mode count factors
+        cal_binned_nu_pa5_pa6 = cal_bincount*w2w4_pa5xpa6*np.sqrt(tfunc)
+        cal_binned_nu_pa5_depth1 = cal_bincount*w2w4_depth1xpa5*np.sqrt(tfunc)
+        cal_binned_nu_556d = cal_bincount*w2w4_556d*np.sqrt(tfunc)
 
-    # Evaluating likelihood and fitting Gaussian for best fit calibration factor
-    cal_fit_values = cal_sample_likelihood_and_fit(binned_cal1Txcal2T, binned_T1xcal1T, binned_cal1Txcal1T,
-                                                   binned_cal2Txcal2T, binned_T1xcal2T, binned_T1xT1,
-                                                   cal_binned_nu_cal1_cal2, cal_binned_nu_cal1_depth1, cal_binned_nu_all_three,
-                                                   y_min=y_min,y_max=y_max,num_pts=cal_num_pts,use_curvefit=cal_use_curvefit)
+        # Evaluating likelihood and fitting Gaussian for best fit calibration factor
+        cal_fit_values = cal_sample_likelihood_and_fit(binned_pa5Txpa6T, binned_T1xpa5T, binned_pa5Txpa5T,
+                                                    binned_pa6Txpa6T, binned_T1xpa6T, binned_T1xT1,
+                                                    cal_binned_nu_pa5_pa6, cal_binned_nu_pa5_depth1, cal_binned_nu_556d,
+                                                    y_min=y_min,y_max=y_max,num_pts=cal_num_pts,use_curvefit=cal_use_curvefit)
+    else:
+        # Calibrating the pa5 maps to the pa5 ref maps to avoid depth1xpa5 bias
+        # The estimator is then pa5xpa6-y*depth1xpa6 for the pa5 depth-1 maps
+        # Constructing covariance mode count factors
+        cal_binned_nu_pa5_pa6 = cal_bincount*w2w4_pa5xpa6*np.sqrt(tfunc)
+        cal_binned_nu_pa6_depth1 = cal_bincount*w2w4_depth1xpa6*np.sqrt(tfunc)
+        cal_binned_nu_665d = cal_bincount*w2w4_665d*np.sqrt(tfunc)
+
+        # Evaluating likelihood and fitting Gaussian for best fit calibration factor
+        cal_fit_values = cal_sample_likelihood_and_fit(binned_pa5Txpa6T, binned_T1xpa6T, binned_pa6Txpa6T,
+                                                    binned_pa5Txpa5T, binned_T1xpa5T, binned_T1xT1,
+                                                    cal_binned_nu_pa5_pa6, cal_binned_nu_pa6_depth1, cal_binned_nu_665d,
+                                                    y_min=y_min,y_max=y_max,num_pts=cal_num_pts,use_curvefit=cal_use_curvefit)        
     # Returning all the variables that I want to store in the output
-    cal_output_dict = {'cal_ell': cal_centers, 'T1xcal1T': binned_T1xcal1T, 'cal1Txcal2T': binned_cal1Txcal2T,
-                       'cal1Txcal1T': binned_cal1Txcal1T, 'cal2Txcal2T': binned_cal2Txcal2T, 
-                       'T1xT1': binned_T1xT1, 'T1xcal2T': binned_T1xcal2T, 'cal_bincount': cal_bincount,
+    cal_output_dict = {'cal_ell': cal_centers, 'T1xpa5T': binned_T1xpa5T, 'pa5Txpa6T': binned_pa5Txpa6T,
+                       'pa5Txpa5T': binned_pa5Txpa5T, 'pa6Txpa6T': binned_pa6Txpa6T, 
+                       'T1xT1': binned_T1xT1, 'T1xpa6T': binned_T1xpa6T, 'cal_bincount': cal_bincount,
                        'cal_factor': cal_fit_values[0], 'cal_factor_errbar': cal_fit_values[1],
-                       'w2_depth1xcal1': w2_depth1xcal1, 'w2_depth1xcal2': w2_depth1xcal2,
-                       'w2_cal1xcal2': w2_cal1xcal2, 'w2_cal1xcal1': w2_cal1xcal1, 'w2_cal2xcal2': w2_cal2xcal2,
-                       'w2w4_all_three': w2w4_all_three, 'w2w4_depth1xcal1': w2w4_depth1xcal1, 'w2w4_cal1xcal2': w2w4_cal1xcal2}
+                       'w2_depth1xpa5': w2_depth1xpa5, 'w2_depth1xpa6': w2_depth1xpa6,
+                       'w2_pa5xpa6': w2_pa5xpa6, 'w2_pa5xpa5': w2_pa5xpa5, 'w2_pa6xpa6': w2_pa6xpa6,
+                       'w2w4_556d': w2w4_556d, 'w2w4_665d': w2w4_665d, 'w2w4_depth1xpa5': w2w4_depth1xpa5, 
+                       'w2w4_pa5xpa6': w2w4_pa5xpa6, 'w2w4_depth1xpa6': w2w4_depth1xpa6}
 
     return cal_output_dict

@@ -326,22 +326,30 @@ if cross_calibrate:
 
     # Check if the calibration map path is the same as the relevant reference map
     # Will just assign the variable to save time if they are the same
-    # Assuming cal1 is pa5 and cal2 is pa6 for now
+    # cal1 must be from pa5 and cal2 must be from pa6
     if cal_map1_path == ref_pa5_path:
         cal_T_map1_act_footprint = ref_pa5_maps[0]
         cal_T_ivar1_act_footprint = ref_pa5_ivar*2.0 # To get back to T noise
     else:
-        # only loading in T maps and trimming immediately to galaxy mask's shape to save memory (legacy from using Planck maps)
-        cal_T_map1_act_footprint = enmap.read_map(cal_map1_path, geometry=(galaxy_mask.shape,galaxy_mask.wcs))[0]
-        cal_T_ivar1_act_footprint = enmap.read_map(cal_ivar1_path, geometry=(galaxy_mask.shape,galaxy_mask.wcs))
+        # Check that it is a pa5 map
+        if 'pa5' in cal_map1_path.split('_'):
+            # only loading in T maps and trimming immediately to galaxy mask's shape to save memory (legacy from using Planck maps)
+            cal_T_map1_act_footprint = enmap.read_map(cal_map1_path, geometry=(galaxy_mask.shape,galaxy_mask.wcs))[0]
+            cal_T_ivar1_act_footprint = enmap.read_map(cal_ivar1_path, geometry=(galaxy_mask.shape,galaxy_mask.wcs))
+        else:
+            raise ValueError('cal_map1_path must be a pa5 coadd to avoid noise bias!')
     # Still load beam again in case cal_bins is different from bins
     cal_T_beam1 = aoa.load_and_bin_beam(cal_beam1_path,cal_bins)
     if cal_map2_path == ref_pa6_path:
         cal_T_map2_act_footprint = ref_pa6_maps[0]
         cal_T_ivar2_act_footprint = ref_pa6_ivar*2.0 # To get back to T noise
-    else:    
-        cal_T_map2_act_footprint = enmap.read_map(cal_map2_path, geometry=(galaxy_mask.shape,galaxy_mask.wcs))[0]
-        cal_T_ivar2_act_footprint = enmap.read_map(cal_ivar2_path, geometry=(galaxy_mask.shape,galaxy_mask.wcs))
+    else: 
+        # Check that it is a pa6 map
+        if 'pa6' in cal_map2_path.split('_'):   
+            cal_T_map2_act_footprint = enmap.read_map(cal_map2_path, geometry=(galaxy_mask.shape,galaxy_mask.wcs))[0]
+            cal_T_ivar2_act_footprint = enmap.read_map(cal_ivar2_path, geometry=(galaxy_mask.shape,galaxy_mask.wcs))
+        else:
+            raise ValueError('cal_map2_path must be a pa6 coadd to avoid noise bias!')
     cal_T_beam2 = aoa.load_and_bin_beam(cal_beam2_path,cal_bins)
     logger.info("Finished loading calibration maps and beams for cross-correlation")
 else:
@@ -394,7 +402,8 @@ def process(map_name, obs_list_path, logger,
             # Calling a single function to do all the TT cross-calibration
             # This makes the code a bit harder to read but improves memory usage by allowing
             # intermediate maps to be cleaned up when function call ends.
-            cal_output_dict = aoa.cross_calibrate(cal_T_map1_act_footprint, cal_T_map2_act_footprint, 
+            map_array = map_name.split('_')[2]
+            cal_output_dict = aoa.cross_calibrate(map_array, cal_T_map1_act_footprint, cal_T_map2_act_footprint, 
                                                   cal_T_ivar1_act_footprint, cal_T_ivar2_act_footprint,
                                                   depth1_ivar, depth1_mask, depth1_mask_indices,
                                                   galaxy_mask, depth1_T, w_depth1, w2_depth1, cal_centers,
@@ -410,13 +419,14 @@ def process(map_name, obs_list_path, logger,
         if cross_calibrate:
             # To ensure all keys are present whether map is cut or not
             cal_ell_len = len(cal_centers)
-            output_dict.update({'cal_ell': cal_centers, 'T1xcal1T': np.zeros(cal_ell_len), 'cal1Txcal2T': np.zeros(cal_ell_len),
-                                 'cal1Txcal1T': np.zeros(cal_ell_len), 'cal2Txcal2T': np.zeros(cal_ell_len), 
-                                 'T1xT1': np.zeros(cal_ell_len), 'T1xcal2T': np.zeros(cal_ell_len), 'cal_bincount': np.zeros(cal_ell_len),
+            output_dict.update({'cal_ell': cal_centers, 'T1xpa5T': np.zeros(cal_ell_len), 'pa5Txpa6T': np.zeros(cal_ell_len),
+                                 'pa5Txpa5T': np.zeros(cal_ell_len), 'pa6Txpa6T': np.zeros(cal_ell_len), 
+                                 'T1xT1': np.zeros(cal_ell_len), 'T1xpa6T': np.zeros(cal_ell_len), 'cal_bincount': np.zeros(cal_ell_len),
                                  'cal_factor': -9999, 'cal_factor_errbar': -9999,
-                                 'w2_depth1xcal1': -9999, 'w2_depth1xcal2': -9999,
-                                 'w2_cal1xcal2': -9999, 'w2_cal1xcal1': -9999, 'w2_cal2xcal2': -9999,
-                                 'w2w4_all_three': -9999, 'w2w4_depth1xcal1': -9999, 'w2w4_cal1xcal2': -9999})
+                                 'w2_depth1xpa5': -9999, 'w2_depth1xpa6': -9999,
+                                 'w2_pa5xpa6': -9999, 'w2_pa5xpa5': -9999, 'w2_pa6xpa6': -9999,
+                                 'w2w4_556d': -9999, 'w2w4_665d': -9999, 'w2w4_depth1xpa5': -9999, 
+                                 'w2w4_pa5xpa6': -9999, 'w2w4_depth1xpa6': -9999})
 
     return output_dict
 
@@ -520,13 +530,14 @@ for map_name in tqdm(maps):
         if cross_calibrate:
             # To ensure all keys are present whether map is cut or not
             cal_ell_len = len(cal_centers)
-            output_dict.update({'cal_ell': cal_centers, 'T1xcal1T': np.zeros(cal_ell_len), 'cal1Txcal2T': np.zeros(cal_ell_len),
-                                 'cal1Txcal1T': np.zeros(cal_ell_len), 'cal2Txcal2T': np.zeros(cal_ell_len), 
-                                 'T1xT1': np.zeros(cal_ell_len), 'T1xcal2T': np.zeros(cal_ell_len), 'cal_bincount': np.zeros(cal_ell_len),
+            output_dict.update({'cal_ell': cal_centers, 'T1xpa5T': np.zeros(cal_ell_len), 'pa5Txpa6T': np.zeros(cal_ell_len),
+                                 'pa5Txpa5T': np.zeros(cal_ell_len), 'pa6Txpa6T': np.zeros(cal_ell_len), 
+                                 'T1xT1': np.zeros(cal_ell_len), 'T1xpa6T': np.zeros(cal_ell_len), 'cal_bincount': np.zeros(cal_ell_len),
                                  'cal_factor': -9999, 'cal_factor_errbar': -9999,
-                                 'w2_depth1xcal1': -9999, 'w2_depth1xcal2': -9999,
-                                 'w2_cal1xcal2': -9999, 'w2_cal1xcal1': -9999, 'w2_cal2xcal2': -9999,
-                                 'w2w4_all_three': -9999, 'w2w4_depth1xcal1': -9999, 'w2w4_cal1xcal2': -9999})
+                                 'w2_depth1xpa5': -9999, 'w2_depth1xpa6': -9999,
+                                 'w2_pa5xpa6': -9999, 'w2_pa5xpa5': -9999, 'w2_pa6xpa6': -9999,
+                                 'w2w4_556d': -9999, 'w2w4_665d': -9999, 'w2w4_depth1xpa5': -9999, 
+                                 'w2w4_pa5xpa6': -9999, 'w2w4_depth1xpa6': -9999})
         map_name_no_ending = map_name[:-8] # Removing 'map.fits'
         results_output_fname = output_dir_path + map_name_no_ending + output_time + '_results.npy'
         np.save(results_output_fname, output_dict) 
