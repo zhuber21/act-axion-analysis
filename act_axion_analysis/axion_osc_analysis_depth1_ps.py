@@ -469,6 +469,39 @@ def cal_likelihood(y, cal1xcal2, cal1xdepth1, cal1xcal1, cal2xcal2, cal2xdepth1,
     likelihood = np.exp(-np.sum(numerator/denominator))
     return likelihood
 
+def fwhm_fit(angles, likelihood, fwhm_point=0.5):
+    """
+       Finds the peak of the normalized likelihood, then finds the angle (in radians)
+       of the FWHM on either side of the maximum (default is to use the range 0-1 instead
+       of the range of the function such that the FWHM always occurs at 0.5)
+
+       Returns the peak and total FWHM in radians.
+    """
+    # Find peak - should only be one due to normalization
+    idx_peaks = np.where(likelihood==np.max(likelihood))[0]
+    if idx_peaks.size > 1: 
+        print(f"Multiple peaks found in fwhm_fit! idx_peak={idx_peak}. Using first peak found.")
+    idx_peak = idx_peaks[0]
+    peak_angle = angles[idx_peak]
+    
+    # Find FWHM on each side of peak
+    if idx_peak != len(angles)-1 and idx_peak != 0:
+        idx_above = np.argmin(np.abs(likelihood[idx_peak:-1] - fwhm_point))
+        idx_below = np.argmin(np.abs(likelihood[0:idx_peak] - fwhm_point))
+        if idx_above==len(likelihood[idx_peak:-1])-1 or idx_below==0:
+            # If either of the half-width half-maxes are at the boundary
+            # return a bad fit code
+            fwhm = -9999
+        else:
+            hwhm_above = angles[idx_peak:-1][idx_above]
+            hwhm_below = angles[0:idx_peak][idx_below]
+            fwhm = hwhm_above - hwhm_below
+    else:
+        # If the peak is at the boundary of the fit range, 
+        # return a bad fit code
+        fwhm = -9999  
+    
+    return peak_angle, fwhm
 
 def gaussian_fit_curvefit(angles,data,guess=[1.0*np.pi/180.0, 5.0*np.pi/180.0]):
     """
@@ -497,13 +530,17 @@ def gaussian_fit_moment(angles,data):
     return mean, std_dev
     
 def sample_likelihood_and_fit(estimator,covariance,theory_ClEE,angle_min_deg=-20.0,angle_max_deg=20.0,
-                              num_pts=10000,use_curvefit=True,plot_like=False,output_dir=None,map_fname=None):
+                              num_pts=10000,fit_method='fwhm',plot_like=False,output_dir=None,map_fname=None):
     """
        Samples likelihood for a range of angles and returns the best fit for the
-       mean and std dev of the resulting Gaussian in degrees.  
-       Has the option to do the fitting with scipy.optimize.curve_fit() (set use_curvefit=True)
+       mean and std dev of the resulting Gaussian in degrees.
+
+       Has the option to do the fitting with scipy.optimize.curve_fit() (set fit_method='curvefit'),
+       a method estimating the FWHM directly to account for non-Gaussianity (set fit_method='fwhm'),
        or a method using moments of the Gaussian. The moments method is faster but less
-       accurate when the likelihood deviates from Gaussianity in any way.
+       accurate when the likelihood deviates from Gaussianity in any way. The FWHM method is the most
+       general and most accurately gets the peak value for likelihoods that start to deviate from
+       an ideal Gaussian likelihood.
     """
     if(angle_min_deg >= angle_max_deg): 
         raise ValueError("The min angle must be smaller than the max!")
@@ -513,12 +550,19 @@ def sample_likelihood_and_fit(estimator,covariance,theory_ClEE,angle_min_deg=-20
     bin_sampled_likelihood = [estimator_likelihood(angle,estimator,covariance,theory_ClEE) for angle in angles_rad]
     norm_sampled_likelihood = bin_sampled_likelihood/np.max(bin_sampled_likelihood)
     
-    if use_curvefit:
+    if fit_method=='curvefit':
         # Using default guess starting values set in function
         fit_values = gaussian_fit_curvefit(angles_rad,norm_sampled_likelihood)
         fit_values_deg = [np.rad2deg(fit_values[0]), np.rad2deg(fit_values[1])]
         # Could add some flag or option to redo the fit for a given map if curve_fit() returns
         # a bad stddev value from failing to fit - for now I will leave it so I can see easily by the stddev that it fails
+    elif fit_method=='fwhm':
+        fit_values = fwhm_fit(angles_rad,norm_sampled_likelihood)
+        # Convert FWHM to the standard deviation of an equivalent width Gaussian
+        # Good S/N likelihoods are already Gaussian. Lower S/N ones that can still
+        # be fit have a central peak with width close to the width of a Gaussian.
+        sigma = fit_values[1] / (2*np.sqrt(2*np.log(2)))
+        fit_values_deg = [np.rad2deg(fit_values[0]), np.rad2deg(sigma)]
     else:
         fit_values = gaussian_fit_moment(angles_rad,norm_sampled_likelihood)
         fit_values_deg = [np.rad2deg(fit_values[0]), np.rad2deg(fit_values[1])]
@@ -528,7 +572,7 @@ def sample_likelihood_and_fit(estimator,covariance,theory_ClEE,angle_min_deg=-20
     residual = norm_sampled_likelihood - utils.gaussian(angles_rad,fit_values[0],fit_values[1])
     minus_sigma_idx = np.searchsorted(angles_rad, fit_values[0]-fit_values[1])
     plus_sigma_idx = np.searchsorted(angles_rad, fit_values[0]+fit_values[1])
-    residual_mean = np.mean(residual[minus_sigma_idx:plus_sigma_idx])
+    residual_mean = np.mean(np.abs(residual[minus_sigma_idx:plus_sigma_idx]))
     residual_sum = np.sum(np.abs(residual[minus_sigma_idx:plus_sigma_idx]))
 
     if plot_like:
@@ -542,7 +586,7 @@ def estimate_pol_angle(map_path, line, logger, ref_maps, ref_ivar, galaxy_mask,
                        plot_maps, plot_like, output_dir_path, 
                        bins, centers, CAMB_ClEE_binned, CAMB_ClBB_binned, 
                        depth1_beam, ref_beam, tfunc, 
-                       num_pts, angle_min_deg, angle_max_deg, use_curvefit):
+                       num_pts, angle_min_deg, angle_max_deg, fit_method):
     """
         High-level function to do the polarization angle estimation for each depth-1 map. 
         Allows intermediate maps to be cleaned up when function closes for better RAM usage.
@@ -650,7 +694,7 @@ def estimate_pol_angle(map_path, line, logger, ref_maps, ref_ivar, galaxy_mask,
 
         fit_values, residual_mean, residual_sum = sample_likelihood_and_fit(estimator,covariance,CAMB_ClEE_binned,num_pts=num_pts,
                                                                             angle_min_deg=angle_min_deg, angle_max_deg=angle_max_deg,
-                                                                            use_curvefit=use_curvefit,plot_like=plot_like,
+                                                                            fit_method=fit_method,plot_like=plot_like,
                                                                             output_dir=output_dir_path,map_fname=line)
 
         output_dict = {'ell': centers, 'E1xB2': binned_E1xB2, 'E2xB1': binned_E2xB1, 

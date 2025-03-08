@@ -15,16 +15,16 @@ unpixwin: True
 filter_radius: 0.5 # nawrapper.apod_C2() - radius in degrees, applied twice if using ivar weighting
 
 # Likelihood fitting settings
-angle_min_deg: -50.0
-angle_max_deg: 50.0
+angle_min_deg: -45.0
+angle_max_deg: 45.0
 num_pts: 50000
-use_curvefit: True
+fit_method: 'fwhm' # Must be 'curvefit', 'fwhm', or 'moment'
 
 # Calibration factor likelihood fitting settings
-y_min: -1.0
+y_min: 0.0
 y_max: 2.0
 cal_num_pts: 50000
-cal_use_curvefit: False
+cal_use_curvefit: True
 
 # Calibration factor binning settings
 cal_bin_size: 200
@@ -55,11 +55,6 @@ plot_summary_spectra: False
 plot_angle_hist: False
 
 theory_curves_path: "/home/zbh5/act_analysis/act_axion_analysis/resources/camb_19413797_lensedtotcls.dat"
-
-# This boolean flag only exists in the serial script. Historically, we used
-# just one reference map, which uses much less RAM. When this flag is true,
-# only the pa5 reference maps/ivar will be loaded and used for all three arrays to save RAM 
-all_same: True
 
 # Reference maps, ivar, and beams for each array
 # Maps will only be loaded if that array has data at the freq listed above

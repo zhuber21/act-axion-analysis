@@ -56,7 +56,10 @@ filter_radius = config['filter_radius']
 angle_min_deg = config['angle_min_deg']
 angle_max_deg = config['angle_max_deg']
 num_pts = config['num_pts']
-use_curvefit = config['use_curvefit']
+fit_method = config['fit_method']
+if fit_method not in ['fwhm', 'curvefit', 'moment']:
+    logger.error(f"fit_method must be one of 'fwhm', 'curvefit', or 'moment'! You supplied {fit_method}. Exiting.")
+    raise ValueError(f"fit_method must be one of 'fwhm', 'curvefit', or 'moment'! You supplied {fit_method}.")
 use_ivar_weight = config['use_ivar_weight']
 cross_calibrate = config['cross_calibrate']
 
@@ -289,31 +292,34 @@ tfunc = aoa.get_tfunc(kx_cut, ky_cut, bins)
 if plot_tfunc:
     aop.plot_tfunc(output_dir_path, kx_cut, ky_cut, centers, tfunc)
 
-all_same = config['all_same']
-if not all_same:
-    # Loading in reference maps for all arrays depending on frequency
-    if freq=='f090':
-        logger.info(f"Using pa5 ref map {ref_pa5_path} and ivar {ref_pa5_ivar_path}")
-        ref_pa5_maps, ref_pa5_ivar = aoa.load_ref_map(ref_pa5_path,ref_pa5_ivar_path)
-        logger.info(f"Using pa6 ref map {ref_pa6_path} and ivar {ref_pa6_ivar_path}")
-        ref_pa6_maps, ref_pa6_ivar = aoa.load_ref_map(ref_pa6_path,ref_pa6_ivar_path)
-    elif freq=='f150':
-        logger.info(f"Using pa4 ref map {ref_pa4_path} and ivar {ref_pa4_ivar_path}")
-        ref_pa4_maps, ref_pa4_ivar = aoa.load_ref_map(ref_pa4_path,ref_pa4_ivar_path)
-        logger.info(f"Using pa5 ref map {ref_pa5_path} and ivar {ref_pa5_ivar_path}")
-        ref_pa5_maps, ref_pa5_ivar = aoa.load_ref_map(ref_pa5_path,ref_pa5_ivar_path)
-        logger.info(f"Using pa6 ref map {ref_pa6_path} and ivar {ref_pa6_ivar_path}")
-        ref_pa6_maps, ref_pa6_ivar = aoa.load_ref_map(ref_pa6_path,ref_pa6_ivar_path)
-    elif freq=='f220':
-        logger.info(f"Using pa4 ref map {ref_pa4_path} and ivar {ref_pa4_ivar_path}")
-        ref_pa4_maps, ref_pa4_ivar = aoa.load_ref_map(ref_pa4_path,ref_pa4_ivar_path)
-else:
-    logger.info(f"Using pa5 ref map {ref_pa5_path} and ivar {ref_pa5_ivar_path} for all ref maps/ivar")
+# Loading in reference maps for all arrays depending on frequency
+# If ref maps are the same for different arrays, only load once to save time and memory
+if freq=='f090':
+    logger.info(f"Using pa5 ref map {ref_pa5_path} and ivar {ref_pa5_ivar_path}")
     ref_pa5_maps, ref_pa5_ivar = aoa.load_ref_map(ref_pa5_path,ref_pa5_ivar_path)
-    ref_pa4_maps, ref_pa4_ivar = ref_pa5_maps, ref_pa5_ivar
-    ref_pa4_beam = ref_pa5_beam
-    ref_pa6_maps, ref_pa6_ivar = ref_pa5_maps, ref_pa5_ivar
-    ref_pa6_beam = ref_pa5_beam
+    logger.info(f"Using pa6 ref map {ref_pa6_path} and ivar {ref_pa6_ivar_path}")
+    if ref_pa6_path == ref_pa5_path and ref_pa6_ivar_path == ref_pa5_ivar_path:
+        ref_pa6_maps, ref_pa6_ivar = ref_pa5_maps, ref_pa5_ivar
+    else:
+        ref_pa6_maps, ref_pa6_ivar = aoa.load_ref_map(ref_pa6_path,ref_pa6_ivar_path)
+elif freq=='f150':
+    logger.info(f"Using pa4 ref map {ref_pa4_path} and ivar {ref_pa4_ivar_path}")
+    ref_pa4_maps, ref_pa4_ivar = aoa.load_ref_map(ref_pa4_path,ref_pa4_ivar_path)
+    logger.info(f"Using pa5 ref map {ref_pa5_path} and ivar {ref_pa5_ivar_path}")
+    if ref_pa5_path == ref_pa4_path and ref_pa5_ivar_path == ref_pa4_ivar_path:
+        ref_pa5_maps, ref_pa5_ivar = ref_pa4_maps, ref_pa4_ivar
+    else:
+        ref_pa5_maps, ref_pa5_ivar = aoa.load_ref_map(ref_pa5_path,ref_pa5_ivar_path)
+    logger.info(f"Using pa6 ref map {ref_pa6_path} and ivar {ref_pa6_ivar_path}")
+    if ref_pa6_path == ref_pa4_path and ref_pa6_ivar_path == ref_pa4_ivar_path:
+        ref_pa6_maps, ref_pa6_ivar = ref_pa4_maps, ref_pa4_ivar
+    elif ref_pa6_path == ref_pa5_path and ref_pa6_ivar_path == ref_pa5_ivar_path:
+        ref_pa6_maps, ref_pa6_ivar = ref_pa5_maps, ref_pa5_ivar
+    else:
+        ref_pa6_maps, ref_pa6_ivar = aoa.load_ref_map(ref_pa6_path,ref_pa6_ivar_path)
+elif freq=='f220':
+    logger.info(f"Using pa4 ref map {ref_pa4_path} and ivar {ref_pa4_ivar_path}")
+    ref_pa4_maps, ref_pa4_ivar = aoa.load_ref_map(ref_pa4_path,ref_pa4_ivar_path)
 
 # Loading in galaxy mask
 logger.info("Starting to load galaxy mask")
@@ -368,7 +374,7 @@ def process(map_name, obs_list_path, logger,
             plot_maps, plot_likelihood, output_dir_path, 
             bins, centers, CAMB_ClEE_binned, CAMB_ClBB_binned, 
             depth1_beam, cal_T_beam1, cal_T_beam2, ref_beam, tfunc, 
-            num_pts, angle_min_deg, angle_max_deg, use_curvefit, 
+            num_pts, angle_min_deg, angle_max_deg, fit_method, 
             cross_calibrate, cal_T_map1_act_footprint, cal_T_map2_act_footprint, 
             cal_T_ivar1_act_footprint, cal_T_ivar2_act_footprint,
             cal_bins, cal_centers, y_min, y_max, cal_num_pts, cal_use_curvefit):
@@ -381,7 +387,7 @@ def process(map_name, obs_list_path, logger,
                                                   plot_maps, plot_likelihood, output_dir_path, 
                                                   bins, centers, CAMB_ClEE_binned, CAMB_ClBB_binned, 
                                                   depth1_beam, ref_beam, tfunc, 
-                                                  num_pts, angle_min_deg, angle_max_deg, use_curvefit)
+                                                  num_pts, angle_min_deg, angle_max_deg, fit_method)
 
     fit_values = [output_dict['meas_angle'], output_dict['meas_errbar']]
     if output_dict['map_cut']==0:
@@ -493,7 +499,7 @@ for map_name in tqdm(maps):
                             plot_maps, plot_likelihood, output_dir_path, 
                             bins, centers, CAMB_ClEE_binned, CAMB_ClBB_binned, 
                             depth1_beam, cal_T_beam1, cal_T_beam2, ref_beam, tfunc, 
-                            num_pts, angle_min_deg, angle_max_deg, use_curvefit, 
+                            num_pts, angle_min_deg, angle_max_deg, fit_method, 
                             cross_calibrate, cal_T_map1_act_footprint, cal_T_map2_act_footprint, 
                             cal_T_ivar1_act_footprint, cal_T_ivar2_act_footprint,
                             cal_bins, cal_centers, y_min, y_max, cal_num_pts, cal_use_curvefit)

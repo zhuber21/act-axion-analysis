@@ -13,10 +13,10 @@ unpixwin: True
 filter_radius: 0.5 # nawrapper.apod_C2() - radius in degrees, applied twice if using ivar weighting
 
 # Likelihood fitting settings
-angle_min_deg: -50.0
-angle_max_deg: 50.0
+angle_min_deg: -45.0
+angle_max_deg: 45.0
 num_pts: 50000
-use_curvefit: True
+fit_method: 'fwhm' # Must be 'curvefit', 'fwhm', or 'moment'
 
 # Calibration factor likelihood fitting settings
 y_min: 0.0
