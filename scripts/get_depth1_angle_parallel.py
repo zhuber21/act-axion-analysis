@@ -264,6 +264,12 @@ if freq=='f090':
     ref_pa4_beam = []
     ref_pa5_beam = aoa.load_and_bin_beam(ref_pa5_beam_path,bins)
     ref_pa6_beam = aoa.load_and_bin_beam(ref_pa6_beam_path,bins)
+    # If using the coadd of all arrays for ref map, average the three beams for the ref beam
+    if ref_pa5_path == ref_pa6_path:
+        logger.info(f"Since ref map is all-array coadd, averaging per-array ref beams together to get ref beam.")
+        ref_beam = (ref_pa5_beam+ref_pa6_beam)/2.0
+        ref_pa5_beam = ref_beam
+        ref_pa6_beam = ref_beam
     if plot_beam:
         pa5_beam_name = os.path.split(pa5_beam_path)[1][:-4] # Extracting file name from path and dropping '.txt'
         aop.plot_beam(output_dir_path, pa5_beam_name, centers, pa5_beam)
@@ -286,6 +292,13 @@ elif freq=='f150':
     ref_pa4_beam = aoa.load_and_bin_beam(ref_pa4_beam_path,bins)
     ref_pa5_beam = aoa.load_and_bin_beam(ref_pa5_beam_path,bins)
     ref_pa6_beam = aoa.load_and_bin_beam(ref_pa6_beam_path,bins)
+    # If using the coadd of all arrays for ref map, average the three beams for the ref beam
+    if ref_pa4_path == ref_pa5_path and ref_pa5_path == ref_pa6_path:
+        logger.info(f"Since ref map is all-array coadd, averaging per-array ref beams together to get ref beam.")
+        ref_beam = (ref_pa4_beam+ref_pa5_beam+ref_pa6_beam)/3.0
+        ref_pa4_beam = ref_beam
+        ref_pa5_beam = ref_beam
+        ref_pa6_beam = ref_beam
     if plot_beam:
         pa4_beam_name = os.path.split(pa4_beam_path)[1][:-4] # Extracting file name from path and dropping '.txt'
         aop.plot_beam(output_dir_path, pa4_beam_name, centers, pa4_beam)
@@ -309,6 +322,7 @@ elif freq=='f220':
     ref_pa4_beam = aoa.load_and_bin_beam(ref_pa4_beam_path,bins)
     ref_pa5_beam = []
     ref_pa6_beam = []
+    # Any f220 coadd will only have pa4 data in DR6, so no averaging for ref_beam at this frequency 
     if plot_beam:
         pa4_beam_name = os.path.split(pa4_beam_path)[1][:-4] # Extracting file name from path and dropping '.txt'
         aop.plot_beam(output_dir_path, pa4_beam_name, centers, pa4_beam)
