@@ -15,7 +15,7 @@ export OMP_NUM_THREADS=32
 export OMP_PLACES=threads
 export OMP_PROC_BIND=spread
 
-export RUN_TAG=run_1styear_f150_2900maps_20250222   # CHANGE THIS FOR EACH RUN!!
+export RUN_TAG=run_1styear_f150_2900maps_20250308   # CHANGE THIS FOR EACH RUN!!
 
 # Generate the Slurm batch script below with the here document,
 # then when sbatch the script later, the user env set up above will run on the login node
@@ -30,7 +30,7 @@ cat << EOF > prepare-env.sl
 #SBATCH --mail-user=zbh5@cornell.edu
 #SBATCH --mail-type=ALL
 #SBATCH -J $RUN_TAG
-#SBATCH --time 00:30:00
+#SBATCH --time 00:40:00
 #SBATCH --nodes=50
 #SBATCH --ntasks-per-node=6
 #SBATCH --output=/pscratch/sd/z/zbh5/results/$RUN_TAG.out
