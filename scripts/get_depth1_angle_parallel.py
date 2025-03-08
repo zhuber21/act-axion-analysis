@@ -90,7 +90,10 @@ cross_calibrate = config['cross_calibrate']
 y_min = config['y_min']
 y_max = config['y_max']
 cal_num_pts = config['cal_num_pts']
-cal_use_curvefit = config['cal_use_curvefit']
+cal_fit_method = config['cal_fit_method']
+if cal_fit_method not in ['fwhm', 'curvefit', 'moment']:
+    logger.error(f"fit_method must be one of 'fwhm', 'curvefit', or 'moment'! You supplied {cal_fit_method}. Exiting.")
+    raise ValueError(f"fit_method must be one of 'fwhm', 'curvefit', or 'moment'! You supplied {cal_fit_method}.")
 cal_bin_size = config['cal_bin_size']
 cal_lmin = config['cal_lmin']
 cal_lmax = config['cal_lmax']
@@ -394,7 +397,7 @@ def process(map_name, obs_list_path, logger,
             num_pts, angle_min_deg, angle_max_deg, fit_method, 
             cross_calibrate, cal_T_map1_act_footprint, cal_T_map2_act_footprint, 
             cal_T_ivar1_act_footprint, cal_T_ivar2_act_footprint,
-            cal_bins, cal_centers, y_min, y_max, cal_num_pts, cal_use_curvefit):
+            cal_bins, cal_centers, y_min, y_max, cal_num_pts, cal_fit_method):
     """Function to call for each map inside each process"""
     map_path = obs_list_path + map_name
     # outputs will be 1 if the map is cut, a bunch of things needed
@@ -432,7 +435,7 @@ def process(map_name, obs_list_path, logger,
                                                   galaxy_mask, depth1_T, w_depth1, w2_depth1, cal_centers,
                                                   cal_bins, tfunc, kx_cut, ky_cut, unpixwin, filter_radius, 
                                                   use_ivar_weight, depth1_beam, cal_T_beam1, cal_T_beam2, y_min, 
-                                                  y_max, cal_num_pts, cal_use_curvefit)
+                                                  y_max, cal_num_pts, cal_fit_method)
             # Printing out calibration factor and errorbar
             cal_fit_values = (cal_output_dict['cal_factor'], cal_output_dict['cal_factor_errbar'])
             logger.info(f"TT calibration fit values: {cal_fit_values}")
@@ -532,7 +535,7 @@ for i in range(rank, len(maps), size):
                 num_pts, angle_min_deg, angle_max_deg, fit_method, 
                 cross_calibrate, cal_T_map1_act_footprint, cal_T_map2_act_footprint, 
                 cal_T_ivar1_act_footprint, cal_T_ivar2_act_footprint,
-                cal_bins, cal_centers, y_min, y_max, cal_num_pts, cal_use_curvefit)
+                cal_bins, cal_centers, y_min, y_max, cal_num_pts, cal_fit_method)
     except Exception as e:
         logger.error(f"Map {map_name} failed on process {rank} with error {e}")
 

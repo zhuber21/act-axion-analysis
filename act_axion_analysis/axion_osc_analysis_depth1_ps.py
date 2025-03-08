@@ -713,10 +713,17 @@ def estimate_pol_angle(map_path, line, logger, ref_maps, ref_ivar, galaxy_mask,
 
 def cal_sample_likelihood_and_fit(cal1xcal2, cal1xdepth1, cal1xcal1, cal2xcal2, cal2xdepth1, 
                                   depth1xdepth1, nu_cal1_cal2, nu_cal1_depth1, nu_all_three, 
-                                  y_min=0.7, y_max=1.3, num_pts=50000, use_curvefit=True):
+                                  y_min=0.7, y_max=1.3, num_pts=50000, cal_fit_method='fwhm'):
     """
         Samples the likelihood for the TT calibration at num_pts values of the calibration
         factor, y, between the values y_min and y_max.
+
+        The cal_fit_method variable selects which fitter to use for extracting the peak
+        and width of likelihood. Options are 'fwhm' (uses fwhm_fit() to find peak and FWHM,
+        which is converted to the std dev for an equivalent Gaussian), 'curvefit' (uses scipy's
+        curve_fit() to fit a Gaussian to the likelihood), or 'moment' (calculates the first and
+        second moments of a Gaussian). The FWHM option is the most general and robust to non-
+        Gaussianities in the lower S/N likelihoods.
 
         Cal1 and Cal2 here may refer to either the pa5 coadd or the pa6 coadd, depending on
         which array the depth-1 map is.
@@ -730,7 +737,7 @@ def cal_sample_likelihood_and_fit(cal1xcal2, cal1xdepth1, cal1xcal1, cal2xcal2, 
                                              nu_cal1_cal2, nu_cal1_depth1, nu_all_three) for y in y_values]
     norm_sampled_likelihood = cal_sampled_likelihood/np.max(cal_sampled_likelihood)
 
-    if use_curvefit:
+    if cal_fit_method=='curvefit':
         # The default guess starting values are for the angle likelihood, so pass new ones here
         guess = [1.0, 0.2] # Guessing a center value of 1.0 with std dev 0.2
         fit_values = gaussian_fit_curvefit(y_values,norm_sampled_likelihood, guess=guess)
@@ -738,6 +745,13 @@ def cal_sample_likelihood_and_fit(cal1xcal2, cal1xdepth1, cal1xcal1, cal2xcal2, 
         # Easiest thing to do is just refit them with moment method - usually still easy to separate out bad ones
         if fit_values[1] < 0.005:
             fit_values = gaussian_fit_moment(y_values,norm_sampled_likelihood)
+    elif cal_fit_method=='fwhm':
+        fit_values = fwhm_fit(y_values,norm_sampled_likelihood)
+        # Convert FWHM to the standard deviation of an equivalent width Gaussian
+        # Good S/N likelihoods are already Gaussian. Lower S/N ones that can still
+        # be fit have a central peak with width close to the width of a Gaussian.
+        sigma = fit_values[1] / (2*np.sqrt(2*np.log(2)))
+        fit_values = [fit_values[0], sigma]
     else:
         fit_values = gaussian_fit_moment(y_values,norm_sampled_likelihood)
     
@@ -748,7 +762,7 @@ def cross_calibrate(map_array, cal_T_map1_act_footprint, cal_T_map2_act_footprin
                     depth1_ivar, depth1_mask, depth1_mask_indices,
                     galaxy_mask, depth1_T, w_depth1, w2_depth1, cal_centers, cal_bins, tfunc,
                     kx_cut, ky_cut, unpixwin, filter_radius, use_ivar_weight,
-                    depth1_beam, cal_T_beam1, cal_T_beam2, y_min, y_max, cal_num_pts, cal_use_curvefit):
+                    depth1_beam, cal_T_beam1, cal_T_beam2, y_min, y_max, cal_num_pts, cal_fit_method):
     """
         High-level function to do the TT cross-calibration. 
         Allows intermediate maps to be cleaned up when function closes for better RAM usage.
@@ -822,7 +836,7 @@ def cross_calibrate(map_array, cal_T_map1_act_footprint, cal_T_map2_act_footprin
         cal_fit_values = cal_sample_likelihood_and_fit(binned_pa5Txpa6T, binned_T1xpa5T, binned_pa5Txpa5T,
                                                     binned_pa6Txpa6T, binned_T1xpa6T, binned_T1xT1,
                                                     cal_binned_nu_pa5_pa6, cal_binned_nu_pa5_depth1, cal_binned_nu_556d,
-                                                    y_min=y_min,y_max=y_max,num_pts=cal_num_pts,use_curvefit=cal_use_curvefit)
+                                                    y_min=y_min,y_max=y_max,num_pts=cal_num_pts,cal_fit_method=cal_fit_method)
     else:
         # Calibrating the pa5 maps to the pa5 ref maps to avoid depth1xpa5 bias
         # The estimator is then pa5xpa6-y*depth1xpa6 for the pa5 depth-1 maps
@@ -835,7 +849,7 @@ def cross_calibrate(map_array, cal_T_map1_act_footprint, cal_T_map2_act_footprin
         cal_fit_values = cal_sample_likelihood_and_fit(binned_pa5Txpa6T, binned_T1xpa6T, binned_pa6Txpa6T,
                                                     binned_pa5Txpa5T, binned_T1xpa5T, binned_T1xT1,
                                                     cal_binned_nu_pa5_pa6, cal_binned_nu_pa6_depth1, cal_binned_nu_665d,
-                                                    y_min=y_min,y_max=y_max,num_pts=cal_num_pts,use_curvefit=cal_use_curvefit)        
+                                                    y_min=y_min,y_max=y_max,num_pts=cal_num_pts,cal_fit_method=cal_fit_method)        
     # Returning all the variables that I want to store in the output
     cal_output_dict = {'cal_ell': cal_centers, 'T1xpa5T': binned_T1xpa5T, 'pa5Txpa6T': binned_pa5Txpa6T,
                        'pa5Txpa5T': binned_pa5Txpa5T, 'pa6Txpa6T': binned_pa6Txpa6T, 

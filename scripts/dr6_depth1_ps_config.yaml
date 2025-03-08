@@ -22,7 +22,7 @@ fit_method: 'fwhm' # Must be 'curvefit', 'fwhm', or 'moment'
 y_min: 0.0
 y_max: 2.0
 cal_num_pts: 50000
-cal_use_curvefit: True
+cal_fit_method: 'fwhm' # Must be 'curvefit', 'fwhm', or 'moment'
 
 # Calibration factor binning settings
 cal_bin_size: 200

@@ -129,14 +129,14 @@ but they could be placed with appropriately similar maps, beams, etc. for future
   * angle_max_deg - the maximum angle for the likelihood fitting (default 50.0)
   * num_pts - the number of points between angle_min_deg and angle_max_deg at which the likelihood is evaluated (default 50000) 
     * If using curvefit, 50,000 points is almost certanily enough to guarantee results match many more points out to O(0.001) precision. If not using curve_fit, may want to use more points to guarantee good precision.
-  * use_curvefit - whether to use scipy curvefit to fit cal likelihoods (default True - better to use the full fit here since low S/N maps deviate from Gaussianity)
+  * fit_method - which method to use to fit angle likelihoods (default 'fwhm' - options are 'fwhm', 'curvefit', and 'moment')
 
 * Calibration factor likelihood fitting settings
 
   * y_min - the minimum calibration factor for the likelihood fitting (default -1.0 - allows us to catch low values with large errorbars)
   * y_max - the maximum calibration factor for the likelihood fitting (default 2.0)
   * cal_num_pts - the number of points between y_min and y_max at which the likelihood is evaluated (default 50000)
-  * cal_use_curvefit - whether to use scipy curvefit to fit cal likelihoods (default False - actually often better to use Gaussian moments method here since these are all nice Gaussians)
+  * cal_fit_method - which method to use to fit cal likelihoods (default 'fwhm' - options are 'fwhm', 'curvefit', and 'moment')
 
 * Calibration factor binning settings
 
@@ -190,7 +190,3 @@ but they could be placed with appropriately similar maps, beams, etc. for future
   * cal_beam2_path - path to the beam for the second calibration coadd
   * obs_list - a .txt file containing the names of all of the maps to run
   * obs_path_stem - the path to the directory containing all of the depth-1 maps
-
-The serial config file also has the "all_same" boolean flag, which allows one to load only the pa5 ref maps 
-and ivar maps if you are using the same maps for pa4, pa5, and pa6. This enables one to save on RAM when 
-running in a legacy mode with the same reference map for all three arrays.
