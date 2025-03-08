@@ -210,15 +210,24 @@ plot_angle_hist = config['plot_angle_hist']
 # Load CAMB EE and BB spectrum (BB just for plotting)
 logger.info("Starting to load CAMB spectra")
 ell_camb,DlEE_camb,DlBB_camb = np.loadtxt(camb_file, usecols=(0,2,3), unpack=True)
-# Note that ell runs from 2 to 5400
-arr_len = ell_camb.size + 2
-ell = np.zeros(arr_len)
-ell[1] = 1.0
-ell[2:] = ell_camb
-ClEE = np.zeros(arr_len)
-ClBB = np.zeros(arr_len)
-ClEE[2:] = DlEE_camb * 2 * np.pi / (ell_camb*(ell_camb+1.0))
-ClBB[2:] = DlBB_camb * 2 * np.pi / (ell_camb*(ell_camb+1.0))
+if ell_camb[0]==2:
+    # ell runs from 2 to lmax in older CAMB files
+    arr_len = ell_camb.size + 2
+    ell = np.zeros(arr_len)
+    ell[1] = 1.0
+    ell[2:] = ell_camb
+    ClEE = np.zeros(arr_len)
+    ClBB = np.zeros(arr_len)
+    ClEE[2:] = DlEE_camb * 2 * np.pi / (ell_camb*(ell_camb+1.0))
+    ClBB[2:] = DlBB_camb * 2 * np.pi / (ell_camb*(ell_camb+1.0))
+else:
+    # in newer camb outputs, ell starts at zero
+    arr_len = ell_camb.size
+    ell = ell_camb
+    ClEE = np.zeros(arr_len)
+    ClBB = np.zeros(arr_len)
+    ClEE[2:] = DlEE_camb[2:] * 2 * np.pi / (ell_camb[2:]*(ell_camb[2:]+1.0))
+    ClBB[2:] = DlBB_camb[2:] * 2 * np.pi / (ell_camb[2:]*(ell_camb[2:]+1.0))
 digitized = np.digitize(ell, bins, right=True)
 CAMB_ClEE_binned = np.bincount(digitized, ClEE.reshape(-1))[1:-1]/np.bincount(digitized)[1:-1]
 CAMB_ClBB_binned = np.bincount(digitized, ClBB.reshape(-1))[1:-1]/np.bincount(digitized)[1:-1]
