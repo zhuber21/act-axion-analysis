@@ -16,13 +16,13 @@ filter_radius: 0.5 # nawrapper.apod_C2() - radius in degrees, applied twice if u
 angle_min_deg: -45.0
 angle_max_deg: 45.0
 num_pts: 50000
-fit_method: 'fwhm' # Must be 'curvefit', 'fwhm', or 'moment'
+fit_method: 'all' # Must be 'all', 'curvefit', 'fwhm', 'skewnorm', or 'moment'
 
 # Calibration factor likelihood fitting settings
 y_min: 0.0
 y_max: 2.0
 cal_num_pts: 50000
-cal_fit_method: 'fwhm' # Must be 'curvefit', 'fwhm', or 'moment'
+cal_fit_method: 'fwhm' # Must be 'curvefit', 'fwhm', 'skewnorm', or 'moment'
 
 # Calibration factor binning settings
 cal_bin_size: 200
@@ -52,15 +52,17 @@ theory_curves_path: "/pscratch/sd/z/zbh5/alp_ref_files/camb_planck2018acc_lensed
 
 # Reference maps, ivar, and beams for each array
 # Maps will only be loaded if that array has data at the freq listed above
+# When using the all-array coadd as ref map, it is designed to use the 20230130 pa5 beam at f090 and f150 and the 
+# pa4 beam at f220
 ref_pa4_path: "/pscratch/sd/z/zbh5/alp_ref_files/act_dr6.02_coadd_AA_night_f150_map_srcfree_projected.fits"
 ref_pa4_ivar_path: "/pscratch/sd/z/zbh5/alp_ref_files/act_dr6.02_coadd_AA_night_f150_ivar_projected.fits"
-ref_pa4_beam_path: "/pscratch/sd/z/zbh5/alp_ref_files/20240404_beams/coadd_pa4_f150_night_beam_tform_jitter_cmb.txt"
+ref_pa4_beam_path: "/pscratch/sd/z/zbh5/alp_ref_files/20230130_beams/coadd_pa5_f150_night_beam_tform_jitter_cmb.txt"
 ref_pa5_path: "/pscratch/sd/z/zbh5/alp_ref_files/act_dr6.02_coadd_AA_night_f150_map_srcfree_projected.fits"
 ref_pa5_ivar_path: "/pscratch/sd/z/zbh5/alp_ref_files/act_dr6.02_coadd_AA_night_f150_ivar_projected.fits"
-ref_pa5_beam_path: "/pscratch/sd/z/zbh5/alp_ref_files/20240404_beams/coadd_pa5_f150_night_beam_tform_jitter_cmb.txt"
+ref_pa5_beam_path: "/pscratch/sd/z/zbh5/alp_ref_files/20230130_beams/coadd_pa5_f150_night_beam_tform_jitter_cmb.txt"
 ref_pa6_path: "/pscratch/sd/z/zbh5/alp_ref_files/act_dr6.02_coadd_AA_night_f150_map_srcfree_projected.fits"
 ref_pa6_ivar_path: "/pscratch/sd/z/zbh5/alp_ref_files/act_dr6.02_coadd_AA_night_f150_ivar_projected.fits"
-ref_pa6_beam_path: "/pscratch/sd/z/zbh5/alp_ref_files/20240404_beams/coadd_pa6_f150_night_beam_tform_jitter_cmb.txt"
+ref_pa6_beam_path: "/pscratch/sd/z/zbh5/alp_ref_files/20230130_beams/coadd_pa5_f150_night_beam_tform_jitter_cmb.txt"
 
 pa4_beam_path: "/pscratch/sd/z/zbh5/alp_ref_files/20230129_beams/coadd_pa4_f150_night_beam_tform_jitter_cmb.txt"
 pa5_beam_path: "/pscratch/sd/z/zbh5/alp_ref_files/20230129_beams/coadd_pa5_f150_night_beam_tform_jitter_cmb.txt"

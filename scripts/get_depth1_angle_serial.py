@@ -57,9 +57,9 @@ angle_min_deg = config['angle_min_deg']
 angle_max_deg = config['angle_max_deg']
 num_pts = config['num_pts']
 fit_method = config['fit_method']
-if fit_method not in ['fwhm', 'curvefit', 'moment']:
-    logger.error(f"fit_method must be one of 'fwhm', 'curvefit', or 'moment'! You supplied {fit_method}. Exiting.")
-    raise ValueError(f"fit_method must be one of 'fwhm', 'curvefit', or 'moment'! You supplied {fit_method}.")
+if fit_method not in ['all', 'fwhm', 'curvefit', 'skewnorm', 'moment']:
+    logger.error(f"fit_method must be one of 'all', 'fwhm', 'curvefit', 'skewnorm', or 'moment'! You supplied {fit_method}. Exiting.")
+    raise ValueError(f"fit_method must be one of 'all', 'fwhm', 'curvefit', 'skewnorm', or 'moment'! You supplied {fit_method}.")
 use_ivar_weight = config['use_ivar_weight']
 cross_calibrate = config['cross_calibrate']
 
@@ -69,9 +69,9 @@ y_min = config['y_min']
 y_max = config['y_max']
 cal_num_pts = config['cal_num_pts']
 cal_fit_method = config['cal_fit_method']
-if cal_fit_method not in ['fwhm', 'curvefit', 'moment']:
-    logger.error(f"fit_method must be one of 'fwhm', 'curvefit', or 'moment'! You supplied {cal_fit_method}. Exiting.")
-    raise ValueError(f"fit_method must be one of 'fwhm', 'curvefit', or 'moment'! You supplied {cal_fit_method}.")
+if cal_fit_method not in ['fwhm', 'curvefit', 'skewnorm', 'moment']:
+    logger.error(f"fit_method must be one of 'fwhm', 'curvefit', 'skewnorm', or 'moment'! You supplied {cal_fit_method}. Exiting.")
+    raise ValueError(f"fit_method must be one of 'fwhm', 'curvefit', 'skewnorm', or 'moment'! You supplied {cal_fit_method}.")
 cal_bin_size = config['cal_bin_size']
 cal_lmin = config['cal_lmin']
 cal_lmax = config['cal_lmax']
@@ -247,12 +247,6 @@ if freq=='f090':
     ref_pa4_beam = []
     ref_pa5_beam = aoa.load_and_bin_beam(ref_pa5_beam_path,bins)
     ref_pa6_beam = aoa.load_and_bin_beam(ref_pa6_beam_path,bins)
-    # If using the coadd of all arrays for ref map, average the three beams for the ref beam
-    if ref_pa5_path == ref_pa6_path:
-        logger.info(f"Since ref map is all-array coadd, averaging per-array ref beams together to get ref beam.")
-        ref_beam = (ref_pa5_beam+ref_pa6_beam)/2.0
-        ref_pa5_beam = ref_beam
-        ref_pa6_beam = ref_beam
     if plot_beam:
         pa5_beam_name = os.path.split(pa5_beam_path)[1][:-4] # Extracting file name from path and dropping '.txt'
         aop.plot_beam(output_dir_path, pa5_beam_name, centers, pa5_beam)
@@ -275,13 +269,6 @@ elif freq=='f150':
     ref_pa4_beam = aoa.load_and_bin_beam(ref_pa4_beam_path,bins)
     ref_pa5_beam = aoa.load_and_bin_beam(ref_pa5_beam_path,bins)
     ref_pa6_beam = aoa.load_and_bin_beam(ref_pa6_beam_path,bins)
-    # If using the coadd of all arrays for ref map, average the three beams for the ref beam
-    if ref_pa4_path == ref_pa5_path and ref_pa5_path == ref_pa6_path:
-        logger.info(f"Since ref map is all-array coadd, averaging per-array ref beams together to get ref beam.")
-        ref_beam = (ref_pa4_beam+ref_pa5_beam+ref_pa6_beam)/3.0
-        ref_pa4_beam = ref_beam
-        ref_pa5_beam = ref_beam
-        ref_pa6_beam = ref_beam
     if plot_beam:
         pa4_beam_name = os.path.split(pa4_beam_path)[1][:-4] # Extracting file name from path and dropping '.txt'
         aop.plot_beam(output_dir_path, pa4_beam_name, centers, pa4_beam)
@@ -305,7 +292,6 @@ elif freq=='f220':
     ref_pa4_beam = aoa.load_and_bin_beam(ref_pa4_beam_path,bins)
     ref_pa5_beam = []
     ref_pa6_beam = []
-    # Any f220 coadd will only have pa4 data in DR6, so no averaging for ref_beam at this frequency 
     if plot_beam:
         pa4_beam_name = os.path.split(pa4_beam_path)[1][:-4] # Extracting file name from path and dropping '.txt'
         aop.plot_beam(output_dir_path, pa4_beam_name, centers, pa4_beam)
@@ -415,7 +401,14 @@ def process(map_name, obs_list_path, logger,
                                                   depth1_beam, ref_beam, tfunc, 
                                                   num_pts, angle_min_deg, angle_max_deg, fit_method)
 
-    fit_values = [output_dict['meas_angle'], output_dict['meas_errbar']]
+    if fit_method == 'skewnorm' or fit_method == 'all':
+        fit_values = [output_dict['meas_angle_skewnorm-method'], output_dict['meas_errbar_skewnorm-method']]
+    elif fit_method=='fwhm':
+        fit_values = [output_dict['meas_angle_fwhm-method'], output_dict['meas_errbar_fwhm-method']]
+    elif fit_method=='curvefit':
+        fit_values = [output_dict['meas_angle_gauss-curvefit'], output_dict['meas_errbar_gauss-curvefit']]
+    else:
+        fit_values = [output_dict['meas_angle_gauss-moment'], output_dict['meas_errbar_gauss-moment']]
     if output_dict['map_cut']==0:
         depth1_mask = outputs[0]
         depth1_mask_indices = outputs[1]
@@ -425,10 +418,10 @@ def process(map_name, obs_list_path, logger,
         w2_depth1 = output_dict['w2_depth1']
         logger.info(f"Fit values: {fit_values}")
         # depth1_mask will be the doubly tapered one if ivar weighting is on, the first filtering one if not
-        initial_timestamp, median_timestamp = aoa.calc_median_timestamp(map_path, depth1_mask)
-        logger.info(f"Initial timestamp: {initial_timestamp}")
-        logger.info(f"Median timestamp: {median_timestamp}")
-        output_dict.update({'initial_timestamp': initial_timestamp, 'median_timestamp': median_timestamp})
+        name_timestamp, median_timestamp, initial_timestamp, final_timestamp  = aoa.calc_timestamps(map_path, depth1_mask)
+        logger.info(f"Name timestamp: {name_timestamp}; Median timestamp: {median_timestamp}; Initial timestamp: {initial_timestamp}; Final timestamp: {final_timestamp}")
+        output_dict.update({'name_timestamp': name_timestamp, 'median_timestamp': median_timestamp,
+                            'initial_timestamp': initial_timestamp,'final_timestamp': final_timestamp})
 
         if cross_calibrate:
             # Calling a single function to do all the TT cross-calibration

@@ -18,13 +18,13 @@ filter_radius: 0.5 # nawrapper.apod_C2() - radius in degrees, applied twice if u
 angle_min_deg: -45.0
 angle_max_deg: 45.0
 num_pts: 50000
-fit_method: 'fwhm' # Must be 'curvefit', 'fwhm', or 'moment'
+fit_method: 'all' # Must be 'all', 'curvefit', 'fwhm', 'skewnorm', or 'moment'
 
 # Calibration factor likelihood fitting settings
 y_min: 0.0
 y_max: 2.0
 cal_num_pts: 50000
-cal_fit_method: 'fwhm' # Must be 'curvefit', 'fwhm', or 'moment'
+cal_fit_method: 'fwhm' # Must be 'curvefit', 'fwhm', 'skewnorm', or 'moment'
 
 # Calibration factor binning settings
 cal_bin_size: 200

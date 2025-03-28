@@ -372,24 +372,28 @@ def cal_apply_ivar_weighting(filtered_cal_T_fourier, cal_T_ivar, shape, wcs, dep
     cal_map_fourier = enmap.map2harm(filtered_cal_map_trimmed_realspace*w_cal, normalize = "phys")
     return cal_map_fourier, w_cal
 
-def calc_median_timestamp(map_path, mask):
+def calc_timestamps(map_path, mask):
     """
         Using time.fits and info.hdf files that accompany each depth-1 map to calculate the median timestamp
         of the region that is used for doing the power spectrum calculation (just the region where the tapered mask is 1.0). 
 
-        Returns both the initial timestamp of the file (info_file.t) and the median timestamp after adding the median offset of
-        the power spectrum region.
+        Returns the timestamp in the filename (info_file.t), the median timestamp after adding the median offset of
+        the power spectrum region, and the initial and final timestamps from the PS region.
     """
     info_file_path = map_path[:-8] + 'info.hdf'
     time_file_path = map_path[:-8] + 'time.fits'
     info_file = bunch.read(info_file_path)    # info_file.t should be the timestamp in the file name - first timestamp in file
     time_map = enmap.read_map(time_file_path) # this map gives the time offset from info_file.t
-    initial_timestamp = info_file.t
+    name_timestamp = info_file.t
     # Restricting time_map just to the area inside the taper
     masked_time_map = time_map*mask
     median_time_offset = np.median(masked_time_map[mask==1.0])
-    median_timestamp = initial_timestamp + median_time_offset # May want to round this eventually if median is not an integer...
-    return initial_timestamp, median_timestamp
+    # The precision of the time.fits files seems to be four decimal places
+    # Need to round because adding them to name_timestamp makes them floats with higher precision for some reason
+    median_timestamp = np.round(name_timestamp + median_time_offset,4)
+    initial_timestamp = np.round(name_timestamp + np.min(masked_time_map[mask==1.0]),4)
+    final_timestamp = np.round(name_timestamp + np.max(masked_time_map[mask==1.0]),4)
+    return name_timestamp, median_timestamp, initial_timestamp, final_timestamp
 ##########################################################
 
 
@@ -471,11 +475,11 @@ def cal_likelihood(y, cal1xcal2, cal1xdepth1, cal1xcal1, cal2xcal2, cal2xdepth1,
 
 def fwhm_fit(angles, likelihood, fwhm_point=0.5):
     """
-       Finds the peak of the normalized likelihood, then finds the angle (in radians)
+       Finds the peak of the normalized likelihood, then finds the angle (in units of input angles)
        of the FWHM on either side of the maximum (default is to use the range 0-1 instead
        of the range of the function such that the FWHM always occurs at 0.5)
 
-       Returns the peak and total FWHM in radians.
+       Returns the peak and total FWHM in units of input angles.
     """
     # Find peak - should only be one due to normalization
     idx_peaks = np.where(likelihood==np.max(likelihood))[0]
@@ -488,32 +492,75 @@ def fwhm_fit(angles, likelihood, fwhm_point=0.5):
     if idx_peak != len(angles)-1 and idx_peak != 0:
         idx_above = np.argmin(np.abs(likelihood[idx_peak:-1] - fwhm_point))
         idx_below = np.argmin(np.abs(likelihood[0:idx_peak] - fwhm_point))
-        if idx_above==len(likelihood[idx_peak:-1])-1 or idx_below==0:
+        if idx_above==len(likelihood[idx_peak:-1])-1:
             # If either of the half-width half-maxes are at the boundary
-            # return a bad fit code
-            fwhm = -9999
+            # return a bad fit code for that HWHM
+            hwhm_above = -9999
         else:
             hwhm_above = angles[idx_peak:-1][idx_above]
+        if idx_below==0:
+            hwhm_below = -9999
+        else:
             hwhm_below = angles[0:idx_peak][idx_below]
+        if hwhm_above == -9999 or hwhm_below == -9999:
+            fwhm = -9999
+        else:
             fwhm = hwhm_above - hwhm_below
     else:
         # If the peak is at the boundary of the fit range, 
-        # return a bad fit code
-        fwhm = -9999  
+        # return a bad fit code for everything
+        fwhm = -9999
+        hwhm_above = -9999
+        hwhm_below = -9999  
     
-    return peak_angle, fwhm
+    return peak_angle, fwhm, hwhm_above, hwhm_below
 
-def gaussian_fit_curvefit(angles,data,guess=[1.0*np.pi/180.0, 5.0*np.pi/180.0]):
+def skew_normal_fit_curvefit(angles,data,guess=None):
+    """
+        Uses scipy.optimize.curve_fit() to fit a skew normal distribution
+        to the likelihood to get its mu, sigma, and alpha parameters. The first two
+        parameters are NOT necessarily the mean and standard deviation because there
+        are multiple sets of these three parameters that can give similar looking curves.
+        Only when alpha=0 are they the conventional Gaussian mean and standard deviation.
+
+        Assumes everything is in radians when fitting angles.
+
+        Default starting values for the three parameters for curve_fit may be passed in 
+        as a list with guess, but the default is to calculate an optimal guess from the
+        data. That generally works well to avoid issues with failed fits, which can 
+        happen when the initial guess if far from the final values.
+    """    
+    if guess is None:
+        # default guess is the peak and std of likelihood plus mild asymmetry
+        # The real default guess for the width (possible future upgrade) should be
+        # the FHWM or similar, but not all our likelihoods have good FWHMs.
+        # This is a simpler thing that gives good results with fewer checks.
+        guess = [angles[np.argmax(data)], np.std(data), 1.0]
+    popt, _ = op.curve_fit(utils.norm_skewnorm_pdf,angles,data,guess,maxfev=50000)
+    mu = popt[0]
+    sigma = np.abs(popt[1])
+    alpha = popt[2]
+    return mu, sigma, alpha
+
+def gaussian_fit_curvefit(angles,data,guess=None):
     """
         Uses scipy.optimize.curve_fit() to fit a Gaussian to the likelihood to
         get the mean and standard deviation.
 
         Assumes everything is in radians when fitting angles.
 
-        The default guess (mean 1 deg, std dev 5 deg) here is for the angle likelihood. 
-        When using this function to fit the TT calibration likelihood, pass in a different guess.
+        Default starting values for curve_fit may be passed in as a list with guess,
+        but the default is to calculate an optimal guess from the data. That generally
+        works well to avoid issues with failed fits, which can happen when the initial
+        guess if far from the final values.
     """
-    popt, pcov = op.curve_fit(utils.gaussian,angles,data,guess,maxfev=50000)
+    if guess is None:
+        # default guess is the peak and std of likelihood
+        # The real default guess for the width (possible future upgrade) should be
+        # the FHWM or similar, but not all our likelihoods have good FWHMs.
+        # This is a simpler thing that gives good results with fewer checks.
+        guess = [angles[np.argmax(data)], np.std(data)]
+    popt, _ = op.curve_fit(utils.gaussian,angles,data,guess,maxfev=50000)
     mean = popt[0]
     std_dev = np.abs(popt[1])
     return mean, std_dev
@@ -528,20 +575,37 @@ def gaussian_fit_moment(angles,data):
     mean = np.sum(angles*data)/np.sum(data)
     std_dev = np.sqrt(abs(np.sum((angles-mean)**2*data)/np.sum(data)))
     return mean, std_dev
-    
-def sample_likelihood_and_fit(estimator,covariance,theory_ClEE,angle_min_deg=-20.0,angle_max_deg=20.0,
-                              num_pts=10000,fit_method='fwhm',plot_like=False,output_dir=None,map_fname=None):
+
+def calc_residual_mean_and_sum(angles_rad, norm_sampled_likelihood, mean, stddev):
+    """Calculating mean and sum of abs of residual between likelihood and best fit approximate Gaussian
+    within 1 sigma of mean value - two possible ways of identifying and cutting poor S/N or bad fits
     """
-       Samples likelihood for a range of angles and returns the best fit for the
-       mean and std dev of the resulting Gaussian in degrees.
+    residual = norm_sampled_likelihood - utils.gaussian(angles_rad,mean,stddev)
+    minus_sigma_idx = np.searchsorted(angles_rad, mean-stddev)
+    plus_sigma_idx = np.searchsorted(angles_rad, mean+stddev)
+    residual_mean = np.mean(np.abs(residual[minus_sigma_idx:plus_sigma_idx]))
+    residual_sum = np.sum(np.abs(residual[minus_sigma_idx:plus_sigma_idx]))
+    return residual_mean, residual_sum, residual
+
+def sample_likelihood_and_fit(estimator,covariance,theory_ClEE,angle_min_deg=-45.0,angle_max_deg=45.0,
+                              num_pts=50000,fit_method='fwhm',plot_like=False,output_dir=None,map_fname=None):
+    """
+       Samples likelihood for a range of angles and returns the best fit parameters for the
+       resulting distribution in degrees.
 
        Has the option to do the fitting with scipy.optimize.curve_fit() (set fit_method='curvefit'),
        a method estimating the FWHM directly to account for non-Gaussianity (set fit_method='fwhm'),
+       a method using a skew normal distribution (set fit_method='skewnorm'),
        or a method using moments of the Gaussian. The moments method is faster but less
        accurate when the likelihood deviates from Gaussianity in any way. The FWHM method is the most
        general and most accurately gets the peak value for likelihoods that start to deviate from
-       an ideal Gaussian likelihood.
+       an ideal Gaussian likelihood, but the skew normal method tends to account for the full shape
+       better than the FWHM method while picking out the peak better than the Gaussian fit.
+
+       Can also set fit_method='all' to use all methods on each likelihood.
     """
+    likelihood_output_dict = {}
+    
     if(angle_min_deg >= angle_max_deg): 
         raise ValueError("The min angle must be smaller than the max!")
     angles_deg = np.linspace(angle_min_deg,angle_max_deg,num=num_pts)
@@ -550,36 +614,115 @@ def sample_likelihood_and_fit(estimator,covariance,theory_ClEE,angle_min_deg=-20
     bin_sampled_likelihood = [estimator_likelihood(angle,estimator,covariance,theory_ClEE) for angle in angles_rad]
     norm_sampled_likelihood = bin_sampled_likelihood/np.max(bin_sampled_likelihood)
     
-    if fit_method=='curvefit':
+    if fit_method=='all':
+        # Does all the methods
+        # Start with Gaussian curve_fit
+        fit_values = gaussian_fit_curvefit(angles_rad,norm_sampled_likelihood)
+        likelihood_output_dict['meas_angle_gauss-curvefit'] = np.rad2deg(fit_values[0])
+        likelihood_output_dict['meas_errbar_gauss-curvefit'] = np.rad2deg(fit_values[1])
+        # Does the residuals and plotting params for the Gaussian curve_fit part only
+        residual_mean, residual_sum, residual = calc_residual_mean_and_sum(angles_rad, norm_sampled_likelihood,
+                                                                 fit_values[0],fit_values[1])
+        likelihood_output_dict['residual_mean'] = residual_mean
+        likelihood_output_dict['residual_sum'] = residual_sum
+        gauss_params_deg = [np.rad2deg(fit_values[0]), np.rad2deg(fit_values[1])]
+
+        # FHWM fit
+        fit_values = fwhm_fit(angles_rad,norm_sampled_likelihood)
+        likelihood_output_dict['meas_angle_fwhm-method'] = np.rad2deg(fit_values[0])
+        likelihood_output_dict['fwhm_fwhm-method'] = np.rad2deg(fit_values[1])
+        likelihood_output_dict['meas_errbar_fwhm-method'] = np.rad2deg(fit_values[1] / np.sqrt(8*np.log(2)))
+        likelihood_output_dict['hwhm_above_fwhm-method'] = np.rad2deg(fit_values[2])
+        likelihood_output_dict['hwhm_below_fwhm-method'] = np.rad2deg(fit_values[3])
+
+        # Skew normal fit
+        fit_values = skew_normal_fit_curvefit(angles_rad,norm_sampled_likelihood)
+        angles_deg_skewnorm =  np.linspace(2*angle_min_deg,2*angle_max_deg,num=num_pts)
+        skewnorm_fitted = utils.norm_skewnorm_pdf(angles_deg_skewnorm, np.rad2deg(fit_values[0]), 
+                                                  np.rad2deg(fit_values[1]), fit_values[2])
+        skewnorm_fwhm_params = fwhm_fit(angles_deg_skewnorm,skewnorm_fitted) # Results already in deg
+        likelihood_output_dict['mu_skewnorm-method'] = np.rad2deg(fit_values[0])
+        likelihood_output_dict['sigma_skewnorm-method'] = np.rad2deg(fit_values[1])
+        likelihood_output_dict['alpha_skewnorm-method'] = fit_values[2] # alpha is unitless
+        likelihood_output_dict['meas_angle_skewnorm-method'] = skewnorm_fwhm_params[0]
+        likelihood_output_dict['fwhm_skewnorm-method'] = skewnorm_fwhm_params[1]
+        likelihood_output_dict['meas_errbar_skewnorm-method'] = skewnorm_fwhm_params[1] / np.sqrt(8*np.log(2))
+        likelihood_output_dict['hwhm_above_skewnorm-method'] = skewnorm_fwhm_params[2]
+        likelihood_output_dict['hwhm_below_skewnorm-method'] = skewnorm_fwhm_params[3]
+
+        # Moment method
+        fit_values = gaussian_fit_moment(angles_rad,norm_sampled_likelihood)
+        likelihood_output_dict['meas_angle_gauss-moment'] = np.rad2deg(fit_values[0])
+        likelihood_output_dict['meas_errbar_gauss-moment'] = np.rad2deg(fit_values[1])
+    elif fit_method=='curvefit':
         # Using default guess starting values set in function
         fit_values = gaussian_fit_curvefit(angles_rad,norm_sampled_likelihood)
-        fit_values_deg = [np.rad2deg(fit_values[0]), np.rad2deg(fit_values[1])]
         # Could add some flag or option to redo the fit for a given map if curve_fit() returns
         # a bad stddev value from failing to fit - for now I will leave it so I can see easily by the stddev that it fails
+        likelihood_output_dict['meas_angle_gauss-curvefit'] = np.rad2deg(fit_values[0])
+        likelihood_output_dict['meas_errbar_gauss-curvefit'] = np.rad2deg(fit_values[1])
+
+        residual_mean, residual_sum, residual = calc_residual_mean_and_sum(angles_rad, norm_sampled_likelihood,
+                                                                 fit_values[0],fit_values[1])
+        likelihood_output_dict['residual_mean'] = residual_mean
+        likelihood_output_dict['residual_sum'] = residual_sum
+        gauss_params_deg = [np.rad2deg(fit_values[0]), np.rad2deg(fit_values[1])]
     elif fit_method=='fwhm':
         fit_values = fwhm_fit(angles_rad,norm_sampled_likelihood)
+
+        likelihood_output_dict['meas_angle_fwhm-method'] = np.rad2deg(fit_values[0])
+        likelihood_output_dict['fwhm_fwhm-method'] = np.rad2deg(fit_values[1])
         # Convert FWHM to the standard deviation of an equivalent width Gaussian
         # Good S/N likelihoods are already Gaussian. Lower S/N ones that can still
         # be fit have a central peak with width close to the width of a Gaussian.
-        sigma = fit_values[1] / (2*np.sqrt(2*np.log(2)))
-        fit_values_deg = [np.rad2deg(fit_values[0]), np.rad2deg(sigma)]
+        likelihood_output_dict['meas_errbar_fwhm-method'] = np.rad2deg(fit_values[1] / np.sqrt(8*np.log(2)))
+        likelihood_output_dict['hwhm_above_fwhm-method'] = np.rad2deg(fit_values[2])
+        likelihood_output_dict['hwhm_below_fwhm-method'] = np.rad2deg(fit_values[3])
+
+        residual_mean, residual_sum, residual = calc_residual_mean_and_sum(angles_rad, norm_sampled_likelihood,
+                                                                 fit_values[0],fit_values[1]/np.sqrt(8*np.log(2)))
+        likelihood_output_dict['residual_mean'] = residual_mean
+        likelihood_output_dict['residual_sum'] = residual_sum
+        gauss_params_deg = [likelihood_output_dict['meas_angle_fwhm-method'], likelihood_output_dict['meas_errbar_fwhm-method']]
+    elif fit_method=='skewnorm':
+        fit_values = skew_normal_fit_curvefit(angles_rad,norm_sampled_likelihood)
+        # Then fitting the FWHM of the best fit skew normal distribution
+        # over a range 2x the width of the fitting range
+        angles_deg_skewnorm =  np.linspace(2*angle_min_deg,2*angle_max_deg,num=num_pts)
+        skewnorm_fitted = utils.norm_skewnorm_pdf(angles_deg_skewnorm, np.rad2deg(fit_values[0]), 
+                                                  np.rad2deg(fit_values[1]), fit_values[2])
+        skewnorm_fwhm_params = fwhm_fit(angles_deg_skewnorm,skewnorm_fitted) # Results already in deg
+
+        likelihood_output_dict['mu_skewnorm-method'] = np.rad2deg(fit_values[0])
+        likelihood_output_dict['sigma_skewnorm-method'] = np.rad2deg(fit_values[1])
+        likelihood_output_dict['alpha_skewnorm-method'] = fit_values[2] # alpha is unitless
+        likelihood_output_dict['meas_angle_skewnorm-method'] = skewnorm_fwhm_params[0]
+        likelihood_output_dict['fwhm_skewnorm-method'] = skewnorm_fwhm_params[1]
+        likelihood_output_dict['meas_errbar_skewnorm-method'] = skewnorm_fwhm_params[1] / np.sqrt(8*np.log(2))
+        likelihood_output_dict['hwhm_above_skewnorm-method'] = skewnorm_fwhm_params[2]
+        likelihood_output_dict['hwhm_below_skewnorm-method'] = skewnorm_fwhm_params[3]
+
+        residual_mean, residual_sum, residual = calc_residual_mean_and_sum(angles_rad, norm_sampled_likelihood,
+                                                            np.deg2rad(skewnorm_fwhm_params[0]),
+                                                            np.deg2rad(skewnorm_fwhm_params[1] / np.sqrt(8*np.log(2))))
+        likelihood_output_dict['residual_mean'] = residual_mean
+        likelihood_output_dict['residual_sum'] = residual_sum
+        gauss_params_deg = [likelihood_output_dict['meas_angle_skewnorm-method'], likelihood_output_dict['meas_errbar_skewnorm-method']]
     else:
         fit_values = gaussian_fit_moment(angles_rad,norm_sampled_likelihood)
-        fit_values_deg = [np.rad2deg(fit_values[0]), np.rad2deg(fit_values[1])]
-
-    # Calculating mean and sum of abs of residual between likelihood and best fit Gaussian
-    # within 1 sigma of mean value - two possible ways of identifying and cutting poor S/N or bad fits
-    residual = norm_sampled_likelihood - utils.gaussian(angles_rad,fit_values[0],fit_values[1])
-    minus_sigma_idx = np.searchsorted(angles_rad, fit_values[0]-fit_values[1])
-    plus_sigma_idx = np.searchsorted(angles_rad, fit_values[0]+fit_values[1])
-    residual_mean = np.mean(np.abs(residual[minus_sigma_idx:plus_sigma_idx]))
-    residual_sum = np.sum(np.abs(residual[minus_sigma_idx:plus_sigma_idx]))
+        likelihood_output_dict['meas_angle_gauss-moment'] = np.rad2deg(fit_values[0])
+        likelihood_output_dict['meas_errbar_gauss-moment'] = np.rad2deg(fit_values[1])
+        residual_mean, residual_sum, residual = calc_residual_mean_and_sum(angles_rad, norm_sampled_likelihood,
+                                                                 fit_values[0],fit_values[1])
+        likelihood_output_dict['residual_mean'] = residual_mean
+        likelihood_output_dict['residual_sum'] = residual_sum
+        gauss_params_deg = [np.rad2deg(fit_values[0]), np.rad2deg(fit_values[1])]
 
     if plot_like:
         map_name = os.path.split(map_fname)[1][:-9] # removing "_map.fits"
-        aop.plot_likelihood(output_dir, map_name, angles_deg, norm_sampled_likelihood,fit_values_deg,residual)
+        aop.plot_likelihood(output_dir, map_name, angles_deg, norm_sampled_likelihood,gauss_params_deg,residual)
 
-    return fit_values_deg, residual_mean, residual_sum
+    return likelihood_output_dict
 
 def estimate_pol_angle(map_path, line, logger, ref_maps, ref_ivar, galaxy_mask,
                        kx_cut, ky_cut, unpixwin, filter_radius, use_ivar_weight,
@@ -609,10 +752,36 @@ def estimate_pol_angle(map_path, line, logger, ref_maps, ref_ivar, galaxy_mask,
                        'CAMB_EE': CAMB_ClEE_binned, 'CAMB_BB': CAMB_ClBB_binned,
                        'w2_depth1': -9999, 'w2_cross': -9999, 'w2_ref': -9999, 'fsky': -9999,
                        'w2w4_depth1': -9999, 'w2w4_cross': -9999, 'w2w4_ref': -9999,
-                       'meas_angle': -9999, 'meas_errbar': -9999,
-                       'initial_timestamp': -9999, 'median_timestamp': -9999, 
+                       'name_timestamp': -9999, 'median_timestamp': -9999, 
+                       'initial_timestamp': -9999, 'final_timestamp': -9999,
                        'ivar_sum': -9999, 'residual_mean': -9999, 
                        'residual_sum': -9999, 'map_cut': 1}
+
+        if fit_method == 'all':
+            output_dict.update({'meas_angle_gauss-curvefit': -9999, 'meas_errbar_gauss-curvefit': -9999,
+                                'meas_angle_fwhm-method': -9999, 'fwhm_fwhm-method': -9999,
+                                'meas_errbar_fwhm-method': -9999, 'hwhm_above_fwhm-method': -9999,
+                                'hwhm_below_fwhm-method': -9999, 'mu_skewnorm-method': -9999,
+                                'sigma_skewnorm-method': -9999, 'alpha_skewnorm-method': -9999,
+                                'meas_angle_skewnorm-method': -9999, 'fwhm_skewnorm-method': -9999,
+                                'meas_errbar_skewnorm-method': -9999, 'hwhm_above_skewnorm-method': -9999,
+                                'hwhm_below_skewnorm-method': -9999, 'meas_angle_gauss-moment': -9999,
+                                'meas_errbar_gauss-moment': -9999})
+        elif fit_method == 'curvefit':
+            output_dict.update({'meas_angle_gauss-curvefit': -9999, 'meas_errbar_gauss-curvefit': -9999})
+        elif fit_method == 'fwhm':
+            output_dict.update({'meas_angle_fwhm-method': -9999, 'fwhm_fwhm-method': -9999,
+                                'meas_errbar_fwhm-method': -9999, 'hwhm_above_fwhm-method': -9999,
+                                'hwhm_below_fwhm-method': -9999})
+        elif fit_method == 'skewnorm':
+            output_dict.update({'mu_skewnorm-method': -9999,
+                                'sigma_skewnorm-method': -9999, 'alpha_skewnorm-method': -9999,
+                                'meas_angle_skewnorm-method': -9999, 'fwhm_skewnorm-method': -9999,
+                                'meas_errbar_skewnorm-method': -9999, 'hwhm_above_skewnorm-method': -9999,
+                                'hwhm_below_skewnorm-method': -9999})
+        else:
+            output_dict.update({'meas_angle_gauss-moment': -9999, 'meas_errbar_gauss-moment': -9999})
+
         if plot_like:
             # Make empty likelihood plot for web viewer
             angles_deg = np.linspace(angle_min_deg,angle_max_deg,num=num_pts)
@@ -692,10 +861,10 @@ def estimate_pol_angle(map_path, line, logger, ref_maps, ref_ivar, galaxy_mask,
                                     +(binned_E2xE2*binned_B1xB1+binned_E2xB1**2)
                                     -2*(binned_E1xE2*binned_B1xB2+binned_E1xB1*binned_E2xB2)))
 
-        fit_values, residual_mean, residual_sum = sample_likelihood_and_fit(estimator,covariance,CAMB_ClEE_binned,num_pts=num_pts,
-                                                                            angle_min_deg=angle_min_deg, angle_max_deg=angle_max_deg,
-                                                                            fit_method=fit_method,plot_like=plot_like,
-                                                                            output_dir=output_dir_path,map_fname=line)
+        likelihood_output_dict = sample_likelihood_and_fit(estimator,covariance,CAMB_ClEE_binned,num_pts=num_pts,
+                                                            angle_min_deg=angle_min_deg, angle_max_deg=angle_max_deg,
+                                                            fit_method=fit_method,plot_like=plot_like,
+                                                            output_dir=output_dir_path,map_fname=line)
 
         output_dict = {'ell': centers, 'E1xB2': binned_E1xB2, 'E2xB1': binned_E2xB1, 
                         'E1xE1': binned_E1xE1, 'B2xB2': binned_B2xB2, 'E2xE2': binned_E2xE2,
@@ -705,9 +874,8 @@ def estimate_pol_angle(map_path, line, logger, ref_maps, ref_ivar, galaxy_mask,
                         'CAMB_EE': CAMB_ClEE_binned, 'CAMB_BB': CAMB_ClBB_binned,
                         'w2_depth1': w2_depth1, 'w2_cross': w2_cross, 'w2_ref': w2_ref, 'fsky': fsky,
                         'w2w4_depth1': w2w4_depth1, 'w2w4_cross': w2w4_cross, 'w2w4_ref': w2w4_ref,
-                        'meas_angle': fit_values[0], 'meas_errbar': fit_values[1],
-                        'ivar_sum': ivar_sum, 'residual_mean': residual_mean, 
-                        'residual_sum': residual_sum, 'map_cut': 0}
+                        'ivar_sum': ivar_sum, 'map_cut': 0}
+        output_dict.update(likelihood_output_dict)
         return output_dict, (depth1_mask, depth1_mask_indices, depth1_ivar, depth1_TEB[0], w_depth1)
 
 
@@ -721,8 +889,9 @@ def cal_sample_likelihood_and_fit(cal1xcal2, cal1xdepth1, cal1xcal1, cal2xcal2, 
         The cal_fit_method variable selects which fitter to use for extracting the peak
         and width of likelihood. Options are 'fwhm' (uses fwhm_fit() to find peak and FWHM,
         which is converted to the std dev for an equivalent Gaussian), 'curvefit' (uses scipy's
-        curve_fit() to fit a Gaussian to the likelihood), or 'moment' (calculates the first and
-        second moments of a Gaussian). The FWHM option is the most general and robust to non-
+        curve_fit() to fit a Gaussian to the likelihood), 'skewnorm' (uses scipy's curve_fit() to 
+        fit a skew normal distribution to the likelihood), or 'moment' (calculates the first and
+        second moments of a Gaussian). The FWHM or skewnorm option is the most general and robust to non-
         Gaussianities in the lower S/N likelihoods.
 
         Cal1 and Cal2 here may refer to either the pa5 coadd or the pa6 coadd, depending on
@@ -739,7 +908,7 @@ def cal_sample_likelihood_and_fit(cal1xcal2, cal1xdepth1, cal1xcal1, cal2xcal2, 
 
     if cal_fit_method=='curvefit':
         # The default guess starting values are for the angle likelihood, so pass new ones here
-        guess = [1.0, 0.2] # Guessing a center value of 1.0 with std dev 0.2
+        guess = [y_values[np.argmax(norm_sampled_likelihood)], 0.2] # Guessing a center value of the data peak with std dev 0.2
         fit_values = gaussian_fit_curvefit(y_values,norm_sampled_likelihood, guess=guess)
         # Testing revealed this sometimes fails to fit good ones that are far from the guess
         # Easiest thing to do is just refit them with moment method - usually still easy to separate out bad ones
@@ -750,8 +919,17 @@ def cal_sample_likelihood_and_fit(cal1xcal2, cal1xdepth1, cal1xcal1, cal2xcal2, 
         # Convert FWHM to the standard deviation of an equivalent width Gaussian
         # Good S/N likelihoods are already Gaussian. Lower S/N ones that can still
         # be fit have a central peak with width close to the width of a Gaussian.
-        sigma = fit_values[1] / (2*np.sqrt(2*np.log(2)))
+        sigma = fit_values[1] / np.sqrt(8*np.log(2))
         fit_values = [fit_values[0], sigma]
+    elif cal_fit_method=='skewnorm':
+        skew_fit_values = skew_normal_fit_curvefit(y_values,norm_sampled_likelihood)
+        # Then fitting the FWHM of the best fit skew normal distribution
+        # over a range 2x the width of the fitting range
+        y_skewnorm =  np.linspace(0.5*y_min,2*y_max,num=num_pts)
+        skewnorm_fitted = utils.norm_skewnorm_pdf(y_skewnorm, skew_fit_values[0], 
+                                                  skew_fit_values[1], skew_fit_values[2])
+        skewnorm_fwhm_params = fwhm_fit(y_skewnorm,skewnorm_fitted)
+        fit_values = [skewnorm_fwhm_params[0], skewnorm_fwhm_params[1] / np.sqrt(8*np.log(2))]
     else:
         fit_values = gaussian_fit_moment(y_values,norm_sampled_likelihood)
     
