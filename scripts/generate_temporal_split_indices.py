@@ -26,7 +26,7 @@ duration_cut_threshold = 14*3600
 # Setting split parameters
 # March 1st, 2020 at UTC 00:00:00 is 1583038800 - around PA7 installation
 # February 1st, 2019 at UTC 00:00:00 is 1548997200 - PS paper temporal null
-time_of_split = 1583038800 
+time_of_split = 1548997200 
 output_dir_path = "/pscratch/sd/z/zbh5/null_tests/"
 split_one_fname = "temporal_split_indices_one.npy"
 split_two_fname = "temporal_split_indices_two.npy"
@@ -76,48 +76,48 @@ durations_f150 = final_timestamps_f150 - initial_timestamps_f150
 durations_f090 = final_timestamps_f090 - initial_timestamps_f090
 
 # Doing basic cuts - f150
-logger.info("Total number of f150 maps: ", n_maps_f150)
+logger.info(f"Total number of f150 maps: {n_maps_f150}")
 # Identifying maps that weren't cut by the galaxy mask
 cut_good_f150 = np.where(cut_flags_f150 != 1)[0]
-logger.info("# of f150 maps passing galaxy mask cut: ", len(cut_good_f150))# Checking for failed fits
+logger.info(f"# of f150 maps passing galaxy mask cut: {len(cut_good_f150)}")# Checking for failed fits
 errorbar_good_f150 = np.where(np.abs(errbars_deg_skewnorm_f150) > errorbar_cut_threshold)[0]
-logger.info("# of f150 maps passing failed fit cut: ", len(errorbar_good_f150))
+logger.info(f"# of f150 maps passing failed fit cut: {len(errorbar_good_f150)}")
 # Eliminating pathological likelihoods that peak at boundaries
 peak_good_f150 = np.where(np.abs(angles_deg_skewnorm_f150) < peak_cut_threshold)[0]
-logger.info("# of f150 maps passing peak value cut: ", len(peak_good_f150))
+logger.info(f"# of f150 maps passing peak value cut: {len(peak_good_f150)}")
 # Doing a cut based on FWHM of skewnormal distribution to eliminate bad fits
 fwhm_good_f150 = np.where(np.abs(fwhms_skewnorm_f150) < fwhm_cut_threshold)[0]
-logger.info("# of f150 maps passing FWHM cut: ", len(fwhm_good_f150))
+logger.info(f"# of f150 maps passing FWHM cut: {len(fwhm_good_f150)}")
 # Doing a cut based on map duration to eliminate super long maps
 duration_good_f150 = np.where(durations_f150 < duration_cut_threshold)[0] # Cut all maps longer than 14 hours
-logger.info("# of f150 maps passing duration cut: ", len(duration_good_f150))
+logger.info(f"# of f150 maps passing duration cut: {len(duration_good_f150)}")
 set_pass_all_cuts_f150 = np.intersect1d(duration_good_f150,np.intersect1d(fwhm_good_f150, np.intersect1d(np.intersect1d(cut_good_f150, errorbar_good_f150), peak_good_f150)))
-logger.info("# of f150 maps passing all five cuts: ", len(set_pass_all_cuts_f150))
+logger.info(f"# of f150 maps passing all five cuts: {len(set_pass_all_cuts_f150)}")
 logger.info(f"Percentage of f150 maps passing all five cuts: {len(set_pass_all_cuts_f150)/n_maps_f150}")
 logger.info(f"Percentage of f150 maps not cut by galaxy mask passing the other four cuts: {len(set_pass_all_cuts_f150)/len(cut_good_f150)}")
 
 # Doing basic cuts - f090
-logger.info("Total number of f090 maps: ", n_maps_f090)
+logger.info(f"Total number of f090 maps: {n_maps_f090}")
 # Identifying maps that weren't cut by the galaxy mask
 cut_good_f090 = np.where(cut_flags_f090 != 1)[0]
-logger.info("# of f090 maps passing galaxy mask cut: ", len(cut_good_f090))
+logger.info(f"# of f090 maps passing galaxy mask cut: {len(cut_good_f090)}")
 # Checking for failed fits
 errorbar_good_f090 = np.where(np.abs(errbars_deg_skewnorm_f090) > errorbar_cut_threshold)[0]
-logger.info("# of f090 maps passing failed fit cut: ", len(errorbar_good_f090))
+logger.info(f"# of f090 maps passing failed fit cut: {len(errorbar_good_f090)}")
 # Eliminating pathological likelihoods that peak at boundaries
 peak_good_f090 = np.where(np.abs(angles_deg_skewnorm_f090) < peak_cut_threshold)[0]
-logger.info("# of f090 maps passing peak value cut: ", len(peak_good_f090))
+logger.info(f"# of f090 maps passing peak value cut: {len(peak_good_f090)}")
 # Doing a cut based on FWHM of skewnormal distribution to eliminate bad fits
 fwhm_good_f090 = np.where(np.abs(fwhms_skewnorm_f090) < fwhm_cut_threshold)[0]
-logger.info("# of f090 maps passing FWHM cut: ", len(fwhm_good_f090))
+logger.info(f"# of f090 maps passing FWHM cut: {len(fwhm_good_f090)}")
 # Doing a cut based on map duration to eliminate super long maps
 duration_good_f090 = np.where(durations_f090 < duration_cut_threshold)[0] # Cut all maps longer than 14 hours
-logger.info("# of f090 maps passing duration cut: ", len(duration_good_f090))
+logger.info(f"# of f090 maps passing duration cut: {len(duration_good_f090)}")
 set_pass_all_cuts_f090 = np.intersect1d(duration_good_f090,np.intersect1d(fwhm_good_f090, np.intersect1d(np.intersect1d(cut_good_f090, errorbar_good_f090), peak_good_f090)))
-logger.info("# of f090 maps passing all five cuts: ", len(set_pass_all_cuts_f090))
+logger.info(f"# of f090 maps passing all five cuts: {len(set_pass_all_cuts_f090)}")
 logger.info(f"Percentage of f090 maps passing all five cuts: {len(set_pass_all_cuts_f090)/n_maps_f090}")
 logger.info(f"Percentage of f090 maps not cut by galaxy mask passing the other four cuts: {len(set_pass_all_cuts_f090)/len(cut_good_f090)}")
-logger.info("# of all maps passing all five cuts: ", len(set_pass_all_cuts_f090)+len(set_pass_all_cuts_f150))
+logger.info(f"# of all maps passing all five cuts: {len(set_pass_all_cuts_f090)+len(set_pass_all_cuts_f150)}")
 logger.info(f"Percentage of all maps passing all five cuts: {(len(set_pass_all_cuts_f090)+len(set_pass_all_cuts_f150))/n_maps}")
 
 # Combining the f090 and f150 data together and sorting by time
