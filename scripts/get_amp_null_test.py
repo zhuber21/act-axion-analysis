@@ -68,7 +68,7 @@ if not os.path.exists(output_dir_path + 'log/'):
         os.makedirs(output_dir_path + 'log/')
     except FileExistsError:
         pass
-log_filename = output_dir_path+'log/process{:02d}_run.log'.format(rank)
+log_filename = output_dir_path+'log/process{:05d}_run.log'.format(rank)
 logging.basicConfig(level=logging.INFO, datefmt='%Y-%m-%d %H:%M:%S', style='{',
                     format='{asctime} {levelname} {filename}:{lineno}: {message}',
                     handlers=[logging.FileHandler(filename=log_filename)]

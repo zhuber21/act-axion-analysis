@@ -21,7 +21,7 @@ path_to_files = args.path_to_files
 # Group all outputs from split one
 sim_one_paths = sorted(glob.glob(path_to_files+'*sim*_split_one.npy'))
 first_fname = sim_one_paths[0].split('/')[-1]
-output_tag = first_fname[0][:-23] 
+output_tag = first_fname[:-23] 
 
 all_sim_one_array = []
 
