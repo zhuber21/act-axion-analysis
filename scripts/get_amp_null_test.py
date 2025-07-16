@@ -209,7 +209,7 @@ combined_initial_time = np.concatenate((initial_timestamps_f150[set_pass_all_cut
 combined_final_time = np.concatenate((final_timestamps_f150[set_pass_all_cuts_f150], final_timestamps_f090[set_pass_all_cuts_f090]))
 combined_mean_time = (combined_final_time + combined_initial_time) / 2.0
 combined_obs_duration = combined_final_time - combined_initial_time
-logger.info(combined_angles.shape, combined_errorbars.shape, combined_initial_time.shape, combined_final_time.shape)
+logger.info(f"Size of combined arrays: {combined_angles.shape}, {combined_errorbars.shape}, {combined_initial_time.shape}, {combined_final_time.shape}")
 
 # Now sorting them in time
 sort_indices = np.argsort(combined_mean_time)
@@ -298,9 +298,7 @@ if rank==0:
         np.save(results_output_fname1, split_one_amps)
     except Exception as e:
         logger.error(f"Real timestream first split failed with error {e}")
-if rank==1:
-    # To try to balance the time more evenly across processes/nodes, run the second split on process 1 instead of 0
-    logger.info("Running real timestream split two on process 1")
+    logger.info("Running real timestream split two on process 0")
     try:
         split_two_amps = ta.calc_marg_amp(input_fs, As, phases, 
                                         sorted_combined_angles[split_two_idxs],sorted_combined_errorbars[split_two_idxs],
@@ -309,17 +307,18 @@ if rank==1:
         np.save(results_output_fname2, split_two_amps)
     except Exception as e:
         logger.error(f"Real timestream second split failed with error {e}")
-
-# This loop distributes some of the maps to each process
-for i in range(rank, n_sims, size):
-    logger.info(f"Processing sim {i} on process {rank}")
-    try:
-        sim_process(input_fs, As, phases, split_one_idxs, split_two_idxs, 
-                    sorted_combined_angles, sorted_combined_errorbars, 
-                    sorted_combined_obs_duration, sorted_combined_mean_time,
-                    output_dir_path, output_tag, i)
-    except Exception as e:
-        logger.error(f"Sim {i} failed on process {rank} with error {e}")
+else:
+    # This loop distributes some of the maps to each process
+    # Only uses processes 1 and up to avoid running both the real timestream and a sim on process 0
+    for i in range(rank-1, n_sims, size-1):
+        logger.info(f"Processing sim {i} on process {rank}")
+        try:
+            sim_process(input_fs, As, phases, split_one_idxs, split_two_idxs, 
+                        sorted_combined_angles, sorted_combined_errorbars, 
+                        sorted_combined_obs_duration, sorted_combined_mean_time,
+                        output_dir_path, output_tag, i)
+        except Exception as e:
+            logger.error(f"Sim {i} failed on process {rank} with error {e}")
 
 logger.info(f"Finished running get_amp_null_test.py. Output is in: {output_dir_path}")
 stop_time = time.time()
