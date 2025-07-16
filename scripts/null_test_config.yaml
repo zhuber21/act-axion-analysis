@@ -1,0 +1,40 @@
+# null_test_config.yaml
+# All the parameters for running get_amp_null_test.py
+
+# Path for output directory
+output_dir_root: "/pscratch/sd/z/zbh5/null_tests/"
+
+# Path to npy files containing all f150 and f090 results
+f150_result_file: '/pscratch/sd/z/zbh5/results/combined_angle_calc_results_f150.npy'
+f090_result_file: '/pscratch/sd/z/zbh5/results/combined_angle_calc_results_f090.npy'
+
+# Path to npy files containing list of indices for the two splits
+split_one_indices: "/pscratch/sd/z/zbh5/null_tests/temporal_split_indices_one.npy"
+split_two_indices: "/pscratch/sd/z/zbh5/null_tests/temporal_split_indices_two.npy"
+
+# Parameters for cutting bad maps from full set
+errorbar_cut_threshold: 0.1 # keep maps with errorbars larger than 0.1 deg
+peak_cut_threshold: 30.0 # keep maps with abs(peak value) less than 30 deg
+fwhm_cut_threshold: 50.0 # keep maps with less than 50.0 deg FWHM
+duration_cut_threshold: 50400 # keep maps less than 14*3600 seconds long
+
+# Parameters for setting up sampling grid of frequencies, amplitudes, and phases
+num_days_max_freq_period: 1.0 # Setting the number of days in the period for the max frequency (default 1 day)
+min_freq_period_factor: 1.0 # This factor divides the total length of the timestream to set the min freq
+# A factor of 2 here would sample only down to a freq with a period half the length of the total timestream and so on
+freq_oversample_factor: 5 # Divides the smallest frequency to set frquency spacing
+# Restricting A to be zero or positive
+min_amplitude: 0.001
+max_amplitude: 3.0
+amplitude_step: 0.001
+# Now making phase go bettween [0, 2*pi)
+min_phase_deg: 0.0 
+max_phase_deg: 360.0 
+phase_step_deg: 1.0 
+
+# Number of background timestreams to run
+# You will run into some issues with parsing the output file names
+# in collect_null_test_npy_files.py
+# if n_sims is greater than 5 digits.
+n_sims: 1000
+
