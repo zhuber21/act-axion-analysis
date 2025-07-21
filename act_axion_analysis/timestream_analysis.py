@@ -65,6 +65,70 @@ def calc_marg_amp(input_fs, As, phases, angles, errorbars, durations, mean_times
 
     return best_fit_amps
 
+def calc_best_fit_amp_and_phase(input_fs, As, phases, angles, errorbars, durations, mean_times):
+    """This function calculates the best fit amplitude and phase (i.e. the ones that minimize chi2)
+       for a given timestream. The timestream could be a split for a null test or the
+       full timestream for calculating upper limits.
+       
+       Also returns the minimum chi2 value itself for assessing consistency with background model."""
+    
+    # Precalculating factors involving amplitude and phase
+    cos_phases = np.cos(phases)
+    sin_phases = np.sin(phases)
+    cos2_phases = cos_phases**2
+    sin2_phases = sin_phases**2
+    A2s = As**2
+    # Also precalculating common factors in trig and sinc 
+    # functions to try to speed up loop even more
+    sinc_factor_f = np.pi*input_fs 
+    trig_factor_f = 2*np.pi*input_fs
+
+    # Output array
+    best_fit_amps = np.empty(input_fs.size)
+    best_fit_phases = np.empty(input_fs.size)
+    min_chi2 = np.empty(input_fs.size)
+
+    # Defining factors for chi2 calculation
+    factor2 = np.empty(input_fs.size)
+    factor3 = np.empty(input_fs.size)
+    factor4 = np.empty(input_fs.size)
+    factor5 = np.empty(input_fs.size)
+    factor6 = np.empty(input_fs.size)
+    # This one is frequency independent
+    factor1 = np.sum(angles**2/errorbars**2)
+    # For the rest, there is a whole different number for each frequency
+    for j in range(input_fs.size):
+        # The factors of np.pi in np.sinc() account for the numpy normalization
+        # in order to make np.sinc(x) = sin(x)/x, as expected. 
+        factor2[j] = np.sum(-2.0*angles*np.sinc(sinc_factor_f[j]*durations/np.pi)
+                                       *np.sin(trig_factor_f[j]*mean_times)/errorbars**2)
+        factor3[j] = np.sum(-2.0*angles*np.sinc(sinc_factor_f[j]*durations/np.pi)
+                                       *np.cos(trig_factor_f[j]*mean_times)/errorbars**2)
+        factor4[j] = np.sum(np.sinc(sinc_factor_f[j]*durations/np.pi)**2
+                                       *np.sin(trig_factor_f[j]*mean_times)**2/errorbars**2)
+        factor5[j] = np.sum(2.0*np.sinc(sinc_factor_f[j]*durations/np.pi)**2
+                                       *np.sin(trig_factor_f[j]*mean_times)
+                                       *np.cos(trig_factor_f[j]*mean_times)/errorbars**2)
+        factor6[j] = np.sum(np.sinc(sinc_factor_f[j]*durations/np.pi)**2
+                                       *np.cos(trig_factor_f[j]*mean_times)**2/errorbars**2)
+
+    for i in range(input_fs.size):
+        sampled_chi2s = np.empty((phases.size,As.size)) # Allowing dtype to be set automatically for now - may need to shrink to float32 
+        # Switching to iterating over phase since I want more amp resolution than phase
+        for k in range(phases.size):
+            sampled_chi2s[k] = (factor1 + As*cos_phases[k]*factor2[i]
+                                        + As*sin_phases[k]*factor3[i] 
+                                        + A2s*cos2_phases[k]*factor4[i]
+                                        + A2s*sin_phases[k]*cos_phases[k]*factor5[i] 
+                                        + A2s*sin2_phases[k]*factor6[i])
+
+        min_idxs = np.unravel_index(np.argmin(sampled_chi2s),sampled_chi2s.shape)
+        min_chi2[i] = np.min(sampled_chi2s)
+        best_fit_amps[i] = As[min_idxs[1]]
+        best_fit_phases[i] = phases[min_idxs[0]] # Phases come first in definition of sampled_chi2, so they are the first index here
+
+    return best_fit_amps, best_fit_phases, min_idxs
+
 def calc_upper_limits(input_fs, As, phases, angles, errorbars, durations, mean_times):
     """This function calculates the 95% upper limit after marginalizing over phase
        for a given timestream. The timestream could be a split for a null test or the
